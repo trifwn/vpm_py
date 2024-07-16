@@ -98,17 +98,17 @@ contains
       !Assign the pointers to the external data
       SOL_pm => DSOL_pm; RHS_pm => DRHS_pm; !QP => DQP; XP => DXP
       !-->
-      call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
-      call MPI_COMM_SIZE(MPI_COMM_WORLD, np, ierr)
-      do rank = 0, np - 1
-         if (rank.eq.my_rank) then
-            write (*,*) 'Rank:', rank
-            write (*,*) '------------------------'
-            write (*,*) maxval(abs(RHS_pm))
-            write (*,*) '------------------------'
-         end if
-         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-      enddo
+      ! call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
+      ! call MPI_COMM_SIZE(MPI_COMM_WORLD, np, ierr)
+      ! do rank = 0, np - 1
+      !    if (rank.eq.my_rank) then
+      !       write (*,*) 'Rank:', rank
+      !       write (*,*) '------------------------'
+      !       write (*,*) maxval(abs(RHS_pm))
+      !       write (*,*) '------------------------'
+      !    end if
+      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      ! enddo
 
       !iynbc 1 normal poisson solve.(Calculation of bc's is done here)
       if (iynbc .eq. 1) then
@@ -137,7 +137,6 @@ contains
                call Bounds3D(ibctyp, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
             else
                !Infinite domain boundary conditions(asume zero bc' at the boundary
-               write (*,*) , achar(9) , "CALLING INFDOMAIN"
                call infdomain_3D(neqs, neqf)
             end if
          end if
@@ -197,15 +196,15 @@ contains
          end if
       end if
       
-      do rank = 0, np - 1
-         if (rank.eq.my_rank) then
-            write (*,*) 'Rank:', rank
-            write (*,*) '------------------------'
-            write (*,*) maxval(abs(SOL_pm))
-            write (*,*) '------------------------'
-         end if
-         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-      enddo
+      ! do rank = 0, np - 1
+      !    if (rank.eq.my_rank) then
+      !       write (*,*) 'Rank:', rank
+      !       write (*,*) '------------------------'
+      !       write (*,*) maxval(abs(SOL_pm))
+      !       write (*,*) '------------------------'
+      !    end if
+      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      ! enddo
 
       nullify (SOL_pm, RHS_pm, QP, XP)
    contains

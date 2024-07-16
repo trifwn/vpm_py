@@ -322,7 +322,9 @@ Subroutine cell3d_interp_euler(F, FC, N, M)
    double precision, intent(out) :: FC(N)
    double precision              :: KSIC(8), HTAC(8), ZETAC(8), KSI(N), HTA(N), ZETA(N)
    integer                       :: i, j
+   integer :: NTEMP
 
+   NTEMP = N 
    !-->Define KSI,HTA corners
    KSIC(1) = -1.d0
    KSIC(2) = 1.d0
@@ -356,7 +358,8 @@ Subroutine cell3d_interp_euler(F, FC, N, M)
    call get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
 
    do i = 1, 8 !cell nodes
-      do j = 1, N
+      do j = 1, NTEMP
+         ! DYMMy
          FC(j) = FC(j) + F(i)*(1.d0 + KSI(j)*KSIC(i))*(1.d0 + HTA(j)*HTAC(i))*(1.d0 + ZETA(j)*ZETAC(i))
       end do
    end do
@@ -383,7 +386,8 @@ End Subroutine cell3d_interp_euler
 Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    Implicit None
 
-   integer, intent(in)           :: N, M 
+   integer, intent(in)           :: M 
+   integer, intent(in)           :: N 
    ! N is the number of particles to remesh
    ! M is 2
    double precision, intent(in)  :: KSIC(8), HTAC(8), ZETAC(8)
@@ -403,7 +407,6 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
       do i = 1, M
          do j = 1, M
             nod = (k - 1)*M*M + (j - 1)*M + i
-            write (*, *) 'nod', nod
             KSI(nod) = KSIC(1) + (i - 1./2.)*DKSI
             HTA(nod) = HTAC(1) + (j - 1./2.)*DHTA
             ZETA(nod) = ZETAC(1) + (k - 1./2.)*DZETA

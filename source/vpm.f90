@@ -327,9 +327,10 @@ contains
       ! SOLVE THE PROBLEM
       if (my_rank .eq. 0) st = MPI_WTIME()
       call pmesh_solve
-      if (my_rank .eq.0) write (*, *) achar(9), '---> max SOL_PM', maxval(abs(SOL_pm))
-      if (my_rank .eq.0) write (*, *) achar(9), '---> max RHSL_PM', maxval(abs(RHS_pm))
-      if (my_rank .eq. 0) then
+      if (my_rank .eq.0) then
+         write (*, *) achar(9), '---> max SOL_PM', maxval(abs(SOL_pm))
+         write (*, *) achar(9), '---> max RHSL_PM', maxval(abs(RHS_pm))
+         write (*, *) ""
          et = MPI_WTIME()
          write (*, *) achar(9), 'VPM:Solving Particle Mesh', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
@@ -382,7 +383,10 @@ contains
             st = MPI_WTIME()
             velvrx_pm = 0; velvry_pm = 0; velvrz_pm = 0
             call calc_velocity_serial_3d(1) ! VELOCITY AND THETA STO PM
-            write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:', maxval(velvrx_pm), maxval(velvry_pm), maxval(velvrz_pm)
+            write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:' 
+            write (*, *) achar(9), achar(9), maxval(velvrx_pm)
+            write (*, *) achar(9), achar(9), maxval(velvry_pm)
+            write (*, *) achar(9), achar(9), maxval(velvrz_pm)
             ! SOL_PM IS NOW FILLED WITH THETA (DEFORMATION)
 
             et = MPI_WTIME()
@@ -442,10 +446,13 @@ contains
    ! CONTAINS
 
       Subroutine pmesh_solve !
+         integer :: rank
          !Yaps or Serial Pmesh
-         write (*, *) achar(9), 'PMESH_SOLVE: Processor np=',my_rank 
+         
          IF (II .eq. 0) then
-            IF (my_rank .eq. 3) then
+            if (my_rank .eq. 0) write (*, *) achar(9),  achar(9), 'Solving PM with Serial Pmesh'
+
+            IF (my_rank .eq. 0) then
                write (*, *) 'Solving_pm'
                SOL_pm(1:neqpm, :, :, :) = 0.0
                itree = iyntree
@@ -454,24 +461,32 @@ contains
                call pmesh(SOL_pm, RHS_pm, QP, XP, Xbound, DPm, NN, NN_bl, ND, Nblocks, ibctyp, 1, neqpm, &
                           iynbc, NVR, itree, ilevmax)
                ! call calc_velocity_serial_3d(1)
-               if (my_rank .eq. 0) write (*, *) achar(9),  achar(9), 'PM solved by PMESH'
             END IF
             !--------------------------------------------
             call MPI_BARRIER(MPI_COMM_WORLD, ierr)
             call velbcast_3d
          ELSE
+            if (my_rank .eq. 0) write (*, *) achar(9),  'Solving PM with YAPS'
             iret = 0
-            write (*, *) 'Processor np=',my_rank, 'Maximum RHS_pm block value' , maxval(abs(RHS_pm_bl(neqpm, :, :, :)))
             call yaps3d(SOL_pm_bl, RHS_pm_bl, Xbound_bl, Xbound_coarse, Dpm, Dpm_coarse, NNbl, NNbl_bl, &
                         NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, 1, neqpm, ncoarse, NBI, NBJ, NBK, nb_i, nb_j, nb_k, &
                         iret, iyntree, ilevmax, neqpm)
-            write (*, *) 'Processor np=',my_rank, 'Maximum SOL_pm block value' , maxval(abs(SOL_pm_bl(neqpm, :, :, :)))
+
+            if (my_rank .eq. 0) then
+               write (*, *) achar(9), achar(27)//'[1;34m','Final PM block solution values'
+            END IF
+            do rank = 1, np
+               if (my_rank .eq. rank) then
+                  write (*, *)  achar(9), achar(9), 'np=',my_rank, 'SOL' , maxval(abs(SOL_pm_bl(neqpm, :, :, :))) 
+               end if
+               call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+            end do
+            if (my_rank .eq. 0) write (*, *) achar(27)//'[0m'
             nb = my_rank + 1
             NN_tmp(1:3) = NNbl(1:3, nb)
             NN_bl_tmp(1:6) = NNbl_bl(1:6, nb)
             Xbound_tmp(1:6) = Xbound_bl(1:6, nb)
             call solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl) ! GATHER SOLUTION
-            if (my_rank .eq. 0) write (*, *) achar(9),  achar(9), 'PM solved by YAPS'
             !if (my_rank.eq.0) call calc_velocity_serial_3d(1)
             ! call velbcast_3d
          END IF

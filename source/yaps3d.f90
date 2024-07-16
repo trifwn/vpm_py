@@ -55,30 +55,42 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    ! 1 is the Nblocks not needed needs fix
    if (npmsize .ne. neqf) stop
    ibctyp_c = ibctyp 
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block' , achar(27)//'[0m'  
+   endif
    do rank = 0, np - 1
       if (my_rank .eq. rank) then
-         write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
-         
-         write (*, *) '******************************'
-         write (*, *) 'Individual Block SOLUTION'
-         write (*, *) "NS", neqs, neqf
-         write (*, *) "XB", Xbound_tmp(1:3)
-         write (*, *) "XB", Xbound_tmp(4:6)
-         write (*, *) "BL", NN_bl_tmp(1:3)
-         write (*, *) 'BL', NN_bl_tmp(4:6)
-         write (*, *) "NN", NN_tmp(1:3)
-         write (*, *) 'DP', Dpm_fine(1:3)   
-         write (*, * ) "ibctyp_c", ibctyp_c
-         write (*, *) 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
-         write (*, *) "SIZE SOL", size(SOL_pm_bl, 1), size(SOL_pm_bl, 2), size(SOL_pm_bl, 3), size(SOL_pm_bl, 4)
-         write (*, *) '******************************'
+         write (*, *) achar(9), 'np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+   !       write (*, *) '******************************'
+   !       write (*, *) 'Individual Block SOLUTION'
+   !       write (*, *) "NS", neqs, neqf
+   !       write (*, *) "XB", Xbound_tmp(1:3)
+   !       write (*, *) "XB", Xbound_tmp(4:6)
+   !       write (*, *) "BL", NN_bl_tmp(1:3)
+   !       write (*, *) 'BL', NN_bl_tmp(4:6)
+   !       write (*, *) "NN", NN_tmp(1:3)
+   !       write (*, *) 'DP', Dpm_fine(1:3)   
+   !       write (*, * ) "ibctyp_c", ibctyp_c
+   !       write (*, *) 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+   !       write (*, *) "SIZE SOL", size(SOL_pm_bl, 1), size(SOL_pm_bl, 2), size(SOL_pm_bl, 3), size(SOL_pm_bl, 4)
+   !       write (*, *) '******************************'
       endif
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
    end do
+   if (my_rank .eq.0) write (*, *) ''
+
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
             Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
-   write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
-   
+
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block solution' , achar(27)//'[0m'  
+   endif
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9), "np=",  my_rank, '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   enddo 
 
    !---Block definitions
 
@@ -86,7 +98,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    NXpm_c = NN_coarse(1); NYpm_c = NN_coarse(2); NZpm_c = NN_coarse(3)
 
    if (my_rank .eq. 0) endtime = MPI_WTIME()
-   if (my_rank .eq. 0) write (199, *) 'pmesh', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+   if (my_rank .eq. 0) then 
+      write (*,*)
+      write (199, *) 'pmesh', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *) achar(9), 'pmesh', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*,*)
+   endif
    allocate (SOL_pm_coarse(npmsize, NXpm_c, NYpm_c, NZpm_c), RHS_pm_coarse(npmsize, NXpm_c, NYpm_c, NZpm_c))
    SOL_pm_coarse = 0.d0; RHS_pm_coarse = 0.d0
 
@@ -156,8 +173,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
       end do
    end do
 
-   if(my_rank.eq.0)endtime = MPI_WTIME()
-   if(my_rank.eq.0) write(199,*)'mapnodes',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+   if(my_rank.eq.0) then 
+      endtime = MPI_WTIME()
+      write(199,*)'mapnodes',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+      write(*,*) achar(9), 'mapnodes',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+      write(*,*)
+   endif
 
    !!      if(my_rank.eq.0)starttime = MPI_WTIME()
    !!      !--BCAST Sol_pm_sample
@@ -303,11 +324,34 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    if(my_rank.eq.0)starttime = MPI_WTIME()
    if (itree.eq.0) lmax=1
    ibctyp_c=ibctyp
+
+   if (my_rank.eq.0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse' , achar(27)//'[0m'
+   endif
+
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9), 'np=', my_rank, '. max(RHS_pm_coarse) = ', maxval(abs(RHS_pm_coarse))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
+
    call pmesh(SOL_pm_coarse,RHS_pm_coarse,QP,XP,&
          Xbound_coarse,DPm_coarse,NN_coarse,NN_bl_coarse,ND,1,ibctyp_c,neqs,neqf,iynbc,0,itree,lmax)
-         
-   if(my_rank.eq.0)endtime = MPI_WTIME()
-   if(my_rank.eq.0) write(*,*)'Poisson Coarse=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse Solution' , achar(27)//'[0m'
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9), 'np=', my_rank, '. max(SOL_PM_coarse) = ', maxval(abs(SOL_PM_coarse))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do   
+      
+   if(my_rank.eq.0) then 
+      endtime = MPI_WTIME()
+      write (*,*)
+      write(*,*) achar(9), 'Poisson Coarse=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+      write (*,*)
+   endif
    ! Interpolate to all blocks
    
    ! At this point we calculate boundary conditions for each block and solve it 
@@ -340,9 +384,14 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !Xs boundary ,9 point stencil
    !face 1
 
-   if (my_rank .eq. 0) endtime = MPI_WTIME()
-   if (my_rank .eq. 0) write (199, *) 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-   if (my_rank .eq. 0) starttime = MPI_WTIME()
+   if (my_rank .eq. 0) then
+      endtime = MPI_WTIME()
+      write (*, *) 
+      write (199, *) 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *) achar(9), 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *) 
+      starttime = MPI_WTIME()
+   endif
    i = NXs
    do k = NZs, NZf
       do j = NYs, NYf
@@ -412,8 +461,13 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
       nullify (SOL_pm_bl, RHS_pm_bl)
       return
    end if
-   if (my_rank .eq. 0) endtime = MPI_WTIME()
-   if (my_rank .eq. 0) write (199, *) 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+   if (my_rank .eq. 0) then
+      endtime = MPI_WTIME()
+      write (*, *)
+      write (199, *) 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *) achar(9), 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *)
+   endif 
    ! write(*,*) 'Solving for Block',nb
    !iynbc=0 means that the bc's of the poisson solver are already defined
    iynbc = 0
@@ -422,18 +476,39 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
+   
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc)' , achar(27)//'[0m'  
+   endif
+   do rank = 0, np - 1
+
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9),  'np=', my_rank, 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
    if (my_rank .eq. 0) starttime = MPI_WTIME()
-   write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+   if (my_rank .eq.0) write (*, *) ''
+
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
             Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
-   write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
    if (my_rank .eq. 0) endtime = MPI_WTIME()
-   if (my_rank .eq. 0) write (199, *) 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
 
-   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-
-   write (*, *) 'FINISHED YAPS3D. np=', my_rank
-
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc) Solution' , achar(27)//'[0m'  
+   endif
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9), 'np=', my_rank, 'max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
+   if (my_rank .eq. 0) then 
+      write (*,*)
+      write (*, *) achar(9), 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (199, *) 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*,*)
+   endif
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
    !allocate(SOL_pm_er(NN_fine(1),NN_fine(2),1,7))

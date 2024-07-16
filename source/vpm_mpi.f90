@@ -185,6 +185,8 @@ Subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
+   if (my_rank.eq.0) write (*, *) achar(9), achar(27)//'[1;34m', 'Assembling Solution' , achar(27)//'[0m'  
+
    nb = my_rank + 1
    !NN(1:3)=NN_tmp(1:3)
    !do nbs=1,BLOCKS

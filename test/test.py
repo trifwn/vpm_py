@@ -11,9 +11,9 @@ def print_green(text):
     print(f"\033[92m{text}\033[00m")
 
 def print_IMPORTANT(text):
-    print(f"\033[93m{"-"*100}\033[00m")
+    print(f"\033[93m{'-'*100}\033[00m")
     print(f"\033[91m{text}\033[00m")
-    print(f"\033[93m{"-"*100}\033[00m")
+    print(f"\033[93m{'-'*100}\033[00m")
 
 def main():
     vpm = VPM()
@@ -30,7 +30,7 @@ def main():
     comm.Barrier()
     
     # Initialize variables
-    NI_in = -0.1
+    NI_in = 0.1
     DT_in = 0.05
     neq = 3
 
@@ -53,7 +53,7 @@ def main():
         
         # Create 2 particles
         NVR_ext = np.int32(100)
-        Vref = np.float64(100.)
+        Vref = np.float64(0.1)
 
         XPR = np.zeros((3, NVR_ext), dtype=np.float64)
         QPR = np.ones((neq + 1, NVR_ext), dtype=np.float64)

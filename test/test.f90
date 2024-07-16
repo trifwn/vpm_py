@@ -190,7 +190,9 @@ do i=1,TMAX
    !--- ALLOCATIONS
    if (my_rank.eq.0) then 
       NVR_all=NVR_ext + NVR_sources
+      ! if (allocated(XP_all)) deallocate(XP_all,QP_all)
       allocate(XP_all(3,NVR_all),QP_all(neq+1,NVR_all))
+      ! if (allocated(UPR)) deallocate(UPR, GPR)
       if (allocated(UPR)) deallocate(UPR, GPR)
       allocate(UPR(3,NVR_all),GPR(3,NVR_all))
       UPR=0;GPR=0
