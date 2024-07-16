@@ -1,3 +1,11 @@
+module test_mod
+   double precision,allocatable,target:: XPR(:,:),QPR(:,:),UPR(:,:),GPR(:,:),XPO(:,:),QPO(:,:),&
+                                          XP_in(:,:),QP_in(:,:),XSOUR(:,:),QSOUR(:,:),XP_all(:,:),QP_all(:,:)
+   double precision,pointer:: velx(:,:,:), vely(:,:,:), velz(:,:,:)
+   double precision,pointer:: RHS_pm_in(:,:,:,:),RHS_pm_out(:,:,:,:)
+   integer ,allocatable    :: qflag(:)
+   integer :: NVR_ext,NVR_sources,NVR_sources_init,NVR_ext_init
+end module test_mod
 
 Program test_pm
 use pmgrid     , only:  XMIN_pm, NXs_bl, DXpm, DYpm, DZpm, EPSVOL
@@ -20,9 +28,6 @@ double precision              :: Vref,NI_in,DT_in,RMETM,FACDEF,T, &
                                  XMIN,XMAX,UINF(3)
 integer                       :: NVR_turb,NVR_all
 integer                       :: my_rank,np,ierr,i,neq,j, TMAX
-! double precision,allocatable  :: velsavex(:,:,:)
-! double precision,allocatable  :: XPDUM(:,:),QPDUM(:,:)
-! integer                       :: Noutput, NDimoutput
                                  
 call MPI_INIT(ierr)
 call MPI_Comm_Rank(MPI_COMM_WORLD,my_rank,ierr)

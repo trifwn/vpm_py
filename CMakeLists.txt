@@ -242,7 +242,6 @@ add_executable(${EXENAME}_exe
     ${SRC_HP}/mkl_dfti.f90
     # Testing files
     ${SRC_TEST}/test.f90
-    ${SRC_TEST}/testmod.f90
     ${SRC_TEST}/test_applic.f90
 )
 add_dependencies(${EXENAME}_exe dummy)
