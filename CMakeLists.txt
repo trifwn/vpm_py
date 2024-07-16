@@ -170,7 +170,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PATHOBJHP})
 set(SRC_FILES
     ${SRC_HP}/main_pm.f90
     ${SRC_HP}/vpm_mpi.f90
-    ${SRC_TEST}/testmod.f90
     ${SRC_HP}/mkl_dfti.f90
     # ${SRC_HP}/libpm.f90 
     # ${SRC_HP}/fish.f90
@@ -243,6 +242,7 @@ add_executable(${EXENAME}_exe
     ${SRC_HP}/mkl_dfti.f90
     # Testing files
     ${SRC_TEST}/test.f90
+    ${SRC_TEST}/testmod.f90
     ${SRC_TEST}/test_applic.f90
 )
 add_dependencies(${EXENAME}_exe dummy)
@@ -269,7 +269,6 @@ target_link_libraries(${EXENAME}_exe PUBLIC ${LINK_FLAGS})
 #     ${SRC_HP}/vpm_time.f90
 #     ${SRC_HP}/vpm_gcalc.f90
 #     ${SRC_HP}/vpm_remesh.f90
-#     ${SRC_TEST}/testmod.f90
 #     ${SRC_HP}/vpm.f90
 #     ${SRC_HP}/api.f90
 # )

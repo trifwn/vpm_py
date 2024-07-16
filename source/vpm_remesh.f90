@@ -8,7 +8,6 @@ Subroutine remesh_particles_3d(iflag)
                      NYpm, NZpm, NXs_bl, NYs_bl, NZs_bl, NXf_bl, &
                      NYf_bl, NZf_bl, DVpm, EPSVOL
    use vpm_vars, only: mrem, NEQPM, NVR_p, XP_scatt, QP_scatt, NVR_projscatt, INTERF_IPROJ, V_REF, NCELL_REM, NVR_SIZE
-   use test_mod, only: NVR_ext, XPR, QPR
    use pmeshpar, only: NPAR_CELL, IDVPM, ND
    use parvar, only: NVR, XP, QP
    use projlib, only: projlibinit, project_particles_3D, project_vol3d
@@ -43,7 +42,6 @@ Subroutine remesh_particles_3d(iflag)
    ! double precision, allocatable :: rhsper(:, :, :, :)
    
    NVR_OLD = NVR
-   NVR_EXT_OLD = NVR_ext
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -76,11 +74,6 @@ Subroutine remesh_particles_3d(iflag)
    Dpm(3) = (Xbound(6) - Xbound(3))/(NN(3) - 1)
 
    DVpm = Dpm(1)*Dpm(2)*Dpm(3)
-   if (my_rank .eq. 0) then
-      NVR = NVR_ext
-      XP => XPR
-      QP => QPR
-   end if
 
    if (iflag .eq. 1) then
       if (allocated(RHS_pm)) then
@@ -115,7 +108,6 @@ Subroutine remesh_particles_3d(iflag)
    end if
 
    if (my_rank .eq. 0) then
-      if (allocated(XPR)) deallocate (XPR, QPR)
       ncell = ncell_rem
       ndum_rem = 2
       nnod = 1 !if ncell gt 1 particles IN cell else in nodes
@@ -212,14 +204,9 @@ Subroutine remesh_particles_3d(iflag)
       !!$omp enddo
       !!$omp endparallel
       NVR = npar
-      NVR_ext = NVR
       NVR_size = NVR
-      allocate (XPR(3, NVR), QPR(neqpm + 1, NVR))
-      XPR(1:3, 1:NVR) = XP_tmp(1:3, 1:NVR)
-      QPR(1:neqpm + 1, 1:NVR) = QP_tmp(1:neqpm + 1, 1:NVR)
-      deallocate (XP_tmp, QP_tmp)
-      XP => XPR
-      QP => QPR
+      XP => XP_tmp
+      QP => QP_tmp
       if (ncell .gt. 1) call back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, 4)
       if (iflag .eq. 0) deallocate (RHS_pm)
 
@@ -228,9 +215,7 @@ Subroutine remesh_particles_3d(iflag)
       write (*, *) achar(9), achar(9), 'Number of particles after', NVR
       write (*, *) achar(9), achar(9), 'Volume of a cell', DVpm
       write (*, *) achar(9), achar(9), 'Number of cells', NXpm, NYpm, NZpm
-      write (*, *) achar(9), achar(9), 'Maximal value of QPR', maxval(QPR(neqpm, :))
-      write (*, *) achar(9), achar(9), 'NVR_EXT_OLD', NVR_EXT_OLD
-      write (*, *) achar(9), achar(9), 'NVR_EXT', NVR_EXT
+      write (*, *) achar(9), achar(9), 'Maximal value of QPR', maxval(QP(neqpm, :))
       write (*, *) achar(9), achar(9), 'NPAR:', npar
    end if
    !call back_to_particles_2D(4)
