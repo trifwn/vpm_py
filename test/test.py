@@ -52,18 +52,22 @@ def main():
         #         QPR[:3, i] = np.fromfile(f, dtype=np.float64, count=3)
         
         # Create 2 particles
-        NVR_ext = np.int32(3)
-        Vref = np.float64(1.0)
+        NVR_ext = np.int32(100)
+        Vref = np.float64(100.)
 
         XPR = np.zeros((3, NVR_ext), dtype=np.float64)
         QPR = np.ones((neq + 1, NVR_ext), dtype=np.float64)
-        XPR[:,0]= [-1.0, -1.0, 0.0]
-        XPR[:,1]= [1.0, 1.0, 0.0]
-        XPR[:,2] = [0.0, 0.0, 0.0]
-        QPR[:3, :] = -QPR[:3, :] * Vref
-        QPR[3, :] = QPR[3, :] * Vref
-        QPR[neq, :] = Vref
-
+        
+        # Initialize particle
+        x_pos_min = -10
+        x_pos_max = 10 
+        for i in range(NVR_ext):
+            x = (x_pos_max - x_pos_min) / 100 * i + x_pos_min
+            y = (x_pos_max - x_pos_min) / 100 * i + x_pos_min
+            z = (x_pos_max - x_pos_min) / 100 * i + x_pos_min
+            XPR[:, i] = np.array([x,y,z], dtype=np.float64)
+            QPR[:3, i] = np.array([10,10,10], dtype=np.float64)
+        
         Vref = np.float64(Vref)      # Convert Vref to 64-bit floating point
 
         if rank == 0: 

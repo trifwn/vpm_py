@@ -14,13 +14,14 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    double precision, intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
    double precision, intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
    double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
+   double precision, target                :: DQP(1,1), DXP(1,1)
 
    double precision, allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
    double precision             :: Xbound_tmp(6)
    integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, iface12, iface34, iface56, ibound, itree, lmax
 
    integer                      :: ibctyp_c
-   integer                      :: origsize(5), isize1,isize2,isize3,NN_tmpc(6) !, start(5) 
+   integer                      :: origsize(5), isize1,isize2,isize3,NN_tmpc(6), rank !, start(5) 
    ! integer                      :: sendsize(5)
 
    
@@ -33,6 +34,8 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !normally QP,XP not needed
    nullify (QP)
    nullify (XP)
+   QP => DQP
+   XP => DXP
 
    !The equations to be solved should be from 1 to neqf
    neq = neqf
@@ -52,7 +55,26 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    ! 1 is the Nblocks not needed needs fix
    if (npmsize .ne. neqf) stop
    ibctyp_c = ibctyp 
-   write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+         
+         write (*, *) '******************************'
+         write (*, *) 'Individual Block SOLUTION'
+         write (*, *) "NS", neqs, neqf
+         write (*, *) "XB", Xbound_tmp(1:3)
+         write (*, *) "XB", Xbound_tmp(4:6)
+         write (*, *) "BL", NN_bl_tmp(1:3)
+         write (*, *) 'BL', NN_bl_tmp(4:6)
+         write (*, *) "NN", NN_tmp(1:3)
+         write (*, *) 'DP', Dpm_fine(1:3)   
+         write (*, * ) "ibctyp_c", ibctyp_c
+         write (*, *) 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+         write (*, *) "SIZE SOL", size(SOL_pm_bl, 1), size(SOL_pm_bl, 2), size(SOL_pm_bl, 3), size(SOL_pm_bl, 4)
+         write (*, *) '******************************'
+      endif
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
             Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
    write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
@@ -397,10 +419,13 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    iynbc = 0
    itree = 0
    lmax = 0
+
+   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
    if (my_rank .eq. 0) starttime = MPI_WTIME()
    write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp, neqs, neqf, iynbc, 0, itree, lmax)
+            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
    write (*, *) 'INSIDE YAPS3D. np=', my_rank , '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
    if (my_rank .eq. 0) endtime = MPI_WTIME()
    if (my_rank .eq. 0) write (199, *) 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'

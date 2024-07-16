@@ -44,6 +44,7 @@ contains
    !--------------------------------------------------------------------------!
    Subroutine project_particles_3D(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize)
       !use pmgrid
+      use mpi
 
       Implicit None
       integer, intent(in) :: ipar, isize, ieq(neq), iparsize, neq
@@ -54,7 +55,10 @@ contains
       integer, intent(in) :: Qprojtype(iparsize)
       double precision   :: fx, fy, fz, f, x, y, z
       integer            :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
+      integer           :: my_rank, ierr
       ! integer            :: nbj, nb
+
+      call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
 
       !-->Projection function (TSC)
       Qproj = 0.d0
@@ -89,8 +93,23 @@ contains
                   fz = projection_fun(itype, z)
 
                   f = fx*fy*fz
-                  if (k .lt. 1) print *, "PROJECT PARTICLES 3D GOT k<1: ", QPX(1:3, nv),&
-                                          nv, ipar, ZMIN_pm, DZpm, nv
+                  if (my_rank .eq. 0) then
+                     if (k .lt. 1) then
+                        print *, "PROJECT PARTICLES 3D GOT k<1: "
+                        write (*,*) "QPX", QPX(1:3, nv)
+                        write (*,*) "XMIN, YMIN, ZMIN", XMIN_pm, YMIN_pm, ZMIN_pm
+                        write (*,*) "DX, DY, DZ", DXpm, DYpm, DZpm
+                        write (*,*) "NV" , nv
+                        write (*,*) "IPA", ipar
+                        write (*,*) "I", i
+                        write (*,*) "ips, ipf", ips, ipf
+                        write (*,*) "knode", knode 
+                        write (*,*) "J", j
+                        write (*,*) "jnode", jnode
+                        write (*,*) "K", k
+                        write (*,*) "inode", inode
+                     endif
+                  end if
 
                   Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k) &
                                                    + f*QPar(ieq(1:neq - 1), nv)

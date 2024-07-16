@@ -68,12 +68,14 @@ contains
 !--------------------------------------------------------------------------------
    Subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND, Nblocks, ibctyp, neqs, neqf, iynbc, NVR, itree, levmax)
       ! use parvar, only : XP, QP
+      use MPI
       Implicit None
       integer, intent(in)                       :: ibctyp, neqs, neqf, iynbc, NVR, itree, levmax
       double precision, intent(in)              :: Xbound(6), Dpm(3)
       integer, intent(in)                       :: NN_bl(6), NN(3), ND, Nblocks
       double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
       integer                                   :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
+      integer                                   :: ierr, my_rank, np, rank
       ! double precision                          :: XPM, YPM, velx, vely
       ! double precision :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
       ! double precision :: R, DX, DY, GreenF, nv
@@ -96,6 +98,17 @@ contains
       !Assign the pointers to the external data
       SOL_pm => DSOL_pm; RHS_pm => DRHS_pm; !QP => DQP; XP => DXP
       !-->
+      call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
+      call MPI_COMM_SIZE(MPI_COMM_WORLD, np, ierr)
+      do rank = 0, np - 1
+         if (rank.eq.my_rank) then
+            write (*,*) 'Rank:', rank
+            write (*,*) '------------------------'
+            write (*,*) maxval(abs(RHS_pm))
+            write (*,*) '------------------------'
+         end if
+         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      enddo
 
       !iynbc 1 normal poisson solve.(Calculation of bc's is done here)
       if (iynbc .eq. 1) then
@@ -124,6 +137,7 @@ contains
                call Bounds3D(ibctyp, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
             else
                !Infinite domain boundary conditions(asume zero bc' at the boundary
+               write (*,*) , achar(9) , "CALLING INFDOMAIN"
                call infdomain_3D(neqs, neqf)
             end if
          end if
@@ -182,6 +196,16 @@ contains
             end do
          end if
       end if
+      
+      do rank = 0, np - 1
+         if (rank.eq.my_rank) then
+            write (*,*) 'Rank:', rank
+            write (*,*) '------------------------'
+            write (*,*) maxval(abs(SOL_pm))
+            write (*,*) '------------------------'
+         end if
+         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      enddo
 
       nullify (SOL_pm, RHS_pm, QP, XP)
    contains

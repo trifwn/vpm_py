@@ -17,9 +17,10 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
    double precision, allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
    double precision             :: Xbound_tmp(6)
-   integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, itree, lmax
+   integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, itree, lmax, ibctyp_c
 
    !Assign variables
+   ibctyp_c = ibctyp
    nullify (SOL_pm_bl, RHS_pm_bl)
    SOL_pm_bl => DSOL_pm; RHS_pm_bl => DRHS_pm
    !normally QP,XP not needed
@@ -44,7 +45,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    lmax = ilevmax!maximum level
    ! 1 is the Nblocks not needed needs fix
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp, neqs, neqf, iynbc, 0, itree, lmax)
+            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
    !write(outfil1,'(a9,i2.2)') 'blockgrow',nb
    !call writegrow(RHS_pm_bl,SOL_pm_bl,Dpm_fine,outfil1,Xbound_tmp,NN_bl_tmp,NN_tmp)
@@ -184,7 +185,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    if (itree .eq. 0) lmax = 1
    if (my_rank .eq. 0) write (199, *) 'coarse'
    call pmesh(SOL_pm_coarse, RHS_pm_coarse, QP, XP, Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, &
-            1, ibctyp, neqs, neqf, iynbc, 0, itree, lmax)
+            1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
    ! if(my_rank.eq.1)endtime = MPI_WTIME()
    ! if(my_rank.eq.1) write(*,*)'Poisson Coarse=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
 
@@ -252,7 +253,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    itree = 0
    lmax = 0
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp, neqs, neqf, iynbc, 0, itree, lmax)
+            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 

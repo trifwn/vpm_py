@@ -136,7 +136,7 @@ contains
       end if
       
       ! II = 1; ! 0: Serial Pmesh 1: Yaps
-      II = 0
+      II = 1
       ND = 3
       NVR_size = NVRM_in
       NTIME_pm = NTIME_in
@@ -445,7 +445,7 @@ contains
          !Yaps or Serial Pmesh
          write (*, *) achar(9), 'PMESH_SOLVE: Processor np=',my_rank 
          IF (II .eq. 0) then
-            IF (my_rank .eq. 0) then
+            IF (my_rank .eq. 3) then
                write (*, *) 'Solving_pm'
                SOL_pm(1:neqpm, :, :, :) = 0.0
                itree = iyntree
@@ -461,11 +461,11 @@ contains
             call velbcast_3d
          ELSE
             iret = 0
-            write (*, *) 'Processor np=',my_rank, 'Maximum RHS_pm block value' , maxval(RHS_pm_bl(neqpm, :, :, :))
+            write (*, *) 'Processor np=',my_rank, 'Maximum RHS_pm block value' , maxval(abs(RHS_pm_bl(neqpm, :, :, :)))
             call yaps3d(SOL_pm_bl, RHS_pm_bl, Xbound_bl, Xbound_coarse, Dpm, Dpm_coarse, NNbl, NNbl_bl, &
                         NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, 1, neqpm, ncoarse, NBI, NBJ, NBK, nb_i, nb_j, nb_k, &
                         iret, iyntree, ilevmax, neqpm)
-            write (*, *) 'Processor np=',my_rank, 'Maximum SOL_pm block value' , maxval(SOL_pm_bl(neqpm, :, :, :))
+            write (*, *) 'Processor np=',my_rank, 'Maximum SOL_pm block value' , maxval(abs(SOL_pm_bl(neqpm, :, :, :)))
             nb = my_rank + 1
             NN_tmp(1:3) = NNbl(1:3, nb)
             NN_bl_tmp(1:6) = NNbl_bl(1:6, nb)

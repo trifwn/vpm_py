@@ -28,6 +28,8 @@ double precision              :: Vref,NI_in,DT_in,RMETM,FACDEF,T, &
                                  XMIN,XMAX,UINF(3)
 integer                       :: NVR_turb,NVR_all
 integer                       :: my_rank,np,ierr,i,neq,j, TMAX
+! double precision,allocatable  :: XPDUM(:,:),QPDUM(:,:)
+! integer                       :: Noutput, NDimoutput
                                  
 call MPI_INIT(ierr)
 call MPI_Comm_Rank(MPI_COMM_WORLD,my_rank,ierr)
@@ -166,9 +168,7 @@ allocate(GPR(3,NVR_ext))
       !NVR_ext=NYpm*NZpm
    endif
    call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,0,RHS_pm_in,velx,vely,velz,0,NI_in,NVR_ext)
-   call remesh_particles_3d(1)
-   ! XP_all => XPR
-   ! QP_all => QPR
+   ! call remesh_particles_3d(1)
 ! ------- End Allocate memory for all particles
 
 
@@ -292,7 +292,7 @@ contains
       use test_mod, only: NVR_ext,XPR, QPR
 
       Implicit None
-      integer  :: neq
+      integer  :: num_eq
       integer  :: i,NVR_in,NVR_out,NVR_out_max
       integer         ,allocatable :: NVR_projout(:)
       double precision             :: XMAX,XMIN,YMAX,YMIN,ZMIN,ZMAX,EPSX,EPSY,EPSZ
@@ -336,10 +336,10 @@ contains
       !    endif
       ! enddo
       !return
-      neq=neqpm+1
+      num_eq=neqpm+1
       NVR_out_max= (2*NXpm*NYpm+2*NYpm*NZpm+2*NZpm*NXpm)*3*mrem**2
-      allocate(XP_out(1:3,NVR_out_max),QP_out(1:neq,NVR_out_max),NVR_projout(NVR_out_max))
-      allocate(XP_tmp(1:3,NVR_ext),QP_tmp(1:neq,NVR_ext))
+      allocate(XP_out(1:3,NVR_out_max),QP_out(1:num_eq,NVR_out_max),NVR_projout(NVR_out_max))
+      allocate(XP_tmp(1:3,NVR_ext),QP_tmp(1:num_eq,NVR_ext))
       NVR_projout=2!interf_iproj
       NVR_out=0
       NVR_in =0
@@ -349,18 +349,18 @@ contains
             .or.XPR(3,i).lt.ZMIN.or.XPR(3,i).gt.ZMAX) then 
             NVR_out = NVR_out + 1 
             XP_out(1:3,NVR_out) = XPR(1:3,i)
-            QP_out(1:neq,NVR_out) = QPR(1:neq,i)
+            QP_out(1:num_eq,NVR_out) = QPR(1:num_eq,i)
          else
             NVR_in = NVR_in + 1 
             XP_tmp(1:3,NVR_in) = XPR(1:3,i)
-            QP_tmp(1:neq,NVR_in) = QPR(1:neq,i)
+            QP_tmp(1:num_eq,NVR_in) = QPR(1:num_eq,i)
          endif
       enddo
       !if (NVR_out.eq.0) RHS_pm_out=0.d0
       write(*,*) achar(9), 'Particles out',NVR_out
       deallocate(XPR,QPR)
-      allocate(XPR(3,NVR_in),QPR(neq,NVR_in))
-      XPR(1:3,1:NVR_in)=XP_tmp(1:3,1:NVR_in);QPR(1:neq,1:NVR_in)=QP_tmp(1:neq,1:NVR_in)
+      allocate(XPR(3,NVR_in),QPR(num_eq,NVR_in))
+      XPR(1:3,1:NVR_in)=XP_tmp(1:3,1:NVR_in);QPR(1:num_eq,1:NVR_in)=QP_tmp(1:num_eq,1:NVR_in)
       NVR_ext = NVR_in
       !deallocate(XP_tmp,QP_tmp)
       !allocate(ieq(neqpm+1),QINF(neqpm+1))
@@ -374,33 +374,6 @@ contains
       !call project_vol3d(RHS_pm_out,neqpm+1,ieq,neqpm+1,1)
       !write(*,*) 'out',NVR_out,NVR_in,maxval(abs(RHS_pm_out(1,:,:,:)))
       deallocate(XP_out,QP_out)
-      !      write(filout,'(a)') 'solout.dat'
-      !      open(1,file=filout)
-      !      WRITE(1,'(a190)')'VARIABLES = "X" "Y" "Z" "VORTX" "VORTY" "VORTZ" '
-      !      WRITE(1,*)'ZONE I=',NXpm,' J=',NYpm,&
-      !          ' K=',NZpm,' F=POINT'
-      !      do k=1,NZpm
-      !          do j=1,NYpm
-      !              do i=1,NXpm
-      !                  ! WRITE(1,*)'ZONE I=',NXpm,' J=',NYpm,' F=POINT'
-      !                  ! do j=1,NYpm
-      !                  !   do i=1,NXpm
-      !                  XPM=XMIN_pm+(I-1)*DXpm
-      !                  YPM=YMIN_pm+(J-1)*DYpm
-      !                  ZPM=ZMIN_pm+(K-1)*DZpm
-
-      !                  WRITE(1,'(6(e28.17,1x))')XPM,YPM,ZPM,-RHS_pm_out(1,I,J,K),-RHS_pm_out(2,I,J,K),&
-      !                                           -RHS_pm_out(3,I,J,K)
-
-
-      !              enddo
-      !          enddo
-      !      enddo
-      !      close(1)
-      !  !   ---FOR PLOTTING PURPOSES ONLY
-      !  call system('~/bin/preplot '//filout//' >/dev/null')
-      
-      !   call system('rm '//filout)
    End Subroutine find_par_out
 
    Subroutine find_par_in(T_in,U)

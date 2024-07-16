@@ -175,7 +175,6 @@ contains
       implicit none
       integer(c_int), intent(in) :: iflag
       integer :: ierr, my_rank
-      external :: remesh_particles_3d
 
       ! Print all the arguments one by one
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
