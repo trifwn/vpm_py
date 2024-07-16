@@ -39,8 +39,8 @@ module parvar
    !   -->6 Mass
    !   -->7 Volume
    double precision, pointer, save    :: UP(:, :), GP(:, :)
-   integer, allocatable, save            :: NVR_projtype(:)
+   integer, allocatable, save         :: NVR_projtype(:)
 
    double precision, allocatable        :: XP_CFD_Sa(:, :), UT_CFD_Sa(:), UN_CFD_Sa(:), &
-      DS_CFD_Sa(:), Vo_CFD_Sa(:)
+                                           DS_CFD_Sa(:), Vo_CFD_Sa(:)
 end module parvar

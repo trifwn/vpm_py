@@ -139,32 +139,32 @@ allocate(GPR(3,NVR_ext))
    endif
 !------------ End Remeshing ----------------
 
-!------- Allocate memory for all particles
-   ! if (my_rank.eq.0) then 
-   !    NVR_all=NVR_ext + NVR_sources
-   !    NVR_sources_init=NVR_sources
-   !    NVR_ext_init =  NVR_ext
-   !    allocate(QPO(1:neq+1,NVR_all),XPO(1:3,NVR_all),Qflag(NVR_all))
-   !    allocate(QP_in(1:neq+1,NVR_all),XP_in(1:3,NVR_all))
-   !    Qflag=0
-   !    QPO(1:neq+1,1:NVR_ext)=QPR(1:neq+1,1:NVR_ext)
-   !    QPO(1:neq+1,NVR_ext+1:NVR_all)=QSOUR(1:neq+1,1:NVR_sources)
-   !    XPO(1:3,1:NVR_ext)=XPR(1:3,1:NVR_ext)
-   !    XPO(1:3,NVR_ext+1:NVR_all)=XSOUR(1:3,1:NVR_sources)
-   !    NVR_turb=NVR_all
-   !    XMIN = XMIN_pm +(NXs_bl(1)  +4-1)*DXpm
-   !    XMAX = maxval(XPO(1,:))
-   !    XPO(1,:)=XPO(1,:) - (XMAX - XMIN)
-   !    QP_in=QPO;XP_in=XPO
-   !    !QPR(1:3,:)=0
-   !    !  call writepar(0,XPO,NVR_all)
-   !    !NVR_ext=NYpm*NZpm
-   ! endif
-   !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,0,RHS_pm_in,velx,vely,velz,0,NI_in,NVR_ext)
-   !call remesh_particles_3d(1)
-   XP_all => XPR
-   QP_all => QPR
-!------- End Allocate memory for all particles
+! ------- Allocate memory for all particles
+   if (my_rank.eq.0) then 
+      NVR_all=NVR_ext + NVR_sources
+      NVR_sources_init=NVR_sources
+      NVR_ext_init =  NVR_ext
+      allocate(QPO(1:neq+1,NVR_all),XPO(1:3,NVR_all),Qflag(NVR_all))
+      allocate(QP_in(1:neq+1,NVR_all),XP_in(1:3,NVR_all))
+       Qflag=0
+      QPO(1:neq+1,1:NVR_ext)=QPR(1:neq+1,1:NVR_ext)
+      QPO(1:neq+1,NVR_ext+1:NVR_all)=QSOUR(1:neq+1,1:NVR_sources)
+      XPO(1:3,1:NVR_ext)=XPR(1:3,1:NVR_ext)
+      XPO(1:3,NVR_ext+1:NVR_all)=XSOUR(1:3,1:NVR_sources)
+      NVR_turb=NVR_all
+      XMIN = XMIN_pm +(NXs_bl(1)  +4-1)*DXpm
+      XMAX = maxval(XPO(1,:))
+      XPO(1,:)=XPO(1,:) - (XMAX - XMIN)
+      QP_in=QPO;XP_in=XPO
+      !QPR(1:3,:)=0
+      !  call writepar(0,XPO,NVR_all)
+      !NVR_ext=NYpm*NZpm
+   endif
+   call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,0,RHS_pm_in,velx,vely,velz,0,NI_in,NVR_ext)
+   call remesh_particles_3d(1)
+   ! XP_all => XPR
+   ! QP_all => QPR
+! ------- End Allocate memory for all particles
 
 
 !--- MAIN LOOP
@@ -186,7 +186,7 @@ do i=1,TMAX
    if (my_rank.eq.0) then 
       NVR_all=NVR_ext + NVR_sources
       allocate(XP_all(3,NVR_all),QP_all(neq+1,NVR_all))
-      deallocate(UPR, GPR)
+      if (allocated(UPR)) deallocate(UPR, GPR)
       allocate(UPR(3,NVR_all),GPR(3,NVR_all))
       UPR=0;GPR=0
       XP_all(1:3,1:NVR_ext)=XPR(1:3,1:NVR_ext)

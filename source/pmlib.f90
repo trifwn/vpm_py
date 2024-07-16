@@ -67,7 +67,7 @@ contains
 !>@param [out]
 !--------------------------------------------------------------------------------
    Subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND, Nblocks, ibctyp, neqs, neqf, iynbc, NVR, itree, levmax)
-      use parvar, only : XP, QP
+      ! use parvar, only : XP, QP
       Implicit None
       integer, intent(in)                       :: ibctyp, neqs, neqf, iynbc, NVR, itree, levmax
       double precision, intent(in)              :: Xbound(6), Dpm(3)

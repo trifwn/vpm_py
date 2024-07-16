@@ -18,9 +18,13 @@ def print_green(text):
     print(f"\033[92m{text}\033[00m")
 
 def print_IMPORTANT(text):
-    print(f"\033[93m{"-"*100}\033[00m")
+    print(f"\033[93m{'-'*100}\033[00m")
     print(f"\033[91m{text}\033[00m")
-    print(f"\033[93m{"-"*100}\033[00m")
+    print(f"\033[93m{'-'*100}\033[00m")
+
+def print0(text):
+    if rank == 0:
+        print(text) 
 
 class VPM(object):
     """Interface to the VPM Fortran routines.
@@ -64,16 +68,22 @@ class VPM(object):
         self.num_procs = self.comm.Get_size()
 
         # Divide processors into NBI, NBJ, NBK so that NBI * NBJ * NBK = number of processors
-        # For now, assume NBI = NBJ = NBK
-        NBI = NBJ = NBK = 1
-        while NBI * NBJ * NBK < self.num_procs:
-            if NBI == NBJ == NBK:
-                NBI *= 2
-            elif NBI == NBJ:
-                NBK *= 2
-            else:
-                NBJ *= 2
-        
+        # Find the factors of the number of processors
+        factors = np.unique(np.array([i for i in range(1, self.num_procs + 1) if self.num_procs % i == 0]))
+        # Find the subsets of factors that multiply to the number of processors
+        subsets = []
+        for i in range(len(factors)):
+            for j in range(i, len(factors)):
+                for k in range(j, len(factors)):
+                    if factors[i] * factors[j] * factors[k] == self.num_procs:
+                        subsets.append((factors[i], factors[j], factors[k]))
+        # Find the subset that has the smallest sum
+        min_sum = np.inf
+        for subset in subsets:
+            if sum(subset) < min_sum:
+                min_sum = sum(subset)
+                NBI, NBJ, NBK = subset
+
         # Print the number of processors in each direction
         if self.rank == 0:
             print(f"Number of processors: {self.num_procs}")
@@ -366,7 +376,7 @@ if __name__ == "__main__":
         fig, axs = plt.subplots(1, 4, figsize=(10, 5), subplot_kw={'projection': '3d'})
         for i in range(3):
             axs[i].scatter(XP_in[0], XP_in[1], XP_in[2], c=par_strenghts[i])
-            axs[i].set_title(f"Strength in eq_{["x", "y", "z"][i]}")
+            axs[i].set_title(f"Strength in eq_{['x', 'y', 'z'][i]}")
         axs[3].quiver(XP_in[0], XP_in[1], XP_in[2], par_velocities[0], par_velocities[1], par_velocities[2])
         axs[3].set_title("Particle velocities")
         plt.show()
