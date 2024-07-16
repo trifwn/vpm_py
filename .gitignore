@@ -2,3 +2,12 @@
 *.o
 *.mod
 *genmod*
+build/
+bin/
+*vpm_debug*
+*.so
+vpm.egg-info/
+*__pycache__*
+.vscode
+fort*
+**/sol/** 
