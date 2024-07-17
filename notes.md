@@ -26,7 +26,7 @@
 - rhsbcast
 - rhsscat
 - pmesh_solve
-- writesol
+- write_pm_solution
 - calc_velocity_serial_3d
 - back_to_particles_3d
 - back_to_particles_par

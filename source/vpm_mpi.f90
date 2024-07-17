@@ -23,7 +23,6 @@ End Subroutine rhsbcast
 Subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
    use vpm_vars, only: neqpm
    use pmgrid, only: RHS_pm
-   ! use pmeshpar
    use MPI
    Implicit None
    integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, NN_bl(6), NN_tmp(3)

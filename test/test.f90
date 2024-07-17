@@ -164,7 +164,7 @@ allocate(GPR(3,NVR_ext))
       XPO(1,:)=XPO(1,:) - (XMAX - XMIN)
       QP_in=QPO;XP_in=XPO
       !QPR(1:3,:)=0
-      !  call writepar(0,XPO,NVR_all)
+      !  call write_particles(0,XPO,NVR_all)
       !NVR_ext=NYpm*NZpm
    endif
    call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,0,RHS_pm_in,velx,vely,velz,0,NI_in,NVR_ext)
@@ -254,7 +254,7 @@ do i=1,TMAX
       call find_par_out
       et= MPI_WTIME()
       write(*,*) achar(9), 'Moving Particles IN/OUT',int((et-st)/60),'m',mod(et-st,60.d0),'s'
-      !   call writepar(i,XPR,NVR_ext)
+      !   call write_particles(i,XPR,NVR_ext)
    endif
 
    !--- VPM INITIALIZATION AND REMESHING

@@ -20,7 +20,8 @@ Subroutine remesh_particles_3d(iflag)
    integer, intent(in)  :: iflag
    
    ! LOCAL VARIABLES
-   double precision    :: X(8), Y(8), Z(8),  XMIN_vr, YMIN_vr, DXvr, DYvr,  DZvr, ZMIN_vr
+   double precision, dimension(8)   :: X,Y,Z
+   double precision    :: XMIN_vr, YMIN_vr, DXvr, DYvr,  DZvr, ZMIN_vr
    double precision, allocatable:: XC(:), YC(:), ZC(:)
    double precision, allocatable, target::XP_tmp(:, :), QP_tmp(:, :)
    integer             :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar, ndumc 
@@ -29,7 +30,7 @@ Subroutine remesh_particles_3d(iflag)
    double precision    :: Xbound(6), Dpm(3), wmag
    double precision, allocatable :: QINF(:)
    integer    :: NVR_OLD, NVR_EXT_OLD
-   integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
+   integer             :: my_rank, ierr, np, NN(3), NN_bl(6), di
    
    ! DEPRECATED
    ! double precision,intent(inout):: XP_in(:,:),QP_in(:,:)
@@ -144,61 +145,61 @@ Subroutine remesh_particles_3d(iflag)
     !!$omp do
       do k = nzstart, nzfin
          do j = nystart, nyfin
-         do i = nxstart, nxfin
-            ! !-> Get PM cell nodes (orthogonal structured grid
-            X(1) = XMIN_pm + Dpm(1)*(i - 1)
-            X(2) = XMIN_pm + Dpm(1)*(i)
-            X(3) = XMIN_pm + Dpm(1)*(i)
-            X(4) = XMIN_pm + Dpm(1)*(i - 1)
-            X(5) = XMIN_pm + Dpm(1)*(i - 1)
-            X(6) = XMIN_pm + Dpm(1)*(i)
-            X(7) = XMIN_pm + Dpm(1)*(i)
-            X(8) = XMIN_pm + Dpm(1)*(i - 1)
+            do i = nxstart, nxfin
+               ! !-> Get PM cell nodes (orthogonal structured grid
+               X(1) = XMIN_pm + Dpm(1)*(i - 1)
+               X(2) = XMIN_pm + Dpm(1)*(i)
+               X(3) = XMIN_pm + Dpm(1)*(i)
+               X(4) = XMIN_pm + Dpm(1)*(i - 1)
+               X(5) = XMIN_pm + Dpm(1)*(i - 1)
+               X(6) = XMIN_pm + Dpm(1)*(i)
+               X(7) = XMIN_pm + Dpm(1)*(i)
+               X(8) = XMIN_pm + Dpm(1)*(i - 1)
 
-            Y(1) = YMIN_pm + Dpm(2)*(j - 1)
-            Y(2) = YMIN_pm + Dpm(2)*(j - 1)
-            Y(3) = YMIN_pm + Dpm(2)*(j)
-            Y(4) = YMIN_pm + Dpm(2)*(j)
-            Y(5) = YMIN_pm + Dpm(2)*(j - 1)
-            Y(6) = YMIN_pm + Dpm(2)*(j - 1)
-            Y(7) = YMIN_pm + Dpm(2)*(j)
-            Y(8) = YMIN_pm + Dpm(2)*(j)
+               Y(1) = YMIN_pm + Dpm(2)*(j - 1)
+               Y(2) = YMIN_pm + Dpm(2)*(j - 1)
+               Y(3) = YMIN_pm + Dpm(2)*(j)
+               Y(4) = YMIN_pm + Dpm(2)*(j)
+               Y(5) = YMIN_pm + Dpm(2)*(j - 1)
+               Y(6) = YMIN_pm + Dpm(2)*(j - 1)
+               Y(7) = YMIN_pm + Dpm(2)*(j)
+               Y(8) = YMIN_pm + Dpm(2)*(j)
 
-            Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
-            Z(2) = ZMIN_pm + Dpm(3)*(k - 1)
-            Z(3) = ZMIN_pm + Dpm(3)*(k - 1)
-            Z(4) = ZMIN_pm + Dpm(3)*(k - 1)
-            Z(5) = ZMIN_pm + Dpm(3)*(k)
-            Z(6) = ZMIN_pm + Dpm(3)*(k)
-            Z(7) = ZMIN_pm + Dpm(3)*(k)
-            Z(8) = ZMIN_pm + Dpm(3)*(k)
+               Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
+               Z(2) = ZMIN_pm + Dpm(3)*(k - 1)
+               Z(3) = ZMIN_pm + Dpm(3)*(k - 1)
+               Z(4) = ZMIN_pm + Dpm(3)*(k - 1)
+               Z(5) = ZMIN_pm + Dpm(3)*(k)
+               Z(6) = ZMIN_pm + Dpm(3)*(k)
+               Z(7) = ZMIN_pm + Dpm(3)*(k)
+               Z(8) = ZMIN_pm + Dpm(3)*(k)
 
-            !npar = ((k-nzstart)*NXpm1*NYpm1 +(j-nystart)*NXpm1 + i-nxstart)*ncell
+               !npar = ((k-nzstart)*NXpm1*NYpm1 +(j-nystart)*NXpm1 + i-nxstart)*ncell
 
-            if (ncell .gt. 1) then
-               call cell3d_interp_euler(X, XC, ncell, 2)
-               call cell3d_interp_euler(Y, YC, ncell, 2)
-               call cell3d_interp_euler(Z, ZC, ncell, 2)
-               do nc = 1, ncell
+               if (ncell .gt. 1) then
+                  call cell3d_interp_euler(X, XC, ncell, 2)
+                  call cell3d_interp_euler(Y, YC, ncell, 2)
+                  call cell3d_interp_euler(Z, ZC, ncell, 2)
+                  do nc = 1, ncell
+                     npar = npar + 1
+                     XP(1, npar) = XC(nc)
+                     XP(2, npar) = YC(nc)
+                     XP(3, npar) = ZC(nc)
+                     QP(neqpm + 1, npar) = 1.d0/float(ncell)*DVpm
+                  end do
+
+               else
+                  wmag = sqrt(RHS_pm(1, i, j, k)**2 + RHS_pm(2, i, j, k)**2 + RHS_pm(3, i, j, k)**2)
+                  if (wmag .lt. 1e-09) cycle
                   npar = npar + 1
-                  XP(1, npar) = XC(nc)
-                  XP(2, npar) = YC(nc)
-                  XP(3, npar) = ZC(nc)
-                  QP(neqpm + 1, npar) = 1.d0/float(ncell)*DVpm
-               end do
+                  XP(1, npar) = X(1)
+                  XP(2, npar) = Y(1)
+                  XP(3, npar) = Z(1)
 
-            else
-               wmag = sqrt(RHS_pm(1, i, j, k)**2 + RHS_pm(2, i, j, k)**2 + RHS_pm(3, i, j, k)**2)
-               if (wmag .lt. 1e-09) cycle
-               npar = npar + 1
-               XP(1, npar) = X(1)
-               XP(2, npar) = Y(1)
-               XP(3, npar) = Z(1)
-
-               QP(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k)*DVpm
-               QP(neqpm + 1, npar) = DVpm
-            end if
-         end do
+                  QP(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k)*DVpm
+                  QP(neqpm + 1, npar) = DVpm
+               end if
+            end do
          end do
       end do
       !!$omp enddo
@@ -241,7 +242,6 @@ End Subroutine remesh_particles_3d
 !          itype (1,2) defines what value to interpolate to the particles   !
 !---------------------------------------------------------------------------!
 Subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
-
    use openmpth
    use projlib, only: projection_fun
    Implicit None
@@ -317,11 +317,14 @@ End Subroutine back_to_particles_3D_rem
 Subroutine cell3d_interp_euler(F, FC, N, M)
    Implicit None
 
+   double precision, dimension(8), intent(in)  :: F
    integer, intent(in)  :: N, M
-   double precision, intent(in)  :: F(8)
    double precision, intent(out) :: FC(N)
+   
+   ! LOCAL VARIABLES
    double precision              :: KSIC(8), HTAC(8), ZETAC(8), KSI(N), HTA(N), ZETA(N)
    integer                       :: i, j
+   double precision :: addit
    integer :: NTEMP
 
    NTEMP = N 
@@ -359,8 +362,8 @@ Subroutine cell3d_interp_euler(F, FC, N, M)
 
    do i = 1, 8 !cell nodes
       do j = 1, NTEMP
-         ! DYMMy
-         FC(j) = FC(j) + F(i)*(1.d0 + KSI(j)*KSIC(i))*(1.d0 + HTA(j)*HTAC(i))*(1.d0 + ZETA(j)*ZETAC(i))
+         addit = F(i)*(1.d0 + KSI(j)*KSIC(i))*(1.d0 + HTA(j)*HTAC(i))*(1.d0 + ZETA(j)*ZETAC(i))
+         FC(j) = FC(j) + addit
       end do
    end do
 
@@ -404,8 +407,8 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    DHTA = dabs(2.d0/float(M))
    DZETA = dabs(2.d0/float(M))
    do k = 1, M
-      do i = 1, M
-         do j = 1, M
+      do j = 1, M
+         do i = 1, M
             nod = (k - 1)*M*M + (j - 1)*M + i
             KSI(nod) = KSIC(1) + (i - 1./2.)*DKSI
             HTA(nod) = HTAC(1) + (j - 1./2.)*DHTA

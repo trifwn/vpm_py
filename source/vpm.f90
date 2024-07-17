@@ -103,10 +103,6 @@ contains
       ! double precision                          :: xi, yi, ksi1, ksi2, th1, th2, w1, w2, xl, yl, r
       ! integer                                   :: omp_get_num_threads, omp_get_max_threads
 
-      !EXTERNAL
-      external                                  :: calc_velocity_serial_3d, diffuse_vort_3d, back_to_particles_3D
-      
-
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
       
@@ -252,10 +248,10 @@ contains
             
             if (IPMWRITE .GT. 0) then
                do i = 1, IPMWRITE
-                  if (NTIME_pm .ge. IPMWSTART(i) .and. NTIME_pm .le. (IPMWSTART(i) + IPMWSTEPS(i))) call writesol
+                  if (NTIME_pm .ge. IPMWSTART(i) .and. NTIME_pm .le. (IPMWSTART(i) + IPMWSTEPS(i))) call write_pm_solution
                end do
             end if
-            ! if (iynslice .ne. 0) call writesolXavatar(iynslice)
+            ! if (iynslice .ne. 0) call write_pm_solutionXavatar(iynslice)
          end if
 
          !
@@ -361,10 +357,10 @@ contains
             call calc_velocity_serial_3d(0) ! VELOCITY STO PM
             ! SOL_PM is stille the solution of vorticity
 
-            !  if(mod(NTIME,NWRITE).eq.0) call writesol(NTIME)
+            !  if(mod(NTIME,NWRITE).eq.0) call write_pm_solution(NTIME)
             !if (ND.eq.3) then
             ! call hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
-            ! call writesol(NTIME)
+            ! call write_pm_solution(NTIME)
             !stop
             !endif
 
@@ -396,19 +392,19 @@ contains
             ! call back_to_particles_3D(SOL_pm,RHS_pm,XP,QP,UP,GP,&
             !                           velvrx_pm,velvry_pm,velvrz_pm,&
             !                           Xbound,Dpm,NN,NN_bl,NVR,neqpm,interf_iproj,itypeb,NVR_size)
-            !      if(mod(NTIME_pm,20).eq.0.or.NTIME_pm.eq.1) call writesol
-            !if(mod(NTIME_pm,100).eq.0.or.NTIME_pm.eq.1) call writesol
+            !      if(mod(NTIME_pm,20).eq.0.or.NTIME_pm.eq.1) call write_pm_solution
+            !if(mod(NTIME_pm,100).eq.0.or.NTIME_pm.eq.1) call write_pm_solution
             if (IPMWRITE .GT. 0) then 
                do i = 1, IPMWRITE
                   if (NTIME_pm .ge. IPMWSTART(i) .and. NTIME_pm .le. (IPMWSTART(i) + IPMWSTEPS(i))) then
                      st = MPI_WTIME()
-                     call writesol
+                     call write_pm_solution
                      et = MPI_WTIME()
                      write (*, *) achar(9), 'VPM: Writing Solution:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'                     
                   end if
                end do
             end if
-            ! if (iynslice .ne. 0) call writesolXavatar(iynslice)
+            ! if (iynslice .ne. 0) call write_pm_solutionXavatar(iynslice)
             ! call writeline
 
          end if
@@ -416,7 +412,7 @@ contains
          call back_to_particles_par ! INTERPOLATION FROM PM TO PARTICLES
          if (my_rank .eq. 0) then
             st = MPI_WTIME()
-            call writepar(NTIME_pm, XP, UP, QP, NVR)
+            call write_particles(NTIME_pm, XP, UP, QP, NVR)
             et = MPI_WTIME()
             write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'                     
          end if
@@ -425,12 +421,12 @@ contains
          iwrite = 0
          !if(IPMWRITE.GT.0) then
          !  do i=1,IPMWRITE
-         ! if(NTIME.ge.IPMWSTART(i).and.NTIME.le.(IPMWSTART(i)+IPMWSTEPS(i))) call writesol(NTIME)
+         ! if(NTIME.ge.IPMWSTART(i).and.NTIME.le.(IPMWSTART(i)+IPMWSTEPS(i))) call write_pm_solution(NTIME)
          !  enddo
          !endif
          !if (ND.eq.3) then
          ! call hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
-         ! call writesol(NTIME)
+         ! call write_pm_solution(NTIME)
          !stop
          !endif
 
@@ -810,7 +806,7 @@ contains
 
    End Subroutine define_sizes
 
-   Subroutine writesol
+   Subroutine write_pm_solution
       use vpm_vars
       use pmeshpar
       use parvar
@@ -853,9 +849,9 @@ contains
       end do
       close (1)
       iwrite = 1
-   End Subroutine writesol
+   End Subroutine write_pm_solution
 
-   Subroutine writepar(NTIME,XPR, UPR, QPR, NVR)
+   Subroutine write_particles(NTIME,XPR, UPR, QPR, NVR)
       Implicit None
       integer,intent(in) :: NTIME,NVR
       double precision,intent(in):: XPR(3,NVR), QPR(3,NVR), UPR(3,NVR)
@@ -875,6 +871,6 @@ contains
       !    //filout1//' >/dev/null')
       ! call system('rm '//filout1)
       ! close(10)
-   End Subroutine writepar
+   End Subroutine write_particles
 
 End Module vpm_lib

@@ -67,7 +67,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    ! write(*,*) 'Coarse block dimensions'
    ! write(*,*) NN_bl_coarse(1:6)
    !outfil2='coarse'
-   !call writesol(RHS_pm_coarse,SOL_pm_coarse,velphix_coarse,velphiy_coarse,velvrx_coarse,velvry_coarse,Dpm_coarse,outfil2,Xbound_coarse,NN_bl_coarse,NN_coarse)
+   !call write_pm_solution(RHS_pm_coarse,SOL_pm_coarse,velphix_coarse,velphiy_coarse,velvrx_coarse,velvry_coarse,Dpm_coarse,outfil2,Xbound_coarse,NN_bl_coarse,NN_coarse)
    !endif
 
    !Variable map_nodes if 1 then the  block nb contains inode,jnode of coarse grid
@@ -280,7 +280,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !velvrx_tmp = abs(velvrx_tmp - velvrx_fine)
    !velvry_tmp = abs(velvry_tmp - velvry_fine)
    !write(outfil1,'(a5,i2.2)') 'error',nc
-   !call writesol(RHS_pm_fine,SOL_pm_er,velphix_fine,velphiy_fine,velvrx_tmp,velvry_tmp,Dpm_fine,outfil1,Xbound_fine,NN_bl_fine,NN_fine)
+   !call write_pm_solution(RHS_pm_fine,SOL_pm_er,velphix_fine,velphiy_fine,velvrx_tmp,velvry_tmp,Dpm_fine,outfil1,Xbound_fine,NN_bl_fine,NN_fine)
 
 contains
 

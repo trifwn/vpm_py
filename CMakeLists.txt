@@ -117,19 +117,19 @@ if (USE_INTEL)
     set(FLAGS "-DASCII=1")
     set(MOD_FLAG "-module")
     
-    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -mkl -qopenmp -g -traceback")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -qmkl -qopenmp -g -traceback")
     # Extend the debug flags
-    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fpe0 ")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fpe0 ")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all ")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check bounds -check format -check output_conversion -check pointers -check stack")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check uninit")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fstack-security-check")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
-    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -warn all")
-    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -mkl -qopenmp")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -warn all")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -qmkl -qopenmp")
     
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -mkl -qopenmp")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 -mkl -qopenmp")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -qmkl -qopenmp")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 -qmkl -qopenmp")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(EXENAME "${EXENAMEIN}_debug")
@@ -165,89 +165,69 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PATHOBJHP})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PATHOBJHP})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PATHOBJHP})
 
-
-# Define source files
-set(SRC_FILES
-    ${SRC_HP}/main_pm.f90
+set(VPM_LIB_INCL 
     ${SRC_HP}/vpm_mpi.f90
-    ${SRC_HP}/mkl_dfti.f90
-    # ${SRC_HP}/libpm.f90 
-    # ${SRC_HP}/fish.f90
-    # ${SRC_HP}/pois3d.f90
-    ${SRC_HP}/vpm.f90
+    ${SRC_HP}/vpm_remesh.f90
     ${SRC_HP}/vpm_time.f90
     ${SRC_HP}/vpm_gcalc.f90
-    ${SRC_HP}/vpm_remesh.f90
-)
-add_custom_target(vpm ALL
-    DEPENDS ${SRC_HP}
-    COMMAND 
 )
 
-add_custom_target(mpi_matrices ALL
-    DEPENDS ${SRC_HP}/mpi_matrices.f90
-    COMMAND ${CMAKE_Fortran_COMPILER} ${FLAGS} ${EXTRA_FLAGS} -c ${MOD_FLAG} ${PATHOBJHP} ${SRC_HP}/mpi_matrices.f90 -o ${PATHOBJHP}/mpi_matrices.o
+set(PM_LIB_INCL
+    ${SRC_HP}/pmsolve.f90
+    ${SRC_HP}/pmbound.f90
+    ${SRC_HP}/pinfdomain.f90
 )
 
-add_custom_target(mkl_dfti ALL # Define custom target for mkl_dfti
-    DEPENDS ${SRC_HP}/mkl_dfti.f90  
-    COMMAND ${CMAKE_Fortran_COMPILER} ${FLAGS} ${EXTRA_FLAGS} -c ${MOD_FLAG} ${PATHOBJHP} ${SRC_HP}/mkl_dfti.f90 -o ${PATHOBJHP}/mkl_dfti.o
+set(YAPS_INCL
+    ${SRC_HP}/yaps2d.f90
+    ${SRC_HP}/yaps3d.f90
 )
-add_custom_target(pmproject ALL # Define custom target for pmproject
-    DEPENDS ${SRC_HP}/pmproject.f90 ${SRC_HP}/main_pm.f90  ${SRC_HP}/mkl_dfti.f90 
-    COMMAND ${CMAKE_Fortran_COMPILER} ${FLAGS} ${EXTRA_FLAGS} -c ${MOD_FLAG} ${PATHOBJHP} ${SRC_HP}/pmproject.f90 -o ${PATHOBJHP}/pmproject.o
+
+set(TEST_EXE_SRC
+    ${SRC_TEST}/test.f90
+    ${SRC_TEST}/test_applic.f90
 )
-add_custom_target(pmlib ALL # Define custom target for pmlib
-    DEPENDS ${SRC_HP}/pmlib.f90 ${SRC_HP}/pmbound.f90 ${SRC_HP}/pinfdomain.f90 ${SRC_HP}/pmsolve.f90 ${SRC_HP}/mkl_dfti.f90  
-    COMMAND ${CMAKE_Fortran_COMPILER} ${FLAGS} ${EXTRA_FLAGS} -c ${MOD_FLAG} ${PATHOBJHP} ${SRC_HP}/pmlib.f90 -o ${PATHOBJHP}/pmlib.o
-)
-add_custom_target(yaps ALL # Define custom target for yaps
-    DEPENDS ${SRC_HP}/yaps.f90 ${SRC_HP}/yaps2d.f90 ${SRC_HP}/yaps3d.f90 ${SRC_HP}/mpi_matrices.f90
-    COMMAND ${CMAKE_Fortran_COMPILER} ${FLAGS} ${EXTRA_FLAGS} -c ${MOD_FLAG} ${PATHOBJHP} ${SRC_HP}/yaps.f90 -o ${PATHOBJHP}/yaps.o
-)
+
+add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
+add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
+add_library(main_pm SHARED  ${SRC_HP}/main_pm.f90)
+add_library(pmproject SHARED ${SRC_HP}/pmproject.f90)
+target_link_libraries(pmproject PRIVATE mkl_dfti main_pm)
+
+add_library(pmlib SHARED ${SRC_HP}/pmlib.f90)
+target_include_directories(pmlib PUBLIC ${PM_LIB_INCL})
+target_link_libraries(pmlib PRIVATE mkl_dfti)
+
+add_library(yaps SHARED ${SRC_HP}/yaps.f90)
+target_include_directories(yaps PUBLIC ${YAPS_INCL})
+target_link_libraries(yaps PRIVATE mkl_dfti mpi_matrices)
+
+add_library(vpm SHARED ${SRC_HP}/vpm.f90)
+target_include_directories(vpm PUBLIC ${VPM_LIB_INCL})
 
 # Add all object files as sources to a dummy target
 add_custom_target(dummy ALL
-    DEPENDS mkl_dfti mpi_matrices yaps pmlib pmproject
+    DEPENDS mkl_dfti mpi_matrices yaps pmlib pmproject vpm 
 )
 
 # -------------------------------------------------------------------------------------------------
 #                                            Library
 # -------------------------------------------------------------------------------------------------
-add_library(${EXENAME} SHARED
-    ${SRC_FILES}
-    ${SRC_HP}/mpi_matrices.f90
-    ${SRC_HP}/yaps.f90
-    ${SRC_HP}/pmlib.f90
-    ${SRC_HP}/pmproject.f90
-    ${SRC_HP}/mkl_dfti.f90
-    # API
-    ${SRC_HP}/api.f90
-)
+add_library(${EXENAME} SHARED ${SRC_HP}/api.f90)
 add_dependencies(${EXENAME} dummy) # Ensure proper dependency resolution
+target_link_libraries(${EXENAME} PRIVATE mkl_dfti mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS} 
 target_include_directories(${EXENAME} PUBLIC ${PATHOBJHP}) # Set include directories using PUBLIC
 target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile options using PUBLIC
-target_link_libraries(${EXENAME} PUBLIC ${LINK_FLAGS})# Link libraries using PUBLIC
 
 # -------------------------------------------------------------------------------------------------
 #                                            TEST_EXE
 # -------------------------------------------------------------------------------------------------
 # Add executable for testing purposes (not necessary)
-add_executable(${EXENAME}_exe 
-    ${SRC_FILES}
-    ${SRC_HP}/mpi_matrices.f90
-    ${SRC_HP}/yaps.f90
-    ${SRC_HP}/pmlib.f90
-    ${SRC_HP}/pmproject.f90
-    ${SRC_HP}/mkl_dfti.f90
-    # Testing files
-    ${SRC_TEST}/test.f90
-    ${SRC_TEST}/test_applic.f90
-)
+add_executable(${EXENAME}_exe ${TEST_EXE_SRC})
 add_dependencies(${EXENAME}_exe dummy)
-target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP})
+target_link_libraries(${EXENAME}_exe PRIVATE mkl_dfti mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
+target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP}) 
 target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
-target_link_libraries(${EXENAME}_exe PUBLIC ${LINK_FLAGS})
 
 # # -------------------------------------------------------------------------------------------------
 #                                           #  F2PY
