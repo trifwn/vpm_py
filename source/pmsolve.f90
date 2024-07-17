@@ -92,7 +92,7 @@ Subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
    double precision, allocatable::SOL_pm2(:, :), WORK(:)
    double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
    external            :: d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D
-   
+
    type(DFTI_DESCRIPTOR)    :: xhandle
 
    !--> Assignment of Boundary Values
@@ -304,16 +304,16 @@ Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    NY = NYf - NYs + 1!-2
    NZ = NZf - NZs + 1!-2
 
-   dim  = NX * NY* NZ
-   dim1 = NY * NZ
-   dim2 = NX * NY
-   dim3 = NX * NZ
+   dim = NX*NY*NZ
+   dim1 = NY*NZ
+   dim2 = NX*NY
+   dim3 = NX*NZ
 
    allocate (bd_ax(dim1), bd_bx(dim1))
    allocate (bd_az(dim2), bd_bz(dim2))
    allocate (bd_ay(dim3), bd_by(dim3))
    allocate (f(dim))
-   
+
    do k = 1, NZ
       do j = 1, NY
          do i = 1, NX
@@ -338,7 +338,7 @@ Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
          bd_bz(nod) = SOL_pm(neq, i + NXs - 1, j + NYs - 1, NZf)
       end do
    end do
-   
+
    !---> YMIN,YMAX
    do k = 1, NZ
       do i = 1, NX

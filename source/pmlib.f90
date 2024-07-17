@@ -80,7 +80,6 @@ contains
       ! double precision :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
       ! double precision :: R, DX, DY, GreenF, nv
 
-
       !--> Define PI
       PI = 4.d0*atan(1.d0)
       PI2 = 2.d0*PI
@@ -195,7 +194,7 @@ contains
             end do
          end if
       end if
-      
+
       ! do rank = 0, np - 1
       !    if (rank.eq.my_rank) then
       !       write (*,*) 'Rank:', rank
@@ -245,7 +244,7 @@ contains
       integer, intent(out)            :: NN(3), NN_bl(6)
       integer :: ndum_new(3), nn1, nn2
       ! double precision :: Xbound_old(6)
-      
+
       !-> Define Pmesh X,Y,Z min/max boundaries
       if (ND .eq. 2) then
          Xbound(6) = 0

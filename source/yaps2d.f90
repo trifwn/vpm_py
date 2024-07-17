@@ -45,7 +45,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    lmax = ilevmax!maximum level
    ! 1 is the Nblocks not needed needs fix
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+              Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
    !write(outfil1,'(a9,i2.2)') 'blockgrow',nb
    !call writegrow(RHS_pm_bl,SOL_pm_bl,Dpm_fine,outfil1,Xbound_tmp,NN_bl_tmp,NN_tmp)
@@ -185,7 +185,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    if (itree .eq. 0) lmax = 1
    if (my_rank .eq. 0) write (199, *) 'coarse'
    call pmesh(SOL_pm_coarse, RHS_pm_coarse, QP, XP, Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, &
-            1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+              1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
    ! if(my_rank.eq.1)endtime = MPI_WTIME()
    ! if(my_rank.eq.1) write(*,*)'Poisson Coarse=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
 
@@ -253,13 +253,13 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    itree = 0
    lmax = 0
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+              Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
    if (my_rank .eq. 0) endtime = MPI_WTIME()
    if (my_rank .eq. 0) write (199, *) &
-       'Parallel Poiss=', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      'Parallel Poiss=', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
 
    !allocate(SOL_pm_er(NN_fine(1),NN_fine(2),1,7))
    !allocate(velvrx_tmp(NXpm,NYpm,NZpm) ,velvry_tmp(NXpm,NYpm,NZpm),velvrz_tmp(NXpm,NYpm,NZpm))
@@ -582,7 +582,7 @@ contains
       addlocal = 0
       do nbc = 1, BLOCKS
          if (map_nodes(inode - 1, jnode - 1, 1, nbc) .ne. 1 .or. &
-            map_nodes(inode + 1, jnode + 1, 1, nbc) .ne. 1) then
+             map_nodes(inode + 1, jnode + 1, 1, nbc) .ne. 1) then
             nnb(nbc) = 1
          end if
       end do
@@ -606,8 +606,8 @@ contains
             f = fx*fy
             !SOL_pm_coa
             SOL_pm_bl(neqs:neqf, i, j, 1) = SOL_pm_bl(neqs:neqf, i, j, 1) + &
-                                          f*(SOL_pm_coarse(neqs:neqf, ic, jc, 1) - add_sample(neqs:neqf) + &
-                                             add(neqs:neqf))
+                                            f*(SOL_pm_coarse(neqs:neqf, ic, jc, 1) - add_sample(neqs:neqf) + &
+                                               add(neqs:neqf))
          end do
       end do
 
@@ -625,23 +625,23 @@ contains
 
    Subroutine calc_laplacian_coarse(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
       Implicit none
-      
+
       integer, intent(in) :: NN(3), NN_bl(6), NN_map(6), neqs, neqf, npmsize
       double precision, intent(out)   :: RHS_pm(npmsize, NN(1), NN(2), NN(3))
       double precision, intent(in)    :: SOL_pm(npmsize, NN(1), NN(2), NN(3)), Dpm(3)
       integer                        :: i, j
-      
+
       RHS_pm = 0.d0
       do i = NN_map(1) + 1, NN_map(4) - 1
          do j = NN_map(2) + 1, NN_map(5) - 1
             RHS_pm(neqs:neqf, i, j, 1) = (SOL_pm(neqs:neqf, i + 1, j, 1) - 2*SOL_pm(neqs:neqf, i, j, 1) + &
-            SOL_pm(neqs:neqf, i - 1, j, 1))/Dpm(1)**2 + &
-            (SOL_pm(neqs:neqf, i, j + 1, 1) - 2*SOL_pm(neqs:neqf, i, j, 1) + &
-            SOL_pm(neqs:neqf, i, j - 1, 1))/Dpm(2)**2
-            
+                                          SOL_pm(neqs:neqf, i - 1, j, 1))/Dpm(1)**2 + &
+                                         (SOL_pm(neqs:neqf, i, j + 1, 1) - 2*SOL_pm(neqs:neqf, i, j, 1) + &
+                                          SOL_pm(neqs:neqf, i, j - 1, 1))/Dpm(2)**2
+
          end do
       end do
-      
+
    End Subroutine calc_laplacian_coarse
 
 End Subroutine yaps2d

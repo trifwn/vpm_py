@@ -96,27 +96,27 @@ contains
                   if (my_rank .eq. 0) then
                      if (k .lt. 1) then
                         print *, "PROJECT PARTICLES 3D GOT k<1: "
-                        write (*,*) "QPX", QPX(1:3, nv)
-                        write (*,*) "XMIN, YMIN, ZMIN", XMIN_pm, YMIN_pm, ZMIN_pm
-                        write (*,*) "DX, DY, DZ", DXpm, DYpm, DZpm
-                        write (*,*) "NV" , nv
-                        write (*,*) "IPA", ipar
-                        write (*,*) "I", i
-                        write (*,*) "ips, ipf", ips, ipf
-                        write (*,*) "knode", knode 
-                        write (*,*) "J", j
-                        write (*,*) "jnode", jnode
-                        write (*,*) "K", k
-                        write (*,*) "inode", inode
-                     endif
+                        write (*, *) "QPX", QPX(1:3, nv)
+                        write (*, *) "XMIN, YMIN, ZMIN", XMIN_pm, YMIN_pm, ZMIN_pm
+                        write (*, *) "DX, DY, DZ", DXpm, DYpm, DZpm
+                        write (*, *) "NV", nv
+                        write (*, *) "IPA", ipar
+                        write (*, *) "I", i
+                        write (*, *) "ips, ipf", ips, ipf
+                        write (*, *) "knode", knode
+                        write (*, *) "J", j
+                        write (*, *) "jnode", jnode
+                        write (*, *) "K", k
+                        write (*, *) "inode", inode
+                     end if
                   end if
 
                   Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k) &
                                                    + f*QPar(ieq(1:neq - 1), nv)
-                                                   !-QINF(1:neq-1)*QPar(ieq(neq),nv))
+                  !-QINF(1:neq-1)*QPar(ieq(neq),nv))
                   Qproj(ieq(neq), i, j, k) = Qproj(neq, i, j, k) &
-                                             + f* QPar(ieq(neq), nv) &
-                                             - f* QINF(neq)
+                                             + f*QPar(ieq(neq), nv) &
+                                             - f*QINF(neq)
                end do
             end do
          end do
@@ -140,12 +140,12 @@ contains
       !use pmgrid
 
       Implicit None
-      integer, intent(in) :: neq, isize,iflag
+      integer, intent(in) :: neq, isize, iflag
       integer, intent(in), dimension(neq) ::  ieq
       ! double precision , intent(out), dimension(:, :,:,:) :: Qproj
       double precision   :: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
-      ! double precision   :: fx, fy, fz, f, x, y, z, 
+      ! double precision   :: fx, fy, fz, f, x, y, z,
       double precision     :: EPSVOLt
       integer              :: i, j, k, IDVPMt
       ! integer              :: inode, jnode, knode, nv, itype, nbj, nb
@@ -420,9 +420,9 @@ contains
       Implicit None
       double precision, intent(in) :: x
       integer, intent(in)          :: itype
-   
+
       double precision             :: xabs
-   
+
       xabs = abs(x)
       if (itype .eq. 2) then
          if (xabs .gt. 1) then
@@ -449,11 +449,11 @@ contains
          if (xabs .le. 1.d0) projection_fun = 1.d0 - xabs**2
          if (xabs .gt. 1.d0 .and. xabs .le. 2.d0) projection_fun = 0.5d0*(1.d0 - xabs)*(2.d0 - xabs)
          if (xabs .gt. 2.d0) projection_fun = 0.d0
-   
+
       else
          write (*, *) 'No such projection function', itype
          STOP
       end if
-   
+
    End Function projection_fun
 End module projlib

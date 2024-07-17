@@ -123,6 +123,9 @@ Subroutine infdomain_3d(neqs, neqf)
    !-->Calculate normal gradient
    nbound = 0
    call calc_normalderiv_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
+
+   write (*,*) achar(9), achar(9), "DEBUG: nbound = ", nbound
+   write (*,*) achar(9), achar(9), "Should be equal to ", Nblocks*(nworkb)
    deallocate (SOL_0_pm)
    if (my_rank .eq. 0) st = MPI_WTIME()
    if (itree .eq. 1) then
@@ -885,10 +888,10 @@ Subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
    allocate (nn_lev(3, 0:levmax)); nn_lev = 0.d0
    allocate (xs_tmp(nbound, 3), ds_tmp(nbound), s_tmp(nbound, 1:neqf))
 
-   xs_tmp(1:nbound, 1) = 0.25d0*(x_s(1, :) + x_s(2, :) + x_s(3, :) + x_s(4, :))
-   xs_tmp(1:nbound, 2) = 0.25d0*(y_s(1, :) + y_s(2, :) + y_s(3, :) + y_s(4, :))
-   xs_tmp(1:nbound, 3) = 0.25d0*(z_s(1, :) + z_s(2, :) + z_s(3, :) + z_s(4, :))
-   ds_tmp(1:nbound) = d_s(:)
+   xs_tmp(1:nbound, 1) = 0.25d0*(x_s(1, 1:nbound) + x_s(2, 1:nbound) + x_s(3, 1:nbound) + x_s(4, 1:nbound))
+   xs_tmp(1:nbound, 2) = 0.25d0*(y_s(1, 1:nbound) + y_s(2, 1:nbound) + y_s(3, 1:nbound) + y_s(4, 1:nbound))
+   xs_tmp(1:nbound, 3) = 0.25d0*(z_s(1, 1:nbound) + z_s(2, 1:nbound) + z_s(3, 1:nbound) + z_s(4, 1:nbound))
+   ds_tmp(1:nbound) = d_s(1:nbound)
    do neq = neqs, neqf
       s_tmp(1:nbound, neq) = source_bound(neq, 1:nbound)
    end do

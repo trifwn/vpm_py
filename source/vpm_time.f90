@@ -37,24 +37,23 @@ Subroutine back_to_particles_3D(SOL_pm, RHS_pm, XP, QP, UP, GP, &
    ! double precision, intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
    ! double precision, intent(in), dimension(:,:,:) :: velvrx_pm, velvry_pm, velvrz_pm
    double precision, intent(inout) :: QP(neqpm + 1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
-   
-   
+
    ! OLD
    double precision, intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    double precision, intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
    double precision, intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
-   !f2py depend(NN) :: velvrx_pm(NN(1), NN(2), NN(3)) 
+   !f2py depend(NN) :: velvrx_pm(NN(1), NN(2), NN(3))
    double precision, intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
    !f2py depend(NN) :: velvry_pm(NN(1), NN(2), NN(3))
    double precision, intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
    !f2py depend(NN) :: velvrz_pm(NN(1), NN(2), NN(3))
-   
+
    double precision, intent(in)    :: Xbound(6), Dpm(3)
 
    double precision :: fx, fy, fz, f, x, y, z, Gloc(3)
-   integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf,  DVpm
+   integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf, DVpm
    ! integer          :: ivortx, ivorty,
    if (iproj .eq. 2) then
       ips = 0

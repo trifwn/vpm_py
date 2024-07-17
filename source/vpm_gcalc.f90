@@ -7,7 +7,7 @@ Subroutine calc_velocity_serial_3d(idcalc)
    Implicit None
    integer, intent(in) :: idcalc
    double precision ::  dpsidx(3), dpsidy(3), dpsidz(3)
-   ! double precision ::  dphidx, dphidy, dphidz, 
+   ! double precision ::  dphidx, dphidy, dphidz,
    double precision ::  wdudx, wdvdy, wdwdz!, velxp, velyp, velzp, velxm, velym, velzm
    double precision ::  upi, umi, upj, umj, upk, umk
    double precision ::  vpi, vmi, vpj, vmj, vpk, vmk
@@ -65,10 +65,8 @@ Subroutine calc_velocity_serial_3d(idcalc)
       end if
    end if!
 
-
    if (idcalc .eq. 0) return
 
-   
    !Sol of vorticity is no longer need thus we use it for storing deformation
    SOL_pm = 0.d0
    !REMEMBER VORTICITY CARRIED IS -OMEGA and the quantity transferes is -OMEGA thus

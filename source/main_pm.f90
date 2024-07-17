@@ -42,5 +42,5 @@ module parvar
    integer, allocatable, save         :: NVR_projtype(:)
 
    double precision, allocatable        :: XP_CFD_Sa(:, :), UT_CFD_Sa(:), UN_CFD_Sa(:), &
-                                           DS_CFD_Sa(:), Vo_CFD_Sa(:)
+      DS_CFD_Sa(:), Vo_CFD_Sa(:)
 end module parvar

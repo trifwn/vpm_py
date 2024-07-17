@@ -28,6 +28,7 @@ double precision              :: Vref,NI_in,DT_in,RMETM,FACDEF,T, &
                                  XMIN,XMAX,UINF(3)
 integer                       :: NVR_turb,NVR_all
 integer                       :: my_rank,np,ierr,i,neq,j, TMAX
+integer :: debug_switch
 ! double precision,allocatable  :: XPDUM(:,:),QPDUM(:,:)
 ! integer                       :: Noutput, NDimoutput
                                  
@@ -35,6 +36,22 @@ call MPI_INIT(ierr)
 call MPI_Comm_Rank(MPI_COMM_WORLD,my_rank,ierr)
 call MPI_Comm_size(MPI_COMM_WORLD,np,ierr)
 
+
+! ! DEBUG SWITCH
+! debug_switch = 0
+! ! While loop for debugging
+! do while (debug_switch .eq. 0)
+!    if (my_rank .eq. 0) then
+!       print *, 'Debugging'
+!    end if
+!    call sleep(1)
+!    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+!    call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+! end do
+
+! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+! call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 print *, 'Processor ', my_rank, ' of ', np, ' started'
 
 NI_in=-0.1
@@ -71,6 +88,8 @@ if (my_rank.eq.0) then
    print *, achar(9), 'DYpm=', DYpm 
    print *, achar(9), 'DZpm=', DZpm
 end if
+
+
 
 neq=3
 !--- INPUT

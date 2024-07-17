@@ -23,7 +23,7 @@ contains
       use pmeshpar, only: IDVPM
       use openmpth, only: OMPTHREADS
       use MPI
-      
+
       ! Declare the parameters to be passed in
       implicit none
       real(c_double), intent(in) :: dx_pm, dy_pm, dz_pm
@@ -33,7 +33,7 @@ contains
       integer(c_int), intent(in) :: omp_threads, grid_define, slice_type, write_type
       real(c_double), intent(in) :: eps_vol
       integer(c_int), intent(in) :: write_start(10), write_steps(10)
-      
+
       integer :: ierr, my_rank, i
 
       ! Get the rank of the process
@@ -171,7 +171,7 @@ contains
       use yapslib
       use openmpth
       use MPI
-      
+
       implicit none
       integer(c_int), intent(in) :: iflag
       integer :: ierr, my_rank

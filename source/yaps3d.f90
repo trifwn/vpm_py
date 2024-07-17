@@ -1,5 +1,5 @@
 Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coarse, NNbl, NNbl_bl, &
-                  NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, NBK, nb_i,&
+                  NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, NBK, nb_i, &
                   nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
    use projlib
@@ -14,17 +14,16 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    double precision, intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
    double precision, intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
    double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
-   double precision, target                :: DQP(1,1), DXP(1,1)
+   double precision, target                :: DQP(1, 1), DXP(1, 1)
 
    double precision, allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
    double precision             :: Xbound_tmp(6)
    integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, iface12, iface34, iface56, ibound, itree, lmax
 
    integer                      :: ibctyp_c
-   integer                      :: origsize(5), isize1,isize2,isize3,NN_tmpc(6), rank !, start(5) 
+   integer                      :: origsize(5), isize1, isize2, isize3, NN_tmpc(6), rank !, start(5)
    ! integer                      :: sendsize(5)
 
-   
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
@@ -51,46 +50,46 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    iynbc = 1!infinite domain bc's
    itree = iyntree !tree algorithm for sources
    lmax = ilevmax!maximum level
-   
+
    ! 1 is the Nblocks not needed needs fix
    if (npmsize .ne. neqf) stop
-   ibctyp_c = ibctyp 
+   ibctyp_c = ibctyp
    if (my_rank .eq. 0) then
-      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block' , achar(27)//'[0m'  
-   endif
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block', achar(27)//'[0m'
+   end if
    do rank = 0, np - 1
       if (my_rank .eq. rank) then
-         write (*, *) achar(9), 'np=', my_rank , '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
-   !       write (*, *) '******************************'
-   !       write (*, *) 'Individual Block SOLUTION'
-   !       write (*, *) "NS", neqs, neqf
-   !       write (*, *) "XB", Xbound_tmp(1:3)
-   !       write (*, *) "XB", Xbound_tmp(4:6)
-   !       write (*, *) "BL", NN_bl_tmp(1:3)
-   !       write (*, *) 'BL', NN_bl_tmp(4:6)
-   !       write (*, *) "NN", NN_tmp(1:3)
-   !       write (*, *) 'DP', Dpm_fine(1:3)   
-   !       write (*, * ) "ibctyp_c", ibctyp_c
-   !       write (*, *) 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
-   !       write (*, *) "SIZE SOL", size(SOL_pm_bl, 1), size(SOL_pm_bl, 2), size(SOL_pm_bl, 3), size(SOL_pm_bl, 4)
-   !       write (*, *) '******************************'
-      endif
-      call MPI_Barrier(MPI_COMM_WORLD, ierr)
-   end do
-   if (my_rank .eq.0) write (*, *) ''
-
-   call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
-
-   if (my_rank .eq. 0) then
-      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block solution' , achar(27)//'[0m'  
-   endif
-   do rank = 0, np - 1
-      if (my_rank .eq. rank) then
-         write (*, *) achar(9), "np=",  my_rank, '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+         write (*, *) achar(9), 'np=', my_rank, '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+         !       write (*, *) '******************************'
+         !       write (*, *) 'Individual Block SOLUTION'
+         !       write (*, *) "NS", neqs, neqf
+         !       write (*, *) "XB", Xbound_tmp(1:3)
+         !       write (*, *) "XB", Xbound_tmp(4:6)
+         !       write (*, *) "BL", NN_bl_tmp(1:3)
+         !       write (*, *) 'BL', NN_bl_tmp(4:6)
+         !       write (*, *) "NN", NN_tmp(1:3)
+         !       write (*, *) 'DP', Dpm_fine(1:3)
+         !       write (*, * ) "ibctyp_c", ibctyp_c
+         !       write (*, *) 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+         !       write (*, *) "SIZE SOL", size(SOL_pm_bl, 1), size(SOL_pm_bl, 2), size(SOL_pm_bl, 3), size(SOL_pm_bl, 4)
+         !       write (*, *) '******************************'
       end if
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
-   enddo 
+   end do
+   if (my_rank .eq. 0) write (*, *) ''
+
+   call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
+              Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block solution', achar(27)//'[0m'
+   end if
+   do rank = 0, np - 1
+      if (my_rank .eq. rank) then
+         write (*, *) achar(9), "np=", my_rank, '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
 
    !---Block definitions
 
@@ -98,12 +97,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    NXpm_c = NN_coarse(1); NYpm_c = NN_coarse(2); NZpm_c = NN_coarse(3)
 
    if (my_rank .eq. 0) endtime = MPI_WTIME()
-   if (my_rank .eq. 0) then 
-      write (*,*)
+   if (my_rank .eq. 0) then
+      write (*, *)
       write (199, *) 'pmesh', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
       write (*, *) achar(9), 'pmesh', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-      write (*,*)
-   endif
+      write (*, *)
+   end if
    allocate (SOL_pm_coarse(npmsize, NXpm_c, NYpm_c, NZpm_c), RHS_pm_coarse(npmsize, NXpm_c, NYpm_c, NZpm_c))
    SOL_pm_coarse = 0.d0; RHS_pm_coarse = 0.d0
 
@@ -136,7 +135,7 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !broadcasting this information
 
    if (my_rank .eq. 0) starttime = MPI_WTIME()
-   
+
    do nbc = 1, BLOCKS
       NXs = 1!NNbl_bl(1,nb)
       NXf = NNbl(1, nbc)!NNbl_bl(4,nb)
@@ -173,12 +172,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
       end do
    end do
 
-   if(my_rank.eq.0) then 
+   if (my_rank .eq. 0) then
       endtime = MPI_WTIME()
-      write(199,*)'mapnodes',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
-      write(*,*) achar(9), 'mapnodes',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
-      write(*,*)
-   endif
+      write (199, *) 'mapnodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *) achar(9), 'mapnodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *)
+   end if
 
    !!      if(my_rank.eq.0)starttime = MPI_WTIME()
    !!      !--BCAST Sol_pm_sample
@@ -190,7 +189,6 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !!          SOL_pm_sample(1:npmsize,1:NN_coarse(1),1:NN_coarse(2),1:NN_coarse(3),nb)
    !!          NN_map(:)=NN_coarse_map(:,nb)
    !!          !calculate the RHS of the poisson problem using the sampled values
-
 
    !!     !End Subroutine calc_laplacian_coarse_3d
    !!          call calc_laplacian_coarse_3d(SOL_pm_tmp,RHS_pm_tmp,NN_coarse,NN_bl_coarse,Dpm_coarse,NN_map,neqs,neqf,npmsize)
@@ -232,72 +230,71 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !!      call MPI_BCAST(RHS_pm_coarse,1,mat4,0,MPI_COMM_WORLD,ierr)
    !!      call MPI_TYPE_FREE(mat4,ierr)
 
-   if(my_rank.eq.0)starttime = MPI_WTIME()
-   nb=my_rank+1
-   RHS_pm_coarse=0
-   origsize(1)=npmsize;origsize(2)=NN_coarse(1);origsize(3)=NN_coarse(2)
-   origsize(4)=NN_coarse(3);origsize(5)=BLOCKS
-   if (my_rank.eq.0) then 
+   if (my_rank .eq. 0) starttime = MPI_WTIME()
+   nb = my_rank + 1
+   RHS_pm_coarse = 0
+   origsize(1) = npmsize; origsize(2) = NN_coarse(1); origsize(3) = NN_coarse(2)
+   origsize(4) = NN_coarse(3); origsize(5) = BLOCKS
+   if (my_rank .eq. 0) then
 
       !isize1= NN_coarse_map(4,nbc)-NN_coarse_map(1,nb) + 1
       !isize2= NN_coarse_map(5,nbc)-NN_coarse_map(2,nb) + 1
       !allocate(SOL_pm_tmp(npmsize,isize1,isize2,1))
       !allocate(RHS_pm_tmp(npmsize,isize1,isize2,1))
       !call calc_laplacian_coarse(SOL_pm_tmp,RHS_pm_tmp,NN_coarse,NN_bl_coarse,Dpm_coarse,NN_map,neqs,neqf,npmsize)
-      do nbc=2,BLOCKS
-         isize1= NN_coarse_map(4,nbc)-NN_coarse_map(1,nbc) + 1
-         isize2= NN_coarse_map(5,nbc)-NN_coarse_map(2,nbc) + 1
-         isize3= NN_coarse_map(6,nbc)-NN_coarse_map(3,nbc) + 1
-         allocate(SOL_pm_tmp(npmsize,isize1,isize2,isize3))
-         call mpimat4(mat4,npmsize,isize1,isize2,isize3)
-         source = nbc-1
-         call MPI_RECV(SOL_pm_tmp,1,mat4,source,1,MPI_COMM_WORLD,status,ierr)
-         SOL_pm_sample(1:npmsize,&
-                        NN_coarse_map(1,nbc):NN_coarse_map(4,nbc),&
-                        NN_coarse_map(2,nbc):NN_coarse_map(5,nbc),&
-                        NN_coarse_map(3,nbc):NN_coarse_map(6,nbc),nbc)=&
-                        SOL_pm_tmp(1:npmsize,1:isize1,1:isize2,1:isize3)
-         call MPI_TYPE_FREE(mat4,ierr)
-         deallocate(SOL_pm_tmp)
-      enddo
+      do nbc = 2, BLOCKS
+         isize1 = NN_coarse_map(4, nbc) - NN_coarse_map(1, nbc) + 1
+         isize2 = NN_coarse_map(5, nbc) - NN_coarse_map(2, nbc) + 1
+         isize3 = NN_coarse_map(6, nbc) - NN_coarse_map(3, nbc) + 1
+         allocate (SOL_pm_tmp(npmsize, isize1, isize2, isize3))
+         call mpimat4(mat4, npmsize, isize1, isize2, isize3)
+         source = nbc - 1
+         call MPI_RECV(SOL_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
+         SOL_pm_sample(1:npmsize, &
+                       NN_coarse_map(1, nbc):NN_coarse_map(4, nbc), &
+                       NN_coarse_map(2, nbc):NN_coarse_map(5, nbc), &
+                       NN_coarse_map(3, nbc):NN_coarse_map(6, nbc), nbc) = &
+            SOL_pm_tmp(1:npmsize, 1:isize1, 1:isize2, 1:isize3)
+         call MPI_TYPE_FREE(mat4, ierr)
+         deallocate (SOL_pm_tmp)
+      end do
    else
-      dest=0
-      isize1= NN_coarse_map(4,nb)-NN_coarse_map(1,nb)+1
-      isize2= NN_coarse_map(5,nb)-NN_coarse_map(2,nb)+1
-      isize3= NN_coarse_map(6,nb)-NN_coarse_map(3,nb) + 1
-      allocate(SOL_pm_tmp(npmsize,isize1,isize2,isize3))
-      SOL_pm_tmp(1:npmsize,1:isize1,1:isize2,1:isize3)=SOL_pm_sample(1:npmsize,&
-                                                NN_coarse_map(1,nb):NN_coarse_map(4,nb),&
-                                                NN_coarse_map(2,nb):NN_coarse_map(5,nb),&
-                                                NN_coarse_map(3,nb):NN_coarse_map(6,nb),nb)
-      call mpimat4(mat4,npmsize,isize1,isize2,isize3)
-      call MPI_SEND(SOL_pm_tmp,1,mat4,dest,1,MPI_COMM_WORLD,ierr)
-      deallocate(SOL_pm_tmp)
-   endif
-   if(my_rank.eq.0)endtime = MPI_WTIME()
-   if(my_rank.eq.0) write(199,*)'sendzero',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
-   
-   if(my_rank.eq.0)starttime = MPI_WTIME()
-   call mpimat5(mat5,npmsize,NN_coarse(1),NN_coarse(2),NN_coarse(3),BLOCKS,BLOCKS,0)
-   call MPI_BCAST(SOL_pm_sample,1,mat5,0,MPI_COMM_WORLD,ierr)
-   call MPI_TYPE_FREE(mat5,ierr)
-   allocate(SOL_pm_tmp(npmsize,NN_coarse(1),NN_coarse(2),NN_coarse(3)))
-   allocate(RHS_pm_tmp(npmsize,NN_coarse(1),NN_coarse(2),NN_coarse(3)))
+      dest = 0
+      isize1 = NN_coarse_map(4, nb) - NN_coarse_map(1, nb) + 1
+      isize2 = NN_coarse_map(5, nb) - NN_coarse_map(2, nb) + 1
+      isize3 = NN_coarse_map(6, nb) - NN_coarse_map(3, nb) + 1
+      allocate (SOL_pm_tmp(npmsize, isize1, isize2, isize3))
+      SOL_pm_tmp(1:npmsize, 1:isize1, 1:isize2, 1:isize3) = SOL_pm_sample(1:npmsize, &
+                                                                          NN_coarse_map(1, nb):NN_coarse_map(4, nb), &
+                                                                          NN_coarse_map(2, nb):NN_coarse_map(5, nb), &
+                                                                          NN_coarse_map(3, nb):NN_coarse_map(6, nb), nb)
+      call mpimat4(mat4, npmsize, isize1, isize2, isize3)
+      call MPI_SEND(SOL_pm_tmp, 1, mat4, dest, 1, MPI_COMM_WORLD, ierr)
+      deallocate (SOL_pm_tmp)
+   end if
+   if (my_rank .eq. 0) endtime = MPI_WTIME()
+   if (my_rank .eq. 0) write (199, *) 'sendzero', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
 
-   if(my_rank.eq.0)endtime = MPI_WTIME()
-   if(my_rank.eq.0) write(199,*)'bcast',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+   if (my_rank .eq. 0) starttime = MPI_WTIME()
+   call mpimat5(mat5, npmsize, NN_coarse(1), NN_coarse(2), NN_coarse(3), BLOCKS, BLOCKS, 0)
+   call MPI_BCAST(SOL_pm_sample, 1, mat5, 0, MPI_COMM_WORLD, ierr)
+   call MPI_TYPE_FREE(mat5, ierr)
+   allocate (SOL_pm_tmp(npmsize, NN_coarse(1), NN_coarse(2), NN_coarse(3)))
+   allocate (RHS_pm_tmp(npmsize, NN_coarse(1), NN_coarse(2), NN_coarse(3)))
 
-   RHS_pm_coarse=0
-   do nbc=1,BLOCKS
-      NN_map(:)=NN_coarse_map(:,nbc)
-      SOL_pm_tmp(:,:,:,:)= SOL_pm_sample(:,:,:,:,nbc)
-      NN_tmpc(1:6)=NN_coarse_map(1:6,nbc)
-      call calc_laplacian_coarse_3d(SOL_pm_tmp,RHS_pm_tmp,NN_coarse,NN_bl_coarse,Dpm_coarse,NN_map,neqs,neqf,npmsize)
-      RHS_pm_coarse=RHS_pm_coarse + RHS_pm_tmp
-   enddo
-   
-   deallocate(SOL_pm_tmp,RHS_pm_tmp)
+   if (my_rank .eq. 0) endtime = MPI_WTIME()
+   if (my_rank .eq. 0) write (199, *) 'bcast', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
 
+   RHS_pm_coarse = 0
+   do nbc = 1, BLOCKS
+      NN_map(:) = NN_coarse_map(:, nbc)
+      SOL_pm_tmp(:, :, :, :) = SOL_pm_sample(:, :, :, :, nbc)
+      NN_tmpc(1:6) = NN_coarse_map(1:6, nbc)
+      call calc_laplacian_coarse_3d(SOL_pm_tmp, RHS_pm_tmp, NN_coarse, NN_bl_coarse, Dpm_coarse, NN_map, neqs, neqf, npmsize)
+      RHS_pm_coarse = RHS_pm_coarse + RHS_pm_tmp
+   end do
+
+   deallocate (SOL_pm_tmp, RHS_pm_tmp)
 
    !add Sampling blocks
    !allocate (SOL_pm_sumsample(NN_coarse(1),NN_coarse(2),NN_coarse(3),7))
@@ -312,22 +309,22 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    ! if(my_rank.eq.1) write(*,*)'Laplace=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
 
    !if (my_rank.eq.1)starttime = MPI_WTIME()
-   SOL_pm_coarse=0.d0
-   iynbc=1
-   if (iyntree.eq.1) then 
-      itree=1!iyntree
-      lmax=ilevmax-1
+   SOL_pm_coarse = 0.d0
+   iynbc = 1
+   if (iyntree .eq. 1) then
+      itree = 1!iyntree
+      lmax = ilevmax - 1
    else
-      itree=0
-      lmax =1
-   endif
-   if(my_rank.eq.0)starttime = MPI_WTIME()
-   if (itree.eq.0) lmax=1
-   ibctyp_c=ibctyp
+      itree = 0
+      lmax = 1
+   end if
+   if (my_rank .eq. 0) starttime = MPI_WTIME()
+   if (itree .eq. 0) lmax = 1
+   ibctyp_c = ibctyp
 
-   if (my_rank.eq.0) then
-      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse' , achar(27)//'[0m'
-   endif
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse', achar(27)//'[0m'
+   end if
 
    do rank = 0, np - 1
       if (my_rank .eq. rank) then
@@ -336,49 +333,49 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
    end do
 
-   call pmesh(SOL_pm_coarse,RHS_pm_coarse,QP,XP,&
-         Xbound_coarse,DPm_coarse,NN_coarse,NN_bl_coarse,ND,1,ibctyp_c,neqs,neqf,iynbc,0,itree,lmax)
-   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse Solution' , achar(27)//'[0m'
+   call pmesh(SOL_pm_coarse, RHS_pm_coarse, QP, XP, &
+              Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse Solution', achar(27)//'[0m'
    do rank = 0, np - 1
       if (my_rank .eq. rank) then
          write (*, *) achar(9), 'np=', my_rank, '. max(SOL_PM_coarse) = ', maxval(abs(SOL_PM_coarse))
       end if
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
-   end do   
-      
-   if(my_rank.eq.0) then 
+   end do
+
+   if (my_rank .eq. 0) then
       endtime = MPI_WTIME()
-      write (*,*)
-      write(*,*) achar(9), 'Poisson Coarse=',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
-      write (*,*)
-   endif
+      write (*, *)
+      write (*, *) achar(9), 'Poisson Coarse=', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+      write (*, *)
+   end if
    ! Interpolate to all blocks
-   
-   ! At this point we calculate boundary conditions for each block and solve it 
-   if(my_rank.eq.0)starttime = MPI_WTIME()
-   nb  = my_rank+1
-   NXs = NNbl_bl(1,nb)
-   NXf = NNbl_bl(4,nb)
 
-   NYs = NNbl_bl(2,nb)
-   NYf = NNbl_bl(5,nb)
+   ! At this point we calculate boundary conditions for each block and solve it
+   if (my_rank .eq. 0) starttime = MPI_WTIME()
+   nb = my_rank + 1
+   NXs = NNbl_bl(1, nb)
+   NXf = NNbl_bl(4, nb)
 
-   NZs = NNbl_bl(3,nb)
-   NZf = NNbl_bl(6,nb)
+   NYs = NNbl_bl(2, nb)
+   NYf = NNbl_bl(5, nb)
 
-   isizex  = NNbl(1,nb)
-   isizey  = NNbl(2,nb)
-   isizez  = NNbl(3,nb)
+   NZs = NNbl_bl(3, nb)
+   NZf = NNbl_bl(6, nb)
+
+   isizex = NNbl(1, nb)
+   isizey = NNbl(2, nb)
+   isizez = NNbl(3, nb)
    !NODS COUNT FROM FACE1,FACE2-->FACE3,FACE4--->FACE5,FACE6
    !iface12 corresponds to planes normal x faces (1-2)
-   iface12 = isizey * isizez
+   iface12 = isizey*isizez
    !iface34 corresponds to planes normal y faces (3-4)
-   iface34 = isizex * isizez
+   iface34 = isizex*isizez
    !iface56 corresponds to planes normal z faces (5-6)
-   iface56 = isizex * isizey
+   iface56 = isizex*isizey
    ibound = 2*(iface12 + iface34 + iface56)
    !BBounds are the matrix which contain the boundary conditions of each blokc
-   allocate(BBound(ibound,neq,BLOCKS))
+   allocate (BBound(ibound, neq, BLOCKS))
    call mapnodes_bl
    !---------------------------------------------------------------------------------
    !Xs boundary ,9 point stencil
@@ -386,12 +383,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
    if (my_rank .eq. 0) then
       endtime = MPI_WTIME()
-      write (*, *) 
+      write (*, *)
       write (199, *) 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
       write (*, *) achar(9), 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-      write (*, *) 
+      write (*, *)
       starttime = MPI_WTIME()
-   endif
+   end if
    i = NXs
    do k = NZs, NZf
       do j = NYs, NYf
@@ -467,7 +464,7 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
       write (199, *) 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
       write (*, *) achar(9), 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
       write (*, *)
-   endif 
+   end if
    ! write(*,*) 'Solving for Block',nb
    !iynbc=0 means that the bc's of the poisson solver are already defined
    iynbc = 0
@@ -476,39 +473,38 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-   
    if (my_rank .eq. 0) then
-      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc)' , achar(27)//'[0m'  
-   endif
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc)', achar(27)//'[0m'
+   end if
    do rank = 0, np - 1
 
       if (my_rank .eq. rank) then
-         write (*, *) achar(9),  'np=', my_rank, 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+         write (*, *) achar(9), 'np=', my_rank, 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
       end if
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
    end do
    if (my_rank .eq. 0) starttime = MPI_WTIME()
-   if (my_rank .eq.0) write (*, *) ''
+   if (my_rank .eq. 0) write (*, *) ''
 
    call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-            Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+              Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
    if (my_rank .eq. 0) endtime = MPI_WTIME()
 
    if (my_rank .eq. 0) then
-      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc) Solution' , achar(27)//'[0m'  
-   endif
+      write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc) Solution', achar(27)//'[0m'
+   end if
    do rank = 0, np - 1
       if (my_rank .eq. rank) then
          write (*, *) achar(9), 'np=', my_rank, 'max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
       end if
       call MPI_Barrier(MPI_COMM_WORLD, ierr)
    end do
-   if (my_rank .eq. 0) then 
-      write (*,*)
+   if (my_rank .eq. 0) then
+      write (*, *)
       write (*, *) achar(9), 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
       write (199, *) 'pmesh_final', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-      write (*,*)
-   endif
+      write (*, *)
+   end if
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
    !allocate(SOL_pm_er(NN_fine(1),NN_fine(2),1,7))
@@ -1382,7 +1378,7 @@ contains
          k_plus = nb_k + kk
          nb_plus = (k_plus - 1)*NBJ*NBI + (j_plus - 1)*NBI + i_plus
          if (i_plus .le. NBI .and. j_plus .le. NBJ .and. i_plus .ge. 1 .and. j_plus .ge. 1 .and. &
-            k_plus .le. NBK .and. k_plus .ge. 1) then
+             k_plus .le. NBK .and. k_plus .ge. 1) then
             dest = nb_plus - 1 ! because nb = rank-1
             !write(*,*) nb-1,'sending to ',dest,idir
             call MPI_SEND(Bound_sol, 1, mat2, dest, 1, MPI_COMM_WORLD, ierr)
@@ -1391,7 +1387,7 @@ contains
             k_minus = nb_k - kk
             nb_minus = (k_minus - 1)*NBJ*NBI + (j_minus - 1)*NBI + i_minus
             if (i_minus .ge. 1 .and. j_minus .ge. 1 .and. j_minus .le. NBJ .and. i_minus .le. NBI .and. &
-               k_minus .ge. 1 .and. k_minus .le. NBK) then
+                k_minus .ge. 1 .and. k_minus .le. NBK) then
                source = nb_minus - 1
                !  write(*,*) nb-1,'receiving  from',source
                call MPI_RECV(Bound_sol, 1, mat2, source, 1, MPI_COMM_WORLD, status, ierr)
@@ -1404,7 +1400,7 @@ contains
             nb_minus = (k_minus - 1)*NBJ*NBI + (j_minus - 1)*NBI + i_minus
 
             if (i_minus .ge. 1 .and. j_minus .ge. 1 .and. j_minus .le. NBJ .and. i_minus .le. NBI .and. &
-               k_minus .ge. 1 .and. k_minus .le. NBK) then
+                k_minus .ge. 1 .and. k_minus .le. NBK) then
                source = nb_minus - 1
                !  write(*,*) nb-1,' received from',source
                call MPI_RECV(Bound_sol, 1, mat2, source, 1, MPI_COMM_WORLD, status, ierr)
@@ -1950,7 +1946,7 @@ contains
          k_minus = nb_k - kk
          nb_minus = (k_minus - 1)*NBJ*NBI + (j_minus - 1)*NBI + i_minus
          if (i_minus .ge. 1 .and. j_minus .ge. 1 .and. i_minus .le. NBI .and. j_minus .le. NBJ .and. &
-            k_minus .ge. 1 .and. k_minus .le. NBK) then
+             k_minus .ge. 1 .and. k_minus .le. NBK) then
             dest = nb_minus - 1 ! because nb = rank-1
             !write(*,*) nb-1,'sending to ',dest
             call MPI_SEND(Bound_sol, 1, mat2, dest, 1, MPI_COMM_WORLD, ierr)
@@ -1959,7 +1955,7 @@ contains
             k_plus = nb_k + kk
             nb_plus = (k_plus - 1)*NBJ*NBI + (j_plus - 1)*NBI + i_plus
             if (i_plus .le. NBI .and. j_plus .le. NBJ .and. i_plus .ge. 1 .and. j_plus .ge. 1 .and. &
-               k_plus .le. NBK .and. k_plus .ge. 1) then
+                k_plus .le. NBK .and. k_plus .ge. 1) then
                source = nb_plus - 1
                !    write(*,*) nb-1,'receiving  from',source
                call MPI_RECV(Bound_sol, 1, mat2, source, 1, MPI_COMM_WORLD, status, ierr)
@@ -1971,7 +1967,7 @@ contains
             k_plus = nb_k + kk
             nb_plus = (k_plus - 1)*NBJ*NBI + (j_plus - 1)*NBI + i_plus
             if (i_plus .le. NBI .and. j_plus .le. NBJ .and. i_plus .ge. 1 .and. j_plus .ge. 1 .and. &
-               k_plus .le. NBK .and. k_plus .ge. 1) then
+                k_plus .le. NBK .and. k_plus .ge. 1) then
                source = nb_plus - 1
                !    write(*,*) nb-1,'receiving  from',source
                call MPI_RECV(Bound_sol, 1, mat2, source, 1, MPI_COMM_WORLD, status, ierr)
@@ -1985,7 +1981,7 @@ contains
 
    !-----
    Subroutine interp_stencil
-      use projlib, only: projection_fun   
+      use projlib, only: projection_fun
       double precision :: addlocal, add(neq), add_sample(neq)
       integer          :: i_nb, j_nb, k_nb
 
@@ -2005,7 +2001,7 @@ contains
       addlocal = 0
       do nbc = 1, BLOCKS
          if (map_nodes(inode - 1, jnode - 1, knode - 1, nbc) .ne. 1 .or. &
-            map_nodes(inode + 1, jnode + 1, knode + 1, nbc) .ne. 1) then
+             map_nodes(inode + 1, jnode + 1, knode + 1, nbc) .ne. 1) then
             nnb(nbc) = 1
          end if
       end do
@@ -2034,8 +2030,8 @@ contains
                f = fx*fy*fz
                !SOL_pm_coa
                SOL_pm_bl(neqs:neqf, i, j, k) = SOL_pm_bl(neqs:neqf, i, j, k) + &
-                                             f*(SOL_pm_coarse(neqs:neqf, ic, jc, kc) - add_sample(neqs:neqf) + &
-                                                add(neqs:neqf))
+                                               f*(SOL_pm_coarse(neqs:neqf, ic, jc, kc) - add_sample(neqs:neqf) + &
+                                                  add(neqs:neqf))
             end do
          end do
       end do
@@ -2048,38 +2044,36 @@ contains
                nbc = (k_nb - 1)*NBI*NBJ + (j_nb - 1)*NBI + i_nb
                if (nnb(nbc) .eq. 1 .or. nbc .eq. nb) cycle
                SOL_pm_bl(neqs:neqf, i, j, k) = SOL_pm_bl(neqs:neqf, i, j, k) + &
-                                             BBound(node, neqs:neqf, nbc)
+                                               BBound(node, neqs:neqf, nbc)
             end do
          end do
       end do
 
    End Subroutine interp_stencil
 
-   
    Subroutine calc_laplacian_coarse_3d(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
       Implicit none
-      
+
       integer, intent(in) :: NN(3), NN_bl(6), NN_map(6), neqs, neqf, npmsize
       double precision, intent(out)   :: RHS_pm(npmsize, NN(1), NN(2), NN(3))
       double precision, intent(in)    :: SOL_pm(npmsize, NN(1), NN(2), NN(3)), Dpm(3)
       integer                        :: i, j, k
-      
+
       RHS_pm = 0.d0
       do k = NN_map(3) + 1, NN_map(6) - 1
       do j = NN_map(2) + 1, NN_map(5) - 1
          do i = NN_map(1) + 1, NN_map(4) - 1
             RHS_pm(neqs:neqf, i, j, k) = &
                (SOL_pm(neqs:neqf, i + 1, j, k) - 2*SOL_pm(neqs:neqf, i, j, k) + &
-               SOL_pm(neqs:neqf, i - 1, j, k))/Dpm(1)**2 + &
+                SOL_pm(neqs:neqf, i - 1, j, k))/Dpm(1)**2 + &
                (SOL_pm(neqs:neqf, i, j + 1, k) - 2*SOL_pm(neqs:neqf, i, j, k) + &
-               SOL_pm(neqs:neqf, i, j - 1, k))/Dpm(2)**2 + &
+                SOL_pm(neqs:neqf, i, j - 1, k))/Dpm(2)**2 + &
                (SOL_pm(neqs:neqf, i, j, k + 1) - 2*SOL_pm(neqs:neqf, i, j, k) + &
-               SOL_pm(neqs:neqf, i, j, k - 1))/Dpm(3)**2
-            end do
+                SOL_pm(neqs:neqf, i, j, k - 1))/Dpm(3)**2
          end do
       end do
-      
+      end do
+
    End Subroutine calc_laplacian_coarse_3d
-   
+
 End Subroutine yaps3d
-   

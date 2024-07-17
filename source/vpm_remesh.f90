@@ -18,20 +18,20 @@ Subroutine remesh_particles_3d(iflag)
 
    ! PARAMETERS
    integer, intent(in)  :: iflag
-   
+
    ! LOCAL VARIABLES
-   double precision, dimension(8)   :: X,Y,Z
-   double precision    :: XMIN_vr, YMIN_vr, DXvr, DYvr,  DZvr, ZMIN_vr
+   double precision, dimension(8)   :: X, Y, Z
+   double precision    :: XMIN_vr, YMIN_vr, DXvr, DYvr, DZvr, ZMIN_vr
    double precision, allocatable:: XC(:), YC(:), ZC(:)
    double precision, allocatable, target::XP_tmp(:, :), QP_tmp(:, :)
-   integer             :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar, ndumc 
+   integer             :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar, ndumc
    integer             :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin, ndum_rem, nnod, nc
    integer, allocatable :: ieq(:)
    double precision    :: Xbound(6), Dpm(3), wmag
    double precision, allocatable :: QINF(:)
    integer    :: NVR_OLD, NVR_EXT_OLD
    integer             :: my_rank, ierr, np, NN(3), NN_bl(6), di
-   
+
    ! DEPRECATED
    ! double precision,intent(inout):: XP_in(:,:),QP_in(:,:)
    ! double precision :: Vol, ANG, dens1, dens2, Mach,
@@ -41,7 +41,7 @@ Subroutine remesh_particles_3d(iflag)
    ! double precision    :: fx, fy, f
    ! double precision    :: w1, w2, r1, r2, core, radi, th, xx, yy
    ! double precision, allocatable :: rhsper(:, :, :, :)
-   
+
    NVR_OLD = NVR
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -76,6 +76,7 @@ Subroutine remesh_particles_3d(iflag)
 
    DVpm = Dpm(1)*Dpm(2)*Dpm(3)
 
+   ! Here we project the particles on the PM grid
    if (iflag .eq. 1) then
       if (allocated(RHS_pm)) then
          deallocate (RHS_pm)
@@ -89,15 +90,20 @@ Subroutine remesh_particles_3d(iflag)
       allocate (XP_scatt(3, NVR_p), QP_scatt(neqpm + 1, NVR_p), NVR_projscatt(NVR_p))
       NVR_projscatt = interf_iproj
       call particles_scat
+      ! PARTICLES ARE SCATTERED ON PROCESSORS
+
       call projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL, IDVPM, ND)
       allocate (ieq(neqpm + 1), QINF(neqpm + 1))
       QINF = 0.d0
       do i = 1, neqpm + 1
          ieq(i) = i
       end do
+
+      ! PROJECT PARTICLES ON PM GRID
       call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projscatt, NVR_p, neqpm + 1, ieq, neqpm + 1, QINF, NVR_p)
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       call proj_gath(NN)
+      ! RHS IS GATHERED BACK ON PROCESSOR 0
       deallocate (XP_scatt, QP_scatt, NVR_projscatt)
 
       if (my_rank .eq. 0) then
@@ -108,6 +114,7 @@ Subroutine remesh_particles_3d(iflag)
       deallocate (ieq, QINF)
    end if
 
+   ! HERE WE REMESH PARTICLES
    if (my_rank .eq. 0) then
       ncell = ncell_rem
       ndum_rem = 2
@@ -147,14 +154,14 @@ Subroutine remesh_particles_3d(iflag)
          do j = nystart, nyfin
             do i = nxstart, nxfin
                ! !-> Get PM cell nodes (orthogonal structured grid
-               X(1) = XMIN_pm + Dpm(1)*(i - 1)
-               X(2) = XMIN_pm + Dpm(1)*(i)
-               X(3) = XMIN_pm + Dpm(1)*(i)
-               X(4) = XMIN_pm + Dpm(1)*(i - 1)
-               X(5) = XMIN_pm + Dpm(1)*(i - 1)
-               X(6) = XMIN_pm + Dpm(1)*(i)
-               X(7) = XMIN_pm + Dpm(1)*(i)
-               X(8) = XMIN_pm + Dpm(1)*(i - 1)
+               X(1) = XMIN_pm + Dpm(1)*(float(i) - 1.d0)
+               X(2) = XMIN_pm + Dpm(1)*(float(i))
+               X(3) = XMIN_pm + Dpm(1)*(float(i))
+               X(4) = XMIN_pm + Dpm(1)*(float(i) - 1.d0)
+               X(5) = XMIN_pm + Dpm(1)*(float(i) - 1.d0)
+               X(6) = XMIN_pm + Dpm(1)*(float(i))
+               X(7) = XMIN_pm + Dpm(1)*(float(i))
+               X(8) = XMIN_pm + Dpm(1)*(float(i) - 1.d0)
 
                Y(1) = YMIN_pm + Dpm(2)*(j - 1)
                Y(2) = YMIN_pm + Dpm(2)*(j - 1)
@@ -177,9 +184,9 @@ Subroutine remesh_particles_3d(iflag)
                !npar = ((k-nzstart)*NXpm1*NYpm1 +(j-nystart)*NXpm1 + i-nxstart)*ncell
 
                if (ncell .gt. 1) then
-                  call cell3d_interp_euler(X, XC, ncell, 2)
-                  call cell3d_interp_euler(Y, YC, ncell, 2)
-                  call cell3d_interp_euler(Z, ZC, ncell, 2)
+                  YC = cell3d_interp_euler(Y, ncell, 2)
+                  ZC = cell3d_interp_euler(Z, ncell, 2)
+                  XC = cell3d_interp_euler(X, ncell, 2)
                   do nc = 1, ncell
                      npar = npar + 1
                      XP(1, npar) = XC(nc)
@@ -313,62 +320,45 @@ End Subroutine back_to_particles_3D_rem
 !>@param [in]  F is the value at the global coordinates
 !>@param [out] FC is the value at global coordinates of the interpolated value
 !--------------------------------------------------------------------------------
+function cell3d_interp_euler(F, N, M) result(FC)
+   use iso_fortran_env
+   implicit none
 
-Subroutine cell3d_interp_euler(F, FC, N, M)
-   Implicit None
+   integer, parameter :: dp = real64
 
-   double precision, dimension(8), intent(in)  :: F
-   integer, intent(in)  :: N, M
-   double precision, intent(out) :: FC(N)
-   
+   double precision, dimension(8), intent(in) :: F
+   integer, intent(in) :: N, M
+   double precision, dimension(N) :: FC
+
    ! LOCAL VARIABLES
-   double precision              :: KSIC(8), HTAC(8), ZETAC(8), KSI(N), HTA(N), ZETA(N)
-   integer                       :: i, j
+   double precision :: KSIC(8), HTAC(8), ZETAC(8)
+   double precision, dimension(N) :: KSI, HTA, ZETA
+   integer :: i, j
    double precision :: addit
    integer :: NTEMP
 
-   NTEMP = N 
+   NTEMP = N
    !-->Define KSI,HTA corners
-   KSIC(1) = -1.d0
-   KSIC(2) = 1.d0
-   KSIC(3) = 1.d0
-   KSIC(4) = -1.d0
-   KSIC(5) = -1.d0
-   KSIC(6) = 1.d0
-   KSIC(7) = 1.d0
-   KSIC(8) = -1.d0
+   KSIC = [-1.d0, 1.d0, 1.d0, -1.d0, -1.d0, 1.d0, 1.d0, -1.d0]
+   HTAC = [-1.d0, -1.d0, 1.d0, 1.d0, -1.d0, -1.d0, 1.d0, 1.d0]
+   ZETAC = [-1.d0, -1.d0, -1.d0, -1.d0, 1.d0, 1.d0, 1.d0, 1.d0]
 
-   HTAC(1) = -1.d0
-   HTAC(2) = -1.d0
-   HTAC(3) = 1.d0
-   HTAC(4) = 1.d0
-   HTAC(5) = -1.d0
-   HTAC(6) = -1.d0
-   HTAC(7) = 1.d0
-   HTAC(8) = 1.d0
-
-   ZETAC(1) = -1.d0
-   ZETAC(2) = -1.d0
-   ZETAC(3) = -1.d0
-   ZETAC(4) = -1.d0
-   ZETAC(5) = 1.d0
-   ZETAC(6) = 1.d0
-   ZETAC(7) = 1.d0
-   ZETAC(8) = 1.d0
-
-   FC = 0
-
+   FC = 0.0_dp
+   write (*, *) 'NTEMP', NTEMP, N, M
    call get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
 
    do i = 1, 8 !cell nodes
       do j = 1, NTEMP
-         addit = F(i)*(1.d0 + KSI(j)*KSIC(i))*(1.d0 + HTA(j)*HTAC(i))*(1.d0 + ZETA(j)*ZETAC(i))
+         addit = F(i)
+         addit = addit*(1.0_dp + KSI(j)*KSIC(i))
+         addit = addit*(1.0_dp + HTA(j)*HTAC(i))
+         addit = addit*(1.0_dp + ZETA(j)*ZETAC(i))
          FC(j) = FC(j) + addit
       end do
    end do
 
-   FC = 0.125d0*FC !1/8
-End Subroutine cell3d_interp_euler
+   FC = 0.125d0*FC ! 1/8
+end function cell3d_interp_euler
 
 !--------------------------------------------------------------------------------
 !>@function
@@ -389,8 +379,8 @@ End Subroutine cell3d_interp_euler
 Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    Implicit None
 
-   integer, intent(in)           :: M 
-   integer, intent(in)           :: N 
+   integer, intent(in)           :: M
+   integer, intent(in)           :: N
    ! N is the number of particles to remesh
    ! M is 2
    double precision, intent(in)  :: KSIC(8), HTAC(8), ZETAC(8)
@@ -398,7 +388,6 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    double precision              :: DKSI, DHTA, DZETA
    integer                       :: i, j, k, nod
 
-   
    !--> find position minus ksi minus ita quadrant and then by symmerty * 4
    KSI = 0.d0
    HTA = 0.d0
@@ -406,10 +395,12 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    DKSI = dabs(2.d0/float(M))
    DHTA = dabs(2.d0/float(M))
    DZETA = dabs(2.d0/float(M))
+   write (*, *) 'SIZE of KSI ', size(KSI)
    do k = 1, M
       do j = 1, M
          do i = 1, M
             nod = (k - 1)*M*M + (j - 1)*M + i
+            write (*, *) 'nod', nod
             KSI(nod) = KSIC(1) + (i - 1./2.)*DKSI
             HTA(nod) = HTAC(1) + (j - 1./2.)*DHTA
             ZETA(nod) = ZETAC(1) + (k - 1./2.)*DZETA
