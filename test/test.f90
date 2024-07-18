@@ -221,6 +221,21 @@ do i=1,TMAX
       QP_all(1:neq+1,1:NVR_ext)=QPR(1:neq+1,1:NVR_ext)
       QP_all(1:neq+1,NVR_ext+1:NVR_all)=QSOUR(1:neq+1,1:NVR_sources)
    endif
+   ! Broadcast NVR_ALL
+   call MPI_BCAST(NVR_all,1, MPI_INTEGER,0 , MPI_COMM_WORLD, ierr )
+   ! Broadcast XP_all and QP_all
+   if (not(allocated(XP_all))) then
+      allocate(XP_all(3,NVR_all))
+      allocate(QP_all(neq+1,NVR_all))
+   end if
+   if (not(allocated(UPR))) then
+      allocate(UPR(3,NVR_all))
+      allocate(GPR(3,NVR_all))
+      UPR = 0; GPR = 0
+   end if
+   call MPI_BCAST(XP_all,3*NVR_all, MPI_DOUBLE_PRECISION,0 , MPI_COMM_WORLD, ierr )
+   call MPI_BCAST(QP_all,(neq+1)*NVR_all, MPI_DOUBLE_PRECISION,0 , MPI_COMM_WORLD, ierr )
+
    !--- END ALLOCATIONS
 
    !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION

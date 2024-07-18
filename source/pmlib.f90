@@ -75,7 +75,7 @@ contains
       integer, intent(in)                       :: NN_bl(6), NN(3), ND, Nblocks
       double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
       integer                                   :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
-      integer                                   :: ierr, my_rank, np, rank
+      ! integer                                   :: ierr, my_rank, np, rank
       ! double precision                          :: XPM, YPM, velx, vely
       ! double precision :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
       ! double precision :: R, DX, DY, GreenF, nv

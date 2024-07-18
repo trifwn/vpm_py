@@ -368,13 +368,17 @@ End Subroutine solve_eq_3d
 Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    use MKL_DFTI
    Implicit None
-   integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-   Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-   double precision   :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
+   integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+   integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
+   double precision     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
    integer              :: ipar(128), stat
-   integer              :: NN, nod
+   integer              :: NN, nod, NNX, NNY, NNZ
    double precision, allocatable ::dpar(:)
-   double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
+   ! double precision, allocatable:: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
+   double precision     ::  f((NXf - NXs + 1)*(NYf - NYs + 1)*(NZf - NZs + 1))
+   double precision     ::  bd_ax((NYf - NYs + 1)*(NZf - NZs + 1)), bd_bx((NYf - NYs + 1)*(NZf - NZs + 1))
+   double precision     ::  bd_ay((NXf - NXs + 1)*(NZf - NZs + 1)), bd_by((NXf - NXs + 1)*(NZf - NZs + 1))
+   double precision     ::  bd_az((NXf - NXs + 1)*(NYf - NYs + 1)), bd_bz((NXf - NXs + 1)*(NYf - NYs + 1))
    external   :: d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
    type(DFTI_DESCRIPTOR)    :: xhandle, yhandle
 
@@ -394,27 +398,53 @@ Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    NZ = NZf - NZs + 1!-2
 
    NN = NX*NY*NZ
-   allocate (f(NN))
+   NNX = NY*NZ
+   NNY = NX*NZ
+   NNZ = NX*NY
+
+   ! DYNAMIC Allocation produced errors on certain systems. Current impl is reverted to static allocation
+   ! allocate (f(NN))
+   ! allocate(bd_ax(NNX))
+   ! allocate(bd_bx(NNX))
+   ! allocate(bd_ay(NNY))
+   ! allocate(bd_by(NNY))
+   ! allocate(bd_az(NNZ))
+   ! allocate(bd_bz(NNZ))
+
+   !-->Set Boundary Conditions
+   !---> XMIN,XMAX
+   bd_ax = 0
+   bd_bx = 0
+   
+   !---> YMIN,YMAX
+   bd_ay = 0
+   bd_by = 0 
+
+   !---> ZMIN,ZMAX
+   bd_az = 0
+   bd_bz = 0; 
 
    do k = 1, NZ
       do j = 1, NY
          do i = 1, NX
             nod = (k - 1)*NX*NY + (j - 1)*NX + i
             f(nod) = -RHS_pm(neq, NXs + i - 1, NYs + j - 1, NZs + k - 1)
+            ! CHECK F BOUNDS
+            if (nod .gt. NN) then
+               stop
+            end if
+            ! CHECK RHS BOUNDS
+            if (                                   &
+               (NXS+i-1 .gt. size(RHS_pm,2)) .or.  &
+               (NYS+j-1 .gt. size(RHS_pm,3)) .or.  &
+               (NZS+k-1 .gt. size(RHS_pm,4))       &
+            ) then
+               stop
+            end if
          end do
       end do
    end do
 
-   NN = NY*NZ
-   allocate (bd_ax(NN), bd_bx(NN))
-   bd_ax = 0; bd_bx = 0; 
-   !---> YMIN,YMAX
-   NN = NX*NZ
-   allocate (bd_ay(NN), bd_by(NN))
-   bd_ay = 0; bd_by = 0; 
-   NN = NX*NY
-   allocate (bd_az(NN), bd_bz(NN))
-   bd_az = 0; bd_bz = 0; 
    allocate (dpar(int(5*(NX - 1 + NY - 1)/2) + 9))
    call d_init_Helmholtz_3D(XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,'DDDDDD',0.d0,ipar,dpar,stat)
    call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)

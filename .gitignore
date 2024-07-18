@@ -3,6 +3,7 @@
 *.mod
 *genmod*
 build/
+*.i90
 bin/
 *vpm_debug*
 *.so

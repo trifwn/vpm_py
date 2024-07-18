@@ -117,19 +117,22 @@ if (USE_INTEL)
     set(FLAGS "-DASCII=1")
     set(MOD_FLAG "-module")
     
-    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -qmkl -qopenmp -g -traceback -fpe0 ")
     # Extend the debug flags
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,nouninit")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -mkl -qopenmp -g -traceback -fpe0 ")
+    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check bounds ")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -warn all")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -init=snan -init=arrays")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fstack-security-check")
-    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
-    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -qmkl -qopenmp")
+    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
+    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
+
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -mkl -qopenmp -g -traceback -fpe0 -check all")
     
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -qmkl -qopenmp -g -traceback -check all")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 -qmkl -qopenmp")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -mkl -qopenmp")
+    
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 -mkl -qopenmp")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(EXENAME "${EXENAMEIN}_debug")
