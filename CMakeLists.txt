@@ -71,6 +71,23 @@ function(find_compilers)
     if (IFORT)
         message("\tFound Intel Fortran Compiler: ${IFORT}")
         set(HAS_INTEL TRUE PARENT_SCOPE)
+
+        # Get the ifx version
+        execute_process(COMMAND ${IFORT} --version OUTPUT_VARIABLE IFORT_VERSION)
+        string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" IFORT_VERSION_MATCH ${IFORT_VERSION})
+        message("\tIntel Fortran Compiler version: ${IFORT_VERSION_MATCH}")
+
+        # Extract the major version number
+        string(REGEX MATCH "^([0-9]+)" IFORT_VERSION_MAJOR ${IFORT_VERSION_MATCH})
+
+        # Set MKL_FLAG based on the version
+        if (IFORT_VERSION_MAJOR GREATER 2022)
+            set(MKL_FLAG "-qmkl" PARENT_SCOPE)
+            message("\tSetting MKL_FLAG to '-qmkl' for Intel Fortran Compiler version ${IFORT_VERSION_MATCH}")
+        else()
+            set(MKL_FLAG "-mkl" PARENT_SCOPE)
+            message("\tSetting MKL_FLAG to '-mkl' for Intel Fortran Compiler version ${IFORT_VERSION_MATCH}")
+        endif()
     else()
         message("\tIntel Fortran Compiler not found")
         set(HAS_INTEL FALSE PARENT_SCOPE)
@@ -118,22 +135,22 @@ if (USE_INTEL)
     set(MOD_FLAG "-module")
     
     # Extend the debug flags
-    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -mkl -qopenmp -g -traceback -fpe0 ")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 ${MKL_FLAG} -qopenmp -g -traceback -fpe0 ")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,nouninit")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -warn all")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -init=snan -init=arrays")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fstack-security-check")
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv -fpe0 -fstack-protector-all,")
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
-    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
+    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fstack-protector-all")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
 
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -mkl -qopenmp -g -traceback -fpe0 -check all,nouninit")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 ${MKL_FLAG} -qopenmp -g -traceback -fpe0 -check all,nouninit")
     
-    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -mkl -qopenmp")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 ${MKL_FLAG} -qopenmp")
     
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 -mkl -qopenmp")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 ${MKL_FLAG} -qopenmp")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(EXENAME "${EXENAMEIN}_debug")
@@ -192,7 +209,7 @@ set(TEST_EXE_SRC
     ${SRC_TEST}/test_applic.f90
 )
 
-# add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
+add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
 add_library(mkl_poisson SHARED ${SRC_HP}/mkl_poisson.f90)
 target_include_directories(mkl_poisson PUBLIC ${SRC_HP}/mkl_dfti.f90)
 
