@@ -882,7 +882,7 @@ Subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
    allocate (source_bound_lev(nbound_lev(0), neqs:neqf, 0:levmax)); source_bound_lev = 0.d0
    allocate (xs_lev(nbound_lev(0), 0:levmax)); xs_lev = 0.d0
    allocate (ys_lev(nbound_lev(0), 0:levmax)); ys_lev = 0.d0
-   allocate (zs_lev(nbound_lev(0), 0:levmax)); ys_lev = 0.d0
+   allocate (zs_lev(nbound_lev(0), 0:levmax)); zs_lev = 0.d0
    allocate (ds_lev(nbound_lev(0), 0:levmax)); ds_lev = 0.d0
    allocate (ilev_t(nbound_lev(0), 0:levmax, 6)); ilev_t = 0
    allocate (nn_lev(3, 0:levmax)); nn_lev = 0.d0
