@@ -119,16 +119,17 @@ if (USE_INTEL)
     
     # Extend the debug flags
     set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -mkl -qopenmp -g -traceback -fpe0 ")
-    # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all")
-    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check bounds ")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,nouninit")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -warn all")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -init=snan -init=arrays")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fstack-security-check")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv -fpe0 -fstack-protector-all,")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
 
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -mkl -qopenmp -g -traceback -fpe0 -check all")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 -mkl -qopenmp -g -traceback -fpe0 -check all,nouninit")
     
     set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -mkl -qopenmp")
     
@@ -191,26 +192,29 @@ set(TEST_EXE_SRC
     ${SRC_TEST}/test_applic.f90
 )
 
-add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
+# add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
+add_library(mkl_poisson SHARED ${SRC_HP}/mkl_poisson.f90)
+target_include_directories(mkl_poisson PUBLIC ${SRC_HP}/mkl_dfti.f90)
+
 add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
 add_library(main_pm SHARED  ${SRC_HP}/main_pm.f90)
 add_library(pmproject SHARED ${SRC_HP}/pmproject.f90)
-target_link_libraries(pmproject PRIVATE mkl_dfti main_pm)
+target_link_libraries(pmproject PRIVATE mkl_poisson main_pm)
 
 add_library(pmlib SHARED ${SRC_HP}/pmlib.f90)
 target_include_directories(pmlib PUBLIC ${PM_LIB_INCL})
-target_link_libraries(pmlib PRIVATE mkl_dfti)
+target_link_libraries(pmlib PRIVATE mkl_poisson)
 
 add_library(yaps SHARED ${SRC_HP}/yaps.f90)
 target_include_directories(yaps PUBLIC ${YAPS_INCL})
-target_link_libraries(yaps PRIVATE mkl_dfti mpi_matrices)
+target_link_libraries(yaps PRIVATE mkl_poisson mpi_matrices)
 
 add_library(vpm SHARED ${SRC_HP}/vpm.f90)
 target_include_directories(vpm PUBLIC ${VPM_LIB_INCL})
 
 # Add all object files as sources to a dummy target
 add_custom_target(dummy ALL
-    DEPENDS mkl_dfti mpi_matrices yaps pmlib pmproject vpm 
+    DEPENDS mkl_poisson mpi_matrices yaps pmlib pmproject vpm 
 )
 
 # -------------------------------------------------------------------------------------------------
@@ -218,7 +222,7 @@ add_custom_target(dummy ALL
 # -------------------------------------------------------------------------------------------------
 add_library(${EXENAME} SHARED ${SRC_HP}/api.f90)
 add_dependencies(${EXENAME} dummy) # Ensure proper dependency resolution
-target_link_libraries(${EXENAME} PRIVATE mkl_dfti mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS} 
+target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS} 
 target_include_directories(${EXENAME} PUBLIC ${PATHOBJHP}) # Set include directories using PUBLIC
 target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile options using PUBLIC
 
@@ -228,7 +232,7 @@ target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile 
 # Add executable for testing purposes (not necessary)
 add_executable(${EXENAME}_exe ${TEST_EXE_SRC})
 add_dependencies(${EXENAME}_exe dummy)
-target_link_libraries(${EXENAME}_exe PRIVATE mkl_dfti mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
+target_link_libraries(${EXENAME}_exe PRIVATE mkl_poisson mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
 target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP}) 
 target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
 

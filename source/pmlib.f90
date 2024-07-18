@@ -7,7 +7,7 @@
 !>@brief This module defines the variables that will be used internally in the library
 !>       All variables are private
 module pmlib
-   use mkl_dfti
+   ! use MKL_POISSON
    double precision, save              :: PI, PI2, PI4
    double precision, save               :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
    double precision, save               :: DXpm, DYpm, DZpm, DXpm2, DYpm2, DZpm2

@@ -4,7 +4,7 @@
 !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
 !-----------------------------------------------------------------------!
 Subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
-   use MKL_DFTI
+   use MKL_POISSON
 
    Implicit None
    integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
@@ -15,8 +15,7 @@ Subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
    double precision     :: XPM, YPM, XminCalc, XmaxCalc, YminCalc, YmaxCalc, pertrb
    double precision, allocatable::SOL_pm2(:, :), WORK(:)
    double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
-   external            :: d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D
-   type(DFTI_DESCRIPTOR)    :: xhandle
+   type(DFTI_DESCRIPTOR), pointer    :: xhandle
 
    !--> Assignment of Boundary Values
    ipar = 0
@@ -81,7 +80,7 @@ Subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
 End Subroutine solve_eq!_i
 
 Subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
-   use MKL_DFTI
+   use MKL_POISSON
    Implicit None
    integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
    Integer              :: i, j, NWORK, INFO, NX, NY, nbj
@@ -91,9 +90,8 @@ Subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
    double precision     :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
    double precision, allocatable::SOL_pm2(:, :), WORK(:)
    double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
-   external            :: d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D
 
-   type(DFTI_DESCRIPTOR)    :: xhandle
+   type(DFTI_DESCRIPTOR), pointer    :: xhandle
 
    !--> Assignment of Boundary Values
    ipar = 0
@@ -276,7 +274,7 @@ End Subroutine solve_eq_0
 ! End Subroutine solve_eq_0_3d_i
 
 Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-   use MKL_DFTI
+   use MKL_POISSON
    Implicit None
    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
@@ -286,8 +284,7 @@ Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    double precision, allocatable ::dpar(:)
    double precision, allocatable, dimension(:):: f
    double precision, allocatable, dimension(:):: bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz
-   external   :: d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
-   type(DFTI_DESCRIPTOR)    :: xhandle, yhandle
+   type(DFTI_DESCRIPTOR), pointer   :: xhandle, yhandle
 
    !--> Assignment of Boundary Values
    ipar = 0
@@ -366,21 +363,32 @@ Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
 End Subroutine solve_eq_3d
 
 Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-   use MKL_DFTI
+   use MKL_POISSON
+
    Implicit None
    integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
    double precision     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
    integer              :: ipar(128), stat
    integer              :: NN, nod, NNX, NNY, NNZ
-   double precision, allocatable ::dpar(:)
    ! double precision, allocatable:: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
+   double precision     :: dpar((5*(NXf - NXs + NYf - NYs)/2) + 9)
    double precision     ::  f((NXf - NXs + 1)*(NYf - NYs + 1)*(NZf - NZs + 1))
    double precision     ::  bd_ax((NYf - NYs + 1)*(NZf - NZs + 1)), bd_bx((NYf - NYs + 1)*(NZf - NZs + 1))
    double precision     ::  bd_ay((NXf - NXs + 1)*(NZf - NZs + 1)), bd_by((NXf - NXs + 1)*(NZf - NZs + 1))
    double precision     ::  bd_az((NXf - NXs + 1)*(NYf - NYs + 1)), bd_bz((NXf - NXs + 1)*(NYf - NYs + 1))
-   external   :: d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
-   type(DFTI_DESCRIPTOR)    :: xhandle, yhandle
+   type(DFTI_DESCRIPTOR), pointer    :: xhandle, yhandle
+   character(6) BCtype
+
+
+   ! Setting the type of the boundary conditions on each surface of the parallelepiped domain:
+   ! On the boundary laying on the plane x=0(=ax) Dirichlet boundary condition will be used
+   ! On the boundary laying on the plane x=1(=bx) Dirichlet boundary condition will be used
+   ! On the boundary laying on the plane y=0(=ay) Dirichlet boundary condition will be used
+   ! On the boundary laying on the plane y=1(=by) Dirichlet boundary condition will be used
+   ! On the boundary laying on the plane z=0(=az) Dirichlet boundary condition will be used
+   ! On the boundary laying on the plane z=1(=bz) Dirichlet boundary condition will be used
+   BCtype = 'DDDDDD'
 
    !--> Assignment of Boundary Values
    ipar = 0
@@ -444,12 +452,37 @@ Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
          end do
       end do
    end do
+   
+   ! Initializing ipar array to make it free from garbage
+   do i=1,128
+      ipar(i)=0
+   enddo
 
-   allocate (dpar(int(5*(NX - 1 + NY - 1)/2) + 9))
-   call d_init_Helmholtz_3D(XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,'DDDDDD',0.d0,ipar,dpar,stat)
+   ! Computing the approximate solution of 3D Laplace problem
+   ! NOTE: Boundary data stored in the arrays bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz should not be changed
+   ! between the Commit step and the subsequent call to the Solver routine!
+   ! Otherwise the results may be wrong.
+   call d_init_Helmholtz_3D(&
+      XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,BCtype,0.d0,ipar,dpar,stat &
+   )
+   if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+
+   ! Initializing complex data structures of Poisson Library for 3D Laplace Solver
+   ! NOTE: Right-hand side f may be altered after the Commit step. If you want to keep it,
+   ! you should save it in another memory location!
    call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
+   if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+
+   ! Computing the approximate solution of 3D Laplace problem
+   ! NOTE: Boundary data stored in the arrays bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz should not be changed
+   ! between the Commit step and the subsequent call to the Solver routine!
+   ! Otherwise the results may be wrong.
    call d_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
+   if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+
+   ! Cleaning the memory used by xhandle and yhandle
    call free_Helmholtz_3D(xhandle, yhandle, ipar, stat)
+   if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
 
    do k = 1, NZ
       do j = 1, NY
@@ -459,5 +492,4 @@ Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
          end do
       end do
    end do
-
 End Subroutine solve_eq_0_3d
