@@ -145,6 +145,7 @@ if (USE_INTEL)
     # set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ftrapuv")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -implicitnone")
 
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 ${MKL_FLAG} -qopenmp -g -traceback -fpe0 -check all,nouninit")
     
