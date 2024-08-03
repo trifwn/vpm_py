@@ -246,8 +246,8 @@ Subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
                call mpimat4(mat4, neqpm, NN_block(1), NN_block(2), NN_block(3))
                source = nbs - 1
                call MPI_RECV(SOL_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
-               write (*, *) achar(9), achar(9), 'RECEIVED TEMPORARY SOLUTION OF SOL_PM_TMP from ', source
-               write (*, *) achar(9), achar(9), 'max = ', maxval(SOL_pm_tmp), 'min = ', minval(SOL_pm_tmp)
+               ! write (*, *) achar(9), achar(9), 'RECEIVED TEMPORARY SOLUTION OF SOL_PM_TMP from ', source
+               ! write (*, *) achar(9), achar(9), 'max = ', maxval(SOL_pm_tmp), 'min = ', minval(SOL_pm_tmp)
                SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf) = SOL_pm_tmp(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf)
                call MPI_TYPE_FREE(mat4, ierr)
                deallocate (SOL_pm_tmp)

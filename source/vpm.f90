@@ -7,8 +7,82 @@ Module vpm_vars
    integer                             :: ncoarse, nparcell1d
    integer                             :: neqpm, NVR_p, NVR_size, iwrite, NTIME_pm
 
-   integer, save                       :: IPMWRITE, mrem, idefine, iynslice
+   integer, save                       :: IPMWRITE, idefine, iynslice
+   integer, save                       :: mrem = 1
    integer, save                       :: IPMWSTART(10), IPMWSTEPS(10)
+
+   ! Printer
+   public :: print_vpm_vars_info
+
+contains
+
+   Subroutine print_vpm_vars_info
+      print *, "VPM_VARS INFO"
+      print *, "============"
+      print *, ""
+      if (allocated(XP_scatt)) then
+         print *, achar(9)//"XP_scatt", " (2D): Size = (", size(XP_scatt,1), ",", size(XP_scatt,2), ")"
+         print *, achar(9)//"Sample values: ", XP_scatt(1,1:min(4,size(XP_scatt,2)))
+      else
+         print '(A)', achar(9)//"XP_scatt Not allocated"
+      end if
+
+      if (allocated(QP_scatt)) then
+         print *, achar(9)//"QP_scatt", " (2D): Size = (", size(QP_scatt,1), ",", size(QP_scatt,2), ")"
+         print *, achar(9)//"Sample values: ", QP_scatt(1,1:min(4,size(QP_scatt,2)))
+      else
+         print '(A)', achar(9)//"QP_scatt Not allocated"
+      end if
+
+      if (allocated(UP_scatt)) then
+         print *, achar(9)//"UP_scatt", " (2D): Size = (", size(UP_scatt,1), ",", size(UP_scatt,2), ")"
+         print *, achar(9)//"Sample values: ", UP_scatt(1,1:min(4,size(UP_scatt,2)))
+      else
+         print '(A)', achar(9)//"UP_scatt Not allocated"
+      end if
+
+      if (allocated(GP_scatt)) then
+         print *, achar(9)//"GP_scatt", " (2D): Size = (", size(GP_scatt,1), ",", size(GP_scatt,2), ")"
+         print *, achar(9)//"Sample values: ", GP_scatt(1,1:min(4,size(GP_scatt,2)))
+      else
+         print '(A)', achar(9)//"GP_scatt Not allocated"
+      end if
+
+      print *, achar(9), 'DT_c = ', DT_c
+      print *, achar(9), 'V_ref = ', V_ref
+      print *, achar(9), 'NI = ', NI
+
+      if (allocated(NVR_projscatt)) then
+         print *, achar(9)//"NVR_projscatt", " (1D): Size = (", size(NVR_projscatt), ")"
+         print '(A,4I12)', achar(9)//"Sample values: ", NVR_projscatt(1:min(size(NVR_projscatt), 4))
+      else
+         print '(A)', achar(9)//"NVR_projscatt Not allocated"
+      end if
+
+      print *, achar(9), 'interf_iproj = ', interf_iproj
+      print *, achar(9), 'ncell_rem = ', ncell_rem
+      print *, achar(9), 'ncoarse = ', ncoarse
+      print *, achar(9), 'nparcell1d = ', nparcell1d
+      print *, achar(9), 'neqpm = ', neqpm
+      print *, achar(9), 'NVR_p = ', NVR_p
+      print *, achar(9), 'NVR_size = ', NVR_size
+      print *, achar(9), 'iwrite = ', iwrite
+      print *, achar(9), 'NTIME_pm = ', NTIME_pm
+      print *, achar(9), 'IPMWRITE = ', IPMWRITE
+      print *, achar(9), 'mrem = ', mrem
+      print *, achar(9), 'idefine = ', idefine
+      print *, achar(9), 'iynslice = ', iynslice
+   
+      print  *, achar(9)//"IPMWSTART", " (1D): Size = (", size(IPMWSTART), ")"
+      print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTART(1:min(size(IPMWSTART), 4))
+      print '(A)', ""
+
+      print  *, achar(9)//"IPMWSTEPS", " (1D): Size = (", size(IPMWSTEPS), ")"
+      print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTEPS(1:min(size(IPMWSTEPS), 4))
+      print '(A)', ""
+
+
+   End Subroutine print_vpm_vars_info
 
 End Module vpm_vars
 
@@ -22,10 +96,73 @@ Module vpm_size
 
    double precision, save              :: Xbound_tmp(6), Xbound_coarse(6), Dpm_coarse(3)
    integer, save                       :: NN_tmp(3), NN_bl_tmp(6), NN_coarse(3), NN_bl_coarse(6)
- integer, save                       :: nb_i, nb_j, nb_k, NBB, NXbl, NYbl, NZbl, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
+   integer, save                       :: nb_i, nb_j, nb_k, NBB, NXbl, NYbl, NZbl, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
    double precision                    :: starttime, endtime, st, et, ct
    integer, save                       :: iynbc, iret, NBI, NBJ, NBK, NVR_out_thres, NREMESH, ntorder, &
                                           iyntree, ilevmax, itree, nsize_out(3), ibctyp, NWRITE
+
+   public :: print_vpm_size_info
+
+contains
+
+   subroutine print_vpm_size_info()
+      use io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
+                     dp_1d_alloc_info
+      print *, "VPM_SIZE INFO"
+      print *, "============"
+      print *, ""
+      call dp_1d_array_info("Xbound", Xbound, 6)
+      call dp_1d_array_info("Dpm", Dpm, 3)
+      call dp_1d_array_info("Xbound0", Xbound0, 6)
+      call dp_1d_array_info("Dpm0", Dpm0, 3)
+      call i_1d_array_info("NN_bl", NN_bl, 6)
+      call i_1d_array_info("NN", NN, 3)
+      call i_1d_array_info("NN0_bl", NN0_bl, 6)
+      call i_1d_array_info("NN0", NN0, 3)
+      call i_1d_array_info("NXs0_bl", NXs0_bl, 10)
+      call i_1d_array_info("NYs0_bl", NYs0_bl, 10)
+      call i_1d_array_info("NXf0_bl", NXf0_bl, 10)
+      call i_1d_array_info("NYf0_bl", NYf0_bl, 10)
+      call i_1d_array_info("NZs0_bl", NZs0_bl, 10)
+      call i_1d_array_info("NZf0_bl", NZf0_bl, 10)
+      call dp_2d_alloc_info("Xbound_bl", Xbound_bl)
+      call i_2d_alloc_info("NNbl_bl", NNbl_bl)
+      call i_2d_alloc_info("NNbl", NNbl)
+      call dp_1d_array_info("Xbound_tmp", Xbound_tmp, 6)
+      call dp_1d_array_info("Xbound_coarse", Xbound_coarse, 6)
+      call dp_1d_array_info("Dpm_coarse", Dpm_coarse, 3)
+      call i_1d_array_info("NN_tmp", NN_tmp, 3)
+      call i_1d_array_info("NN_bl_tmp", NN_bl_tmp, 6)
+      call i_1d_array_info("NN_coarse", NN_coarse, 3)
+      call i_1d_array_info("NN_bl_coarse", NN_bl_coarse, 6)
+      print *, achar(9)//"nb_i", " = ", nb_i
+      print  *, achar(9)//"nb_j", " = ", nb_j
+      print  *, achar(9)//"nb_k", " = ", nb_k
+      print  *, achar(9)//"NBB", " = ", NBB
+      print  *, achar(9)//"NXbl", " = ", NXbl
+      print  *, achar(9)//"NYbl", " = ", NYbl
+      print  *, achar(9)//"NZbl", " = ", NZbl
+      print  *, achar(9)//"BLOCKS", " = ", BLOCKS
+      print  *, achar(9)//"NXB", " = ", NXB
+      print  *, achar(9)//"NYB", " = ", NYB
+      print  *, achar(9)//"NZB", " = ", NZB
+      print  *, achar(9)//"ndumcell_coarse", " = ", ndumcell_coarse
+      print  *, achar(9)//"ndumcell_bl", " = ", ndumcell_bl
+      print  *, achar(9)//"iynbc", " = ", iynbc
+      print  *, achar(9)//"iret", " = ", iret
+      print  *, achar(9)//"NBI", " = ", NBI
+      print  *, achar(9)//"NBJ", " = ", NBJ
+      print  *, achar(9)//"NBK", " = ", NBK
+      print  *, achar(9)//"NVR_out_thres", " = ", NVR_out_thres
+      print  *, achar(9)//"NREMESH", " = ", NREMESH
+      print  *, achar(9)//"ntorder", " = ", ntorder
+      print  *, achar(9)//"iyntree", " = ", iyntree
+      print  *, achar(9)//"ilevmax", " = ", ilevmax
+      print  *, achar(9)//"itree", " = ", itree
+      print  *, achar(9)//"nsize_out", " = ", nsize_out
+      print  *, achar(9)//"ibctyp", " = ", ibctyp
+      print  *, achar(9)//"NWRITE", " = ", NWRITE
+   end subroutine print_vpm_size_info
 
 End Module vpm_size
 
@@ -409,12 +546,7 @@ contains
          end if
          itypeb = 1
          call back_to_particles_par ! INTERPOLATION FROM PM TO PARTICLES
-         if (my_rank .eq. 0) then
-            st = MPI_WTIME()
-            call write_particles(NTIME_pm, XP, UP, QP, NVR)
-            et = MPI_WTIME()
-            write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-         end if
+
 
          iwrite = 0
          !if(IPMWRITE.GT.0) then
@@ -673,10 +805,10 @@ contains
       end if
       if (my_rank .eq. 0) then
          write (*, *) achar(9), 'The PM Grid has:'
-         write (*, *) achar(9), achar(9), 'DPM=', Dpm(1), Dpm(2), Dpm(3)
-         write (*, *) achar(9), achar(9), 'XMIN_PM:', Xbound(1), 'XMAX_PM:', Xbound(4)
-         write (*, *) achar(9), achar(9), "YMIN_PM: ", Xbound(2), " YMAX_PM: ", Xbound(5)
-         write (*, *) achar(9), achar(9), "ZMIN_PM: ", Xbound(3), " ZMAX_PM: ", Xbound(6)
+         write (*, *) achar(9), achar(9), "DPM=", Dpm(1), Dpm(2), Dpm(3)
+         write (*, *) achar(9), achar(9), "XMIN_PM:", Xbound(1), "XMAX_PM:", Xbound(4)
+         write (*, *) achar(9), achar(9), "YMIN_PM:", Xbound(2), "YMAX_PM:", Xbound(5)
+         write (*, *) achar(9), achar(9), "ZMIN_PM:", Xbound(3), "ZMAX_PM:", Xbound(6)
          write (*, *) achar(9), achar(9), 'NN:', NN(1), NN(2), NN(3)
       end if
       !define block grid so the are divided by ncoarse and ilevmax
@@ -805,11 +937,9 @@ contains
    End Subroutine define_sizes
 
    Subroutine write_pm_solution
-      use vpm_vars
-      use pmeshpar
-      use parvar
-      use pmgrid
-      use MPI
+      use pmgrid, only: NXf_bl , NXs_bl, NYf_bl, NYs_bl, NZf_bl, NZs_bl, &
+                        DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm, &
+                        velvrx_pm, velvry_pm, velvrz_pm, RHS_pm
 
       character*50        :: filout
       integer           :: i, j, k
@@ -817,6 +947,7 @@ contains
 
       ! if(iwrite.ne.0) return
       write (filout, '(a,i5.5,a)') "sol/", NTIME_pm, 'solution.dat'
+      write (*, *) achar(9), 'Writing solution to file: ', trim(filout)
       open (1, file=filout)
       WRITE (1, "(a)") 'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
       WRITE (1, "(a,I5.5,a,I5.5,a,I5.5)") 'ZONE: I=', NXf_bl(1) - NXs_bl(1) + 1, ' J=', NYf_bl(1) - NYs_bl(1) + 1, &
@@ -836,7 +967,7 @@ contains
                velocy = velvry_pm(i, j, k)
                velocz = velvrz_pm(i, j, k)
 
-               WRITE (1, '(9(F20.10,1x))') XPM, YPM, ZPM, velocx, velocy, velocz, &
+               WRITE (1, '(9(E20.10,1x))') XPM, YPM, ZPM, velocx, velocy, velocz, &
                   -RHS_pm(1, I, J, K), &
                   -RHS_pm(2, I, J, K), &
                   -RHS_pm(3, I, J, K)
@@ -857,10 +988,11 @@ contains
       character*80 :: filout1
 
       write (filout1, '(a,i5.5,a)') "sol/", NTIME, 'vr.dat'
+      write (*, *) achar(9), 'Writing particles to file: ', trim(filout1)
       open (10, file=filout1)
       WRITE (10, *) 'VARIABLES = "i" "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
       do i = 1, NVR
-         write (10, '(i5.5,9(F20.10,1x))') i, &
+         write (10, '(i5.5,9(E20.10,1x))') i, &
             XPR(1, i), XPR(2, i), XPR(3, i), &
             UPR(1, i), UPR(2, i), UPR(3, i), &
             QPR(1, i), QPR(2, i), QPR(3, i)

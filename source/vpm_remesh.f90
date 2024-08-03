@@ -7,10 +7,11 @@ Subroutine remesh_particles_3d(iflag)
                      DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm, &
                      NYpm, NZpm, NXs_bl, NYs_bl, NZs_bl, NXf_bl, &
                      NYf_bl, NZf_bl, DVpm, EPSVOL
+   use projlib, only: projlibinit, project_particles_3D, project_vol3d
    use vpm_vars, only: mrem, NEQPM, NVR_p, XP_scatt, QP_scatt, NVR_projscatt, INTERF_IPROJ, V_REF, NCELL_REM, NVR_SIZE
    use pmeshpar, only: NPAR_CELL, IDVPM, ND
+
    use parvar, only: NVR, XP, QP
-   use projlib, only: projlibinit, project_particles_3D, project_vol3d
    ! use openmpth, only: OMPTHREADS
    use MPI
 
@@ -29,8 +30,8 @@ Subroutine remesh_particles_3d(iflag)
    integer, allocatable :: ieq(:)
    double precision    :: Xbound(6), Dpm(3), wmag
    double precision, allocatable :: QINF(:)
-   integer    :: NVR_OLD, NVR_EXT_OLD
-   integer             :: my_rank, ierr, np, NN(3), NN_bl(6), di
+   integer    :: NVR_OLD !, NVR_EXT_OLD
+   integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
 
    ! DEPRECATED
    ! double precision,intent(inout):: XP_in(:,:),QP_in(:,:)
@@ -56,8 +57,13 @@ Subroutine remesh_particles_3d(iflag)
    npar_cell = 1
 
    Dpm(1) = DXpm; Dpm(2) = DYpm; Dpm(3) = DZpm
-   Xbound(1) = XMIN_pm; Xbound(2) = YMIN_pm; Xbound(3) = ZMIN_pm
-   Xbound(4) = XMAX_pm; Xbound(5) = YMAX_pm; Xbound(6) = ZMAX_pm
+   Xbound(1) = XMIN_pm;
+   Xbound(2) = YMIN_pm; 
+   Xbound(3) = ZMIN_pm
+
+   Xbound(4) = XMAX_pm;
+   Xbound(5) = YMAX_pm; 
+   Xbound(6) = ZMAX_pm
    !->PM grid is orthogonal (Volume of PM cell
 
    !--------------------------------------------------------------------------------!
@@ -100,7 +106,8 @@ Subroutine remesh_particles_3d(iflag)
       end do
 
       ! PROJECT PARTICLES ON PM GRID
-      call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projscatt, NVR_p, neqpm + 1, ieq, neqpm + 1, QINF, NVR_p)
+      call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projscatt, NVR_p, neqpm + 1, &
+                                ieq, neqpm + 1, QINF, NVR_p)
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       call proj_gath(NN)
       ! RHS IS GATHERED BACK ON PROCESSOR 0

@@ -7,7 +7,7 @@ build/
 bin/
 *vpm_debug*
 *.so
-vpm.egg-info/
+vpm_py.egg-info/
 *__pycache__*
 .vscode
 fort*

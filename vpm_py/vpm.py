@@ -6,9 +6,10 @@ from ctypes import c_bool, c_int, c_float, byref, POINTER, cdll, c_double
 from shutil import copy2
 from tempfile import NamedTemporaryFile
 from mpi4py import MPI
+from time import sleep
 
 here = os.path.abspath(os.path.dirname(__file__))
-lib_path = glob.glob(os.path.join(here, 'libvpm*.so'))[0]
+lib_path = glob.glob(os.path.join(here, 'libvpm_*.so'))[0]
 lib_ext = lib_path[lib_path.rfind('.'):]
 
 def print_blue(text):
@@ -38,8 +39,16 @@ class VPM(object):
         tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_ext)
         tmp.close()
         self._lib_path = tmp.name
+        self.original_lib = lib_path
         copy2(lib_path, self._lib_path)
         self._lib = cdll.LoadLibrary(self._lib_path)
+        
+        # Print the name of the so used
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.Get_rank()
+        self.num_procs = self.comm.Get_size()
+        if self.rank == 0:
+            print_IMPORTANT(f"Using {lib_path}")
 
         # Define argument types for the Fortran subroutines
         # API.init
@@ -63,9 +72,6 @@ class VPM(object):
         # API.remesh_particles_3d
         self._lib.remesh_particles_3d.argtypes = [POINTER(c_int)]
 
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.num_procs = self.comm.Get_size()
 
         # Divide processors into NBI, NBJ, NBK so that NBI * NBJ * NBK = number of processors
         # Find the factors of the number of processors
@@ -239,18 +245,58 @@ class VPM(object):
                                   byref(c_int(num_equations)), byref(c_int(mode)), RHS_pm_ptr,
                                   Velx_ptr, Vely_ptr, Velz_ptr, byref(c_int(timestep)),
                                   byref(c_double(viscosity)), byref(c_int(max_particle_num)))
+        # print_green(f"WhatToDo: {mode} from {self.rank}/{self.num_procs - 1} completed successfully.")
         
-        print_green(f"WhatToDo: {mode} from {self.rank + 1}/{self.num_procs} completed successfully.")
-
-    def remesh_particles_3d(self, ncell_rem: int):
+    def remesh_particles_3d(self, iflag: int):
         """Remesh particles in 3D
 
         Args:
-            ncell_rem (int): Number of cells to remesh
+            iflag (int): Flag to remesh particles
         """
-        self._lib.remesh_particles_3d(byref(c_int(ncell_rem)))
+        self._lib.remesh_particles_3d(byref(c_int(iflag)))
+        # print_green(f"Remeshed particles {self.rank}/{self.num_procs - 1} completed successfully.")
 
-        print_green(f"Remeshed particles {self.rank + 1}/{self.num_procs} completed successfully.")
+    def print_pmesh_parameters(self):
+        """
+            Print the parameters of the particle mesh
+        """
+        print_IMPORTANT(f"Pmesh parameters {self.rank}/{self.num_procs - 1}")
+        self._lib.print_pmeshpar()
+
+    def print_projlib_parameters(self):
+        """
+            Print the parameters of the projection library
+        """
+        print_IMPORTANT(f"Proj lib parameters {self.rank}/{self.num_procs - 1}")
+        self._lib.print_projlib()
+
+    def print_pmgrid_parameters(self):
+        """
+            Print the parameters of the particle mesh grid
+        """
+        print_IMPORTANT(f"PM grid parameters {self.rank}/{self.num_procs - 1}")
+        self._lib.print_pmgrid()
+
+    def print_vpm_vars(self):
+        """
+            Print the variables of the VPM
+        """
+        print_IMPORTANT(f"VPM variables {self.rank}/{self.num_procs - 1}")
+        self._lib.print_vpm_vars()
+    
+    def print_vpm_size(self):
+        """
+            Print the size of the VPM
+        """
+        print_IMPORTANT(f"VPM size {self.rank}/{self.num_procs - 1}")
+        self._lib.print_vpm_size()
+
+    def print_parvar(self):
+        """
+            Print the particle variables
+        """
+        print_IMPORTANT(f"Particle variables {self.rank}/{self.num_procs - 1}")
+        self._lib.print_parvar()
  
     def finalize(self):
         self._lib.finalize()
@@ -316,7 +362,7 @@ if __name__ == "__main__":
     NVRM = NVR + 10
 
     ##################################### MODE TESTING #####################################
-    for WhatToDo in [0, 1, 2, 3, 5, 4]:
+    for WhatToDo in [0, 1, 2, 3, 4, 2 ,5]:
     # 0: Initialize
     # 1: Solve
     # 2: Convect
@@ -354,6 +400,15 @@ if __name__ == "__main__":
             print_green(f"Size of RHS_pm: {RHS_pm_in.shape}")
             print('\n\n\n')
 
+        # if rank == 0:
+        #     vpm.print_projlib_parameters()
+        #     vpm.print_pmgrid_parameters()
+        #     vpm.print_pmesh_parameters()
+        #     vpm.print_vpm_vars()
+        #     vpm.print_vpm_size()
+        #     vpm.print_parvar()
+        #     print('\n\n')
+        # sleep(1)
         # Remesh the particles
         comm.Barrier()
         vpm.remesh_particles_3d(1)

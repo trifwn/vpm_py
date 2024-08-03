@@ -124,8 +124,8 @@ Subroutine infdomain_3d(neqs, neqf)
    nbound = 0
    call calc_normalderiv_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
 
-   write (*,*) achar(9), achar(9), "DEBUG: nbound = ", nbound
-   write (*,*) achar(9), achar(9), "Should be equal to ", Nblocks*(nworkb)
+   ! write (*,*) achar(9), achar(9), "DEBUG: nbound = ", nbound
+   ! write (*,*) achar(9), achar(9), "Should be equal to ", Nblocks*(nworkb)
    deallocate (SOL_0_pm)
    if (my_rank .eq. 0) st = MPI_WTIME()
    if (itree .eq. 1) then

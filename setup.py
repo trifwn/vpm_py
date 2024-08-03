@@ -107,7 +107,7 @@ def readme():
     return "Hello"
 
 setup(
-    name='vpm',
+    name='vpm_py',
     version=__version__,
     description='compiled python module ',
     long_description=readme(),

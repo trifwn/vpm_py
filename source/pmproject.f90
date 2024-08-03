@@ -6,8 +6,24 @@ Module projlib
    integer, save                        :: NXpm, NYpm, NZpm, NXs, NXf, NYs, NYf, NZs, NZf
    integer, save                        :: IDVPM, ND
 
-   private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm, NXpm, NYpm, NZpm, ND, EPSVOL, DVpm, IDVPM
+   private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
+   private :: DXpm, DYpm, DZpm, DVpm
+   private :: EPSVOL
+   private :: NXpm, NYpm, NZpm
    private :: NXs, NXf, NYs, NYf, NZs, NZf
+   private :: IDVPM, ND
+
+   ! Getters
+   public :: get_XMIN_pm, get_XMAX_pm, get_YMIN_pm, get_YMAX_pm, get_ZMIN_pm, get_ZMAX_pm
+   public :: get_DXpm, get_DYpm, get_DZpm, get_DVpm
+   public :: get_EPSVOL
+   public :: get_NXpm, get_NYpm, get_NZpm
+   public :: get_NXs, get_NXf, get_NYs, get_NYf, get_NZs, get_NZf
+   public :: get_IDVPM, get_ND
+
+   ! Printers
+   public :: print_projlib_info
+
 contains
    Subroutine projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL_in, IDVPM_in, ND_in)
       implicit none
@@ -31,6 +47,19 @@ contains
          DVpm = DXpm*DYpm*DZPm
       end if
 
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, "initiated projlib"
+      ! call print_projlib_info
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
+      ! print *, '-----------------------------------'
    End Subroutine projlibinit
    ! --------------------------------------------------------------------------!
    !-->Subroutine project_particles_3D                                          !
@@ -42,7 +71,20 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   Subroutine project_particles_3D(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize)
+   Subroutine project_particles_3D( &
+      Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize &
+   )
+      ! Qproj -> RHS of the PM grid
+      ! Qpar -> Particle values QP_scat
+      ! QpX -> Particle positions XP_scat
+      ! Qprojtype -> Type of projection function
+      ! ipar -> Number of particles NVR_p
+      ! isize -> Number of variables
+      ! ieq -> Variables to project
+      ! neq -> Number of equations
+      ! QINF -> Inflow values
+      ! iparsize -> Number of particles NVR_p
+
       !use pmgrid
       use mpi
 
@@ -55,10 +97,30 @@ contains
       integer, intent(in) :: Qprojtype(iparsize)
       double precision   :: fx, fy, fz, f, x, y, z
       integer            :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
-      integer           :: my_rank, ierr
+      integer           :: my_rank, ierr, np!, tot_par_num
+      ! double precision, dimension(neq) :: temp
       ! integer            :: nbj, nb
 
       call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
+      ! call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+
+      ! tot_par_num = 0
+      ! do i = 1,np
+      !    if (my_rank.eq.i) then
+      !       ! PRINT QPX, Qpar
+      !       write (*, *) "RANK ", my_rank
+      !       do nv = 1, iparsize
+      !          tot_par_num = tot_par_num + 1
+      !          temp = QPar(ieq(1:neq), nv)
+      !          write (*, '(A,I4)') achar(9)//"Particle ", tot_par_num
+      !          write (*, '(A,3E12.4)') achar(9)//"XP", QpX(1:3, nv)
+      !          ! write (*, *) achar(9)//"QPar", temp
+      !       end do
+      !    end if 
+      !    call MPI_BCAST(tot_par_num, 1, MPI_INTEGER, i, MPI_COMM_WORLD, ierr)
+      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      ! enddo
+      ! print *, ""
 
       !-->Projection function (TSC)
       Qproj = 0.d0
@@ -95,19 +157,26 @@ contains
                   f = fx*fy*fz
                   if (my_rank .eq. 0) then
                      if (k .lt. 1) then
-                        print *, "PROJECT PARTICLES 3D GOT k<1: "
-                        write (*, *) "QPX", QPX(1:3, nv)
-                        write (*, *) "XMIN, YMIN, ZMIN", XMIN_pm, YMIN_pm, ZMIN_pm
-                        write (*, *) "DX, DY, DZ", DXpm, DYpm, DZpm
-                        write (*, *) "NV", nv
-                        write (*, *) "IPA", ipar
-                        write (*, *) "I", i
-                        write (*, *) "ips, ipf", ips, ipf
-                        write (*, *) "knode", knode
-                        write (*, *) "J", j
-                        write (*, *) "jnode", jnode
-                        write (*, *) "K", k
-                        write (*, *) "inode", inode
+                        write (*, *) achar(9), "PROJECT PARTICLES 3D GOT k<1: "
+                        write (*, *) achar(9), "NXpm", NXpm
+                        write (*, *) achar(9), "NYpm", NYpm
+                        write (*, *) achar(9), "NZpm", NZpm
+                        write (*, *) achar(9), "QPX", QPX(1:3, nv)
+                        write (*, *) achar(9), "XMIN" , XMIN_pm
+                        write (*, *) achar(9), "YMIN" , YMIN_pm
+                        write (*, *) achar(9), "ZMIN" , ZMIN_pm
+                        write (*, *) achar(9), "DX", DXpm
+                        write (*, *) achar(9), "DY", DYpm
+                        write (*, *) achar(9), "DZ", DZpm
+                        write (*, *) achar(9), "NV", nv
+                        write (*, *) achar(9), "IPA", ipar
+                        write (*, *) achar(9), "I", i
+                        write (*, *) achar(9), "ips, ipf", ips, ipf
+                        write (*, *) achar(9), "knode", knode
+                        write (*, *) achar(9), "J", j
+                        write (*, *) achar(9), "jnode", jnode
+                        write (*, *) achar(9), "K", k
+                        write (*, *) achar(9), "inode", inode
                      end if
                   end if
 
@@ -456,4 +525,127 @@ contains
       end if
 
    End Function projection_fun
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Getters
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision function get_XMIN_pm()
+      get_XMIN_pm = XMIN_pm
+   End Function get_XMIN_pm
+
+   double precision function get_XMAX_pm()
+      get_XMAX_pm = XMAX_pm
+   End Function get_XMAX_pm
+
+   double precision function get_YMIN_pm()
+      get_YMIN_pm = YMIN_pm
+   End Function get_YMIN_pm
+
+   double precision function get_YMAX_pm()
+      get_YMAX_pm = YMAX_pm
+   End Function get_YMAX_pm
+
+   double precision function get_ZMIN_pm()
+      get_ZMIN_pm = ZMIN_pm
+   End Function get_ZMIN_pm
+
+   double precision function get_ZMAX_pm()
+      get_ZMAX_pm = ZMAX_pm
+   End Function get_ZMAX_pm
+
+   double precision function get_DXpm()
+      get_DXpm = DXpm
+   End Function get_DXpm
+
+   double precision function get_DYpm()
+      get_DYpm = DYpm
+   End Function get_DYpm
+
+   double precision function get_DZpm()
+      get_DZpm = DZpm
+   End Function get_DZpm
+
+   double precision function get_DVpm()
+      get_DVpm = DVpm
+   End Function get_DVpm
+
+   double precision function get_EPSVOL()
+      get_EPSVOL = EPSVOL
+   End Function get_EPSVOL
+
+   integer function get_NXpm()
+      get_NXpm = NXpm
+   End Function get_NXpm
+
+   integer function get_NYpm()
+      get_NYpm = NYpm
+   End Function get_NYpm
+
+   integer function get_NZpm()
+      get_NZpm = NZpm
+   End Function get_NZpm
+
+   integer function get_NXs()
+      get_NXs = NXs
+   End Function get_NXs
+
+   integer function get_NXf()
+      get_NXf = NXf
+   End Function get_NXf
+
+   integer function get_NYs()
+      get_NYs = NYs
+   End Function get_NYs
+
+   integer function get_NYf()
+      get_NYf = NYf
+   End Function get_NYf
+
+   integer function get_NZs()
+      get_NZs = NZs
+   End Function get_NZs
+
+   integer function get_NZf()
+      get_NZf = NZf
+   End Function get_NZf
+
+   integer function get_IDVPM()
+      get_IDVPM = IDVPM
+   End Function get_IDVPM
+
+   integer function get_ND()
+      get_ND = ND
+   End Function get_ND
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Printers
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   Subroutine print_projlib_info()
+      print *, "PROJLIB INFO"
+      print *, "============"
+      print *, ""
+      print *, achar(9), 'XMIN_pm', XMIN_pm
+      print *, achar(9), 'XMAX_pm', XMAX_pm
+      print *, achar(9), 'YMIN_pm', YMIN_pm
+      print *, achar(9), 'YMAX_pm', YMAX_pm
+      print *, achar(9), 'ZMIN_pm', ZMIN_pm
+      print *, achar(9), 'ZMAX_pm', ZMAX_pm
+      print *, achar(9), 'DXpm', DXpm
+      print *, achar(9), 'DYpm', DYpm
+      print *, achar(9), 'DZpm', DZpm
+      print *, achar(9), 'DVpm', DVpm
+      print *, achar(9), 'EPSVOL', EPSVOL
+      print *, achar(9), 'NXpm', NXpm
+      print *, achar(9), 'NYpm', NYpm
+      print *, achar(9), 'NZpm', NZpm
+      print *, achar(9), 'NXs', NXs
+      print *, achar(9), 'NXf', NXf
+      print *, achar(9), 'NYs', NYs
+      print *, achar(9), 'NYf', NYf
+      print *, achar(9), 'NZs', NZs
+      print *, achar(9), 'NZf', NZf
+      print *, achar(9), 'IDVPM', IDVPM
+      print *, achar(9), 'ND', ND
+   End Subroutine print_projlib_info
 End module projlib

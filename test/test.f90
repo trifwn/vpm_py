@@ -18,8 +18,9 @@ Program test_pm
                        RHS_pm_in, velx, vely, velz, XPR, UPR, GPR, &
                        QSOUR, XSOUR, XP_all, QP_all
    use pmeshpar, only: IDVPM
+   use parvar, only: QP, XP, UP, NVR
    use openmpth, only: OMPTHREADS
-   use vpm_lib, only: vpm, remesh_particles_3d
+   use vpm_lib, only: vpm, remesh_particles_3d, write_particles, write_pm_solution
    use MPI
 
    Implicit None
@@ -209,6 +210,13 @@ Program test_pm
       !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       call vpm(XP_all, QP_all, UPR, GPR, NVR_all, neq, 2, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_all)
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
+      if (my_rank .eq. 0) then
+         write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
+         st = MPI_WTIME()
+         call write_particles(i, XP, UP, QP, NVR)
+         et = MPI_WTIME()
+         write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+      end if
 
       if (my_rank .eq. 0) then
          deallocate (XP_all, QP_all)

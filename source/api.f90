@@ -47,6 +47,7 @@ contains
       DXpm = dx_pm
       DYpm = dy_pm
       DZpm = dz_pm
+      write (*, *) 'PM GRID: DXpm: ', DXpm, ' DYpm: ', DYpm, ' DZpm: ', DZpm
       EPSVOL = eps_vol
 
       ! VPM_VARS
@@ -95,14 +96,24 @@ contains
       use openmpth
 
       implicit none
-      integer :: ierr
-
-      print *, 'Finalizing MPI'
-      call MPI_FINALIZE(ierr)
-      if (ierr .ne. 0) then
-         print *, 'Error finalizing MPI'
-         stop
-      end if
+      
+      ! integer :: ierr
+      ! print *, 'Finalizing MPI'
+      ! call MPI_FINALIZE(ierr)
+      ! if (ierr .ne. 0) then
+      !    print *, 'Error finalizing MPI'
+      !    stop
+      ! end if
+      ! Free the memory
+      ! call free_vpm_vars()
+      ! call free_vpm_size()
+      ! call free_pmeshpar()
+      ! call free_parvar()
+      ! call free_pmgrid()
+      ! call free_openmpth()
+      ! call free_pmlib()
+      ! call free_projlib()
+      ! call free_yapslib()
    End Subroutine finalize
 
    Subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
@@ -152,24 +163,25 @@ contains
          stop
       end if
 
-      print *, char(9), 'Calling VPM API. Rank: ', my_rank
+      ! print *, char(9), 'Calling VPM API. Rank: ', my_rank
       ! CALL THE VPM Subroutine
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                RHS_pm_in, velx, vely, velz, NTIME_in, NI_in, NVRM_in)
-      print *, char(9), 'VPM API Returned. Rank: ', my_rank
+      ! print *, char(9), 'VPM API Returned. Rank: ', my_rank
 
    End Subroutine call_vpm
 
    Subroutine call_remesh_particles_3d(iflag) bind(C, name='remesh_particles_3d')
-      use vpm_vars
-      use vpm_size
-      use pmeshpar
-      use parvar
-      use pmgrid
-      use pmlib
-      use projlib
-      use yapslib
-      use openmpth
+      ! use vpm_vars
+      ! use vpm_size
+      ! use pmeshpar
+      ! use parvar
+      ! use pmgrid
+      ! use pmlib
+      ! use projlib
+      ! use yapslib
+      ! use openmpth
+      use vpm_lib, only: remesh_particles_3d
       use MPI
 
       implicit none
@@ -182,13 +194,57 @@ contains
          print *, 'Error getting the rank of the process'
          stop
       end if
-      print *, 'Calling REMESH PARTICLES 3D. Entry point: API. Rank: ', my_rank
-
+      
+      ! print *, 'Calling REMESH PARTICLES 3D. Entry point: API. Rank: ', my_rank
       call remesh_particles_3d(iflag)
 
       ! Convert the arguments back to the original type
 
-      write (*, *) 'REMESH_PARTICLES_3D API FINISHED. Rank: ', my_rank
+      ! write (*, *) 'REMESH_PARTICLES_3D API FINISHED. Rank: ', my_rank
    End Subroutine call_remesh_particles_3d
+
+   Subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
+      use pmeshpar, only: print_pmeshpar_info
+      implicit none
+
+      call print_pmeshpar_info()
+
+   End Subroutine print_pmeshpar
+
+   Subroutine print_projlib() bind(C, name='print_projlib')
+      use projlib, only: print_projlib_info
+      implicit none
+
+      call print_projlib_info()
+
+   End Subroutine print_projlib
+
+   Subroutine print_pmgrid() bind(C, name='print_pmgrid')
+      use pmgrid, only: print_pmgrid_info
+      implicit none
+
+      call print_pmgrid_info()
+   End Subroutine print_pmgrid
+
+   Subroutine print_vpm_vars() bind(C, name='print_vpm_vars')
+      use vpm_vars, only: print_vpm_vars_info
+      implicit none
+
+      call print_vpm_vars_info()
+   End Subroutine print_vpm_vars
+
+   Subroutine print_vpm_size() bind(C, name='print_vpm_size')
+      use vpm_size, only: print_vpm_size_info
+      implicit none
+
+      call print_vpm_size_info()
+   End Subroutine print_vpm_size
+
+   Subroutine print_parvar() bind(C, name='print_parvar')
+      use parvar, only: print_parvar_info
+      implicit none
+
+      call print_parvar_info()
+   End Subroutine print_parvar
 
 End Module api

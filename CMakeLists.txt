@@ -210,14 +210,23 @@ set(TEST_EXE_SRC
     ${SRC_TEST}/test_applic.f90
 )
 
+add_library(io SHARED ${SRC_HP}/io.f90)
+add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
 add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
 add_library(mkl_poisson SHARED ${SRC_HP}/mkl_poisson.f90)
 target_include_directories(mkl_poisson PUBLIC ${SRC_HP}/mkl_dfti.f90)
 
-add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
-add_library(main_pm SHARED  ${SRC_HP}/main_pm.f90)
+add_library(parvar SHARED  ${SRC_HP}/parvar.f90)
+target_link_libraries(parvar PRIVATE io)
+
+add_library(pmgrid SHARED  ${SRC_HP}/pmgrid.f90)
+target_link_libraries(pmgrid PRIVATE io)
+
+add_library(pmeshpar SHARED  ${SRC_HP}/pmeshpar.f90)
+target_link_libraries(pmeshpar PRIVATE io)
+
 add_library(pmproject SHARED ${SRC_HP}/pmproject.f90)
-target_link_libraries(pmproject PRIVATE mkl_poisson main_pm)
+target_link_libraries(pmproject PRIVATE mkl_poisson)
 
 add_library(pmlib SHARED ${SRC_HP}/pmlib.f90)
 target_include_directories(pmlib PUBLIC ${PM_LIB_INCL})
@@ -232,7 +241,7 @@ target_include_directories(vpm PUBLIC ${VPM_LIB_INCL})
 
 # Add all object files as sources to a dummy target
 add_custom_target(dummy ALL
-    DEPENDS mkl_poisson mpi_matrices yaps pmlib pmproject vpm 
+    DEPENDS mkl_poisson mpi_matrices yaps pmlib pmproject vpm parvar pmeshpar pmgrid 
 )
 
 # -------------------------------------------------------------------------------------------------
@@ -240,7 +249,7 @@ add_custom_target(dummy ALL
 # -------------------------------------------------------------------------------------------------
 add_library(${EXENAME} SHARED ${SRC_HP}/api.f90)
 add_dependencies(${EXENAME} dummy) # Ensure proper dependency resolution
-target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS} 
+target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm io) #PUBLIC ${LINK_FLAGS} 
 target_include_directories(${EXENAME} PUBLIC ${PATHOBJHP}) # Set include directories using PUBLIC
 target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile options using PUBLIC
 
@@ -250,7 +259,7 @@ target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile 
 # Add executable for testing purposes (not necessary)
 add_executable(${EXENAME}_exe ${TEST_EXE_SRC})
 add_dependencies(${EXENAME}_exe dummy)
-target_link_libraries(${EXENAME}_exe PRIVATE mkl_poisson mpi_matrices  main_pm pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
+target_link_libraries(${EXENAME}_exe PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
 target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP}) 
 target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
 
