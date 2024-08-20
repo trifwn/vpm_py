@@ -58,9 +58,9 @@ def fUi_HillsVortex_1(CP, a, us, z0):
     
     return Uind, Grad, Defm, Vort
 
-def hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_bl, neqpm):
+def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, a=12.0, us=-1.0, z0=0.0):
     # Initialize RHS array
-    RHS_pm_bl[:3, :, :, :] = 0.0
+    RHS_pm_bl = np.zeros((neqpm, NN_bl[3] - NN_bl[0] + 1, NN_bl[4] - NN_bl[1] + 1, NN_bl[5] - NN_bl[2] + 1), dtype=float) 
     # Allocate analytic_sol
     analytic_sol = np.zeros((6, NN[0], NN[1], NN[2]))
 
@@ -78,7 +78,7 @@ def hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_bl, neqpm):
                 Vort = np.zeros(3, dtype=float)
 
                 # Call fUi_HillsVortex_1 function (assumed to be defined similarly in Python)
-                Uind, Grad, Defm, Vort = fUi_HillsVortex_1(CP, 1.0, -1.0, 0.0)
+                Uind, Grad, Defm, Vort = fUi_HillsVortex_1(CP, a, us, z0)
 
                 # print(i,j,k)
                 # Update RHS_pm_bl with negative vorticity values
@@ -87,6 +87,8 @@ def hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_bl, neqpm):
                 # Store analytical solution
                 analytic_sol[:3, i, j, k] = Uind
                 analytic_sol[3:6, i, j, k] = Defm
+    
+    return analytic_sol, RHS_pm_bl
 
 def hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, vel_pm, analytic_sol):
     # Initialize the error array
@@ -140,7 +142,7 @@ def main():
     RHS_pm_bl = np.zeros((neqpm, NN[0], NN[1], NN[2]), dtype=float)
 
     # Call hill_assign to compute the fields
-    hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_bl, neqpm)
+    analytic_sol , RHS_pm_bl = hill_assign(NN, NN_bl, Xbound, Dpm, neqpm)
     print("Hill vortex computation complete")
     # Extract the computed vorticity field from RHS_pm_bl
     vorticity_field = -RHS_pm_bl[:3]

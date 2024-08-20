@@ -1,45 +1,42 @@
 module test_mod
-   double precision, allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), XPO(:, :), QPO(:, :), &
-      XP_in(:, :), QP_in(:, :), XSOUR(:, :), QSOUR(:, :), XP_all(:, :), QP_all(:, :)
+   double precision, allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
+                                           XPO(:, :), QPO(:, :), &
+                                           XP_in(:, :), QP_in(:, :)
    double precision, pointer:: velx(:, :, :), vely(:, :, :), velz(:, :, :)
    double precision, pointer:: RHS_pm_in(:, :, :, :), RHS_pm_out(:, :, :, :)
    integer, allocatable    :: qflag(:)
-   integer :: NVR_ext, NVR_sources, NVR_sources_init, NVR_ext_init
+   integer :: NVR_ext, NVR_ext_init
 end module test_mod
 
 Program test_pm
-   use pmgrid, only: XMIN_pm, NXs_bl, DXpm, DYpm, DZpm, EPSVOL
-   use vpm_vars, only: mrem, interf_iproj, ncoarse, ncell_rem, iynslice, &
-                       IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
-   use vpm_size, only: st, et, NREMESH, iyntree, ilevmax, ibctyp, NBI, &
-                       NBJ, NBK
-   use test_mod, only: QPR, NVR_sources, NVR_ext, NVR_sources_init, &
-                       NVR_ext_init, QPO, XPO, Qflag, QP_in, XP_in, &
-                       RHS_pm_in, velx, vely, velz, XPR, UPR, GPR, &
-                       QSOUR, XSOUR, XP_all, QP_all
-   use pmeshpar, only: IDVPM
-   use parvar, only: QP, XP, UP, NVR
-   use openmpth, only: OMPTHREADS
-   use vpm_lib, only: vpm, remesh_particles_3d, write_particles, write_pm_solution
+   use pmgrid, only:    XMIN_pm, NXs_bl, DXpm, DYpm, DZpm, EPSVOL
+   use vpm_vars, only:  mrem, interf_iproj, ncoarse, ncell_rem, iynslice, &
+                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
+   use vpm_size, only:  st, et, NREMESH, iyntree, ilevmax, ibctyp, NBI, &
+                        NBJ, NBK
+   use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, &
+                        QPO, XPO, Qflag, &
+                        QP_in, XP_in, RHS_pm_in, &
+                        velx, vely, velz
+   use pmeshpar, only:  IDVPM
+   use parvar, only:    QP, XP, UP, NVR
+   use openmpth, only:  OMPTHREADS
+   use vpm_lib, only:   vpm, remesh_particles_3d, write_particles, write_pm_solution
    use MPI
 
    Implicit None
    double precision              :: Vref, NI_in, DT_in, RMETM, FACDEF, T, &
                                     XMIN, XMAX, UINF(3)
-   integer                       :: NVR_turb, NVR_all
+   integer                       :: NVR_MAX
    integer                       :: my_rank, np, ierr, i, neq, j, TMAX
    ! integer                       :: debug_switch
-   ! double precision,allocatable  :: XPDUM(:,:),QPDUM(:,:)
-   ! integer                       :: Noutput, NDimoutput
-   ! double precision              :: OMET,OG
-   ! double precision,allocatable ::velsavex(:,:,:)
    ! external                      :: sleep
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
-   ! ! DEBUG SWITCH
+   ! ! DEBUG SWITCH USED TO ATTACH TO DEBUGGER
    ! debug_switch = 0
    ! ! While loop for debugging
    ! do while (debug_switch .eq. 0)
@@ -50,18 +47,15 @@ Program test_pm
    !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
    !    call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
    ! end do
-
    ! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
    ! call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
    ! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
    print *, 'Processor ', my_rank, ' of ', np, ' started'
-
-   NI_in = -0.1
-   DT_in = 0.761905/2.  !=dx/U=8/10.5   !1000
-   DT_in = 4./10.5     !=dx/U=8/10.5   !1000
-   DT_in = 0.05
-
+   
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    open (1, file='pm.inp')
    read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
    read (1, *) interf_iproj         ! INTERFACE PROJECTION FUNCTION 1 , 2, 3 , 4
@@ -90,9 +84,22 @@ Program test_pm
       print *, achar(9), 'DYpm=', DYpm
       print *, achar(9), 'DZpm=', DZpm
    end if
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
 
-   neq = 3
-   !--- INPUT
+   NI_in = -0.1         ! Viscosity
+   DT_in = 0.05         ! =dx/U
+   NVR_MAX = 5000        ! MAX NUMBER OF PARTICLES
+   neq = 3              ! NUMBER OF EQUATIONS
+   mrem = 1             ! REMESHING FACTOR
+
+   UINF = 0;            ! INFLOW VELOCITY
+   UINF(1) = 0
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !--- INPUT OF PARTICLES
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    if (my_rank .eq. 0) then
       print *, 'Reading Particles:'
       open (11, file='particles.bin', form='unformatted', access='sequential', status='old') ! read particles
@@ -121,69 +128,59 @@ Program test_pm
       QPR(4, :) = QPR(4, :)*Vref
       QPR(neq + 1, :) = Vref
       RMETM = 0.001
-      NVR_sources = 0
-      !open(1,file='sources.bin',form='unformatted')
-      !read(1) NVR_sources
-      allocate (XSOUR(3, NVR_sources), QSOUR(neq + 1, NVR_sources))
-      !write(*,*) 'NVR_sources=',NVR_sources
-      !do i=1,NVR_sources
-      !   read(1) XSOUR(1,i),XSOUR(2,i),XSOUR(3,i),QSOUR(1:4,i)
-      !enddo
    end if
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM
-   mrem = 1
-   UINF = 0; UINF(1) = 7
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_ext)
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
    !--- END INITIALIZATION VPM
 
-   ! --- CREATE SOURCES
-   ! if (my_rank .eq. 0) then
-   !    call create_sources(UINF)
-   ! end if
-   ! --- END CREATE SOURCES
-
    !------------ Remeshing ----------------
+   ! We remesh the particles in order to properly distribute them in the domain
    if (my_rank .eq. 0) then
       st = MPI_WTIME()
       write (*, *) achar(27)//'[1;31mRemeshing '//achar(27)//'[0m'
    end if
-   call remesh_particles_3d(1)
+   call remesh_particles_3d(1, XPR, QPR, NVR_EXT)
    if (my_rank .eq. 0) then
       et = MPI_WTIME()
       write (*, *) achar(9), 'Remeshing took', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
    end if
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !------------ End Remeshing ----------------
 
    ! ------- Allocate memory for all particles
    if (my_rank .eq. 0) then
-      NVR_all = NVR_ext + NVR_sources
-      NVR_sources_init = NVR_sources
-      NVR_ext_init = NVR_ext
-      allocate (QPO(1:neq + 1, NVR_all), XPO(1:3, NVR_all), Qflag(NVR_all))
-      allocate (QP_in(1:neq + 1, NVR_all), XP_in(1:3, NVR_all))
-      Qflag = 0
-      QPO(1:neq + 1, 1:NVR_ext) = QPR(1:neq + 1, 1:NVR_ext)
-      QPO(1:neq + 1, NVR_ext + 1:NVR_all) = QSOUR(1:neq + 1, 1:NVR_sources)
-      XPO(1:3, 1:NVR_ext) = XPR(1:3, 1:NVR_ext)
-      XPO(1:3, NVR_ext + 1:NVR_all) = XSOUR(1:3, 1:NVR_sources)
-      NVR_turb = NVR_all
+      allocate (QPO(1:neq + 1, NVR_ext))     ! OUTPUT STRENGTH
+      allocate (XPO(1:3, NVR_ext))           ! OUTPUT POSITION
+      
+      allocate (QP_in(1:neq + 1, NVR_ext))   ! INPUT STRENGTH
+      allocate (XP_in(1:3, NVR_ext))         ! INPUT POSITION
+
+      allocate (Qflag(NVR_ext))
+      Qflag = 0 ! 
+
+      QPO = QPR
+      XPO = XPR
+      
       XMIN = XMIN_pm + (NXs_bl(1) + 4 - 1)*DXpm
       XMAX = maxval(XPO(1, :))
       XPO(1, :) = XPO(1, :) - (XMAX - XMIN)
-      QP_in = QPO; XP_in = XPO
-      !QPR(1:3,:)=0
-      !  call write_particles(0,XPO,NVR_all)
-      !NVR_ext=NYpm*NZpm
+      
+      QP_in = QPO
+      XP_in = XPO
    end if
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! ------- End Allocate memory for all particles
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_ext)
-   ! call remesh_particles_3d(1)
+
+   ! Initialize VPM to call define_size and definepm
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
 
    !--- MAIN LOOP
    T = 0
    TMAX = 100
    do i = 1, TMAX
+      call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
          write (*, *)
          write (*, *) "---------------------------------"
@@ -197,19 +194,19 @@ Program test_pm
 
       !--- ALLOCATIONS FOR ALL PARTICLES and sources
       if (my_rank .eq. 0) then
-         NVR_all = NVR_ext + NVR_sources
-         allocate (XP_all(3, NVR_all), QP_all(neq + 1, NVR_all))
-         allocate (UPR(3, NVR_all), GPR(3, NVR_all))
+         if (allocated(UPR)) deallocate(UPR)
+         if (allocated(GPR)) deallocate(GPR)
+         ! Only particles
+         allocate (UPR(3, NVR_EXT))
+         allocate (GPR(3, NVR_EXT))
          UPR = 0; GPR = 0
-         XP_all(1:3, 1:NVR_ext) = XPR(1:3, 1:NVR_ext)
-         QP_all(1:neq + 1, 1:NVR_ext) = QPR(1:neq + 1, 1:NVR_ext)
-         XP_all(1:3, NVR_ext + 1:NVR_all) = XSOUR(1:3, 1:NVR_sources)
-         QP_all(1:neq + 1, NVR_ext + 1:NVR_all) = QSOUR(1:neq + 1, 1:NVR_sources)
       end if
 
       !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
-      call vpm(XP_all, QP_all, UPR, GPR, NVR_all, neq, 2, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_all)
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
+
+      ! WRITE PARTICLES
       if (my_rank .eq. 0) then
          write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
          st = MPI_WTIME()
@@ -217,18 +214,19 @@ Program test_pm
          et = MPI_WTIME()
          write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
+      ! END WRITE PARTICLES
 
+      ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
-         deallocate (XP_all, QP_all)
-
          write (*, *) achar(27)//'[1;31mCONVECTING '//achar(27)//'[0m'
          write (*, *) achar(9), "Max Particle Velocity is now:", maxval(abs(UPR))
 
          st = MPI_WTIME()
+
          ! MOVE PARTICLES
          !!$omp parallel private(j,FACDEF)
          !!$omp do
-         do j = 1, NVR_ext
+         do j = 1, NVR
             XPR(1:3, j) = XPR(1:3, j) + (UPR(1:3, j) + UINF(1:3))*DT_in
             FACDEF = 1.
             !OMET   = sqrt ( QPR(1,j)**2 + QPR(2,j)**2 + QPR(3,j)**2 )
@@ -246,14 +244,9 @@ Program test_pm
          end do
          !!$omp enddo
          !!$omp end parallel
-         ! CREATE SOURCES
-         do j = 1, NVR_sources
-            XSOUR(1:3, j) = XSOUR(1:3, j) + (UINF(1:3))*DT_in
-         end do
          et = MPI_WTIME()
          write (*, *) achar(9), 'Convecting Particles:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          !    call move_par_out(DT_in)
-         deallocate (UPR, GPR)
          st = MPI_WTIME()
          ! PROBABLY MOVES PARTICLES IN AND OUT OF THE DOMAIN
          write (*, *) achar(27)//'[1;31mMoving Particles in/out '//achar(27)//'[0m'
@@ -261,22 +254,29 @@ Program test_pm
          call find_par_out
          et = MPI_WTIME()
          write (*, *) achar(9), 'Moving Particles IN/OUT', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-         !   call write_particles(i,XPR,NVR_ext)
       end if
+      ! END CONVECTING PARTICLES
 
       !--- VPM INITIALIZATION AND REMESHING
-      call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_ext)
+      ! Used to redefine the sizes
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
 
       if (my_rank .eq. 0) then
          st = MPI_WTIME()
          write (*, *) achar(27)//'[1;31mRemeshing '//achar(27)//'[0m'
       end if
-      if (mod(i, 1) .eq. 0) call remesh_particles_3d(1)
-      if (my_rank .eq. 0) then
-         et = MPI_WTIME()
-         write (*, *) achar(9), 'Remeshing', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+      
+      ! Remesh the particles
+      ! call remesh_particles_3d(1, XPR, QPR, NVR_EXT)
+      if (my_rank.eq.0) then
+         write (*, *) achar(27)//'[1;31m AFTER Remeshing '//achar(27)//'[0m'
+         write(*,*) achar(9), 'NVR_EXT', NVR_EXT
+         write(*,*) achar(9), 'NVR', NVR
       end if
-      !--- END VPM INITIALIZATION AND REMESHING
+      ! ! BCAST NVR_EXT
+      call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+      ! !--- END VPM INITIALIZATION AND REMESHING
+
 
       !--- VPM DIFFUSION
       !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,velx,vely,velz,i,NI_in,NVR_ext)
@@ -289,16 +289,7 @@ Program test_pm
       !get velocities and deformation
    end do
    !--- END MAIN LOOP
-      
-   !if (my_rank.eq.0) then
-   !allocate (QPDUM(7,NVR_ext),XPDUM(3,NVr_ext))
-   !XPDUM =XPR
-   !QPDUM(1:3,:)=QPR(1:3,:)
-   !QPDUM(4:6,:)=QPR(1:3,:)
-   !QPDUM(7,:)  =QPR(4,:/)
-   !endif
-   ! call vpm(XPDUM,QPDUM,UPR,GPR,NVR_ext,6,1,RHS_pm_in,velx,vely,velz,i,NI_in,NVR_ext)
-   !  if (mod(i,1).eq.0) call remesh_particles_3d(1)
+   
    call MPI_FINALIZE(ierr)
 end Program test_pm
 
@@ -395,9 +386,13 @@ End Subroutine find_par_out
 
 Subroutine find_par_in(T_in, U)
    use vpm_vars, only: neqpm, mrem
-   use test_mod, only: Qflag, QPO, QP_in, XPO, XP_in, NVR_ext, XPR, QPR, NVR_ext_init, &
-                        NVR_SOURCES, XSOUR, QSOUR, NVR_sources_init
+   use test_mod, only: Qflag, QPO, QP_in, XPO, XP_in, NVR_ext, XPR, QPR, NVR_ext_init
    use pmgrid, only: XMIN_pm, NXs_bl, DXpm, NXpm, NYpm, NZpm
+
+   !
+   ! This subroutine moves the particles in and out of the domain
+   ! It also resets the inflow particles
+   !
 
    Implicit None
    double precision, intent(in):: T_in, U
@@ -405,16 +400,25 @@ Subroutine find_par_in(T_in, U)
    integer                    :: NVR_in, neq
    integer  :: i, NVR_in_max
    double precision, allocatable :: XP_tmp(:, :), QP_tmp(:, :)
+
+   ! Find the inflow particles
    XMIN = XMIN_pm + (NXs_bl(1) + 4 - 1)*DXpm
    XO = XMIN
+   
+   ! Q flag is used to determine if a particle is inflow or not
    if (minval(Qflag) .eq. 1) then
       Qflag = 0
       QPO = QP_in; XPO = XP_in
       write (155, *) 'Reseting inflow Particles'
    end if
+
+   ! Real number of equations
    neq = neqpm + 1
+
+   ! Max number of particles that can enter the domain
    NVR_in_max = (2*NXpm*NYpm + 2*NYpm*NZpm + 2*NZpm*NXpm)*3*mrem**2
    allocate (XP_tmp(3, NVR_ext + NVR_in_max), QP_tmp(neq, NVR_ext + NVR_in_max))
+   
    XP_tmp(1:3, 1:NVR_ext) = XPR(1:3, 1:NVR_ext)
    QP_tmp(1:neq, 1:NVR_ext) = QPR(1:neq, 1:NVR_ext)
    NVR_in = 0
@@ -427,33 +431,37 @@ Subroutine find_par_in(T_in, U)
          QP_tmp(1:neq, NVR_ext + NVR_in) = QPO(1:neq, i)
       end if
    end do
+
    deallocate (XPR, QPR)
    NVR_ext = NVR_ext + NVR_in
    allocate (XPR(1:3, NVR_ext), QPR(1:neq, NVR_ext))
    XPR = XP_tmp
    QPR = QP_tmp
    deallocate (XP_tmp, QP_tmp)
-
    write (*, *) achar(9), 'Particles in', NVR_in
-   allocate (XP_tmp(3, NVR_sources + NVR_in_max), QP_tmp(neq, NVR_sources + NVR_in_max))
-   XP_tmp(1:3, 1:NVR_sources) = XSOUR(1:3, 1:NVR_sources)
-   QP_tmp(1:neq, 1:NVR_sources) = QSOUR(1:neq, 1:NVR_sources)
+
+   ! ADD SOURCES
+   ! allocate (XP_tmp(3, NVR_sources + NVR_in_max))
+   ! allocate (QP_tmp(neq, NVR_sources + NVR_in_max))
+   ! XP_tmp(1:3, 1:NVR_sources) = XSOUR(1:3, 1:NVR_sources)
+   ! QP_tmp(1:neq, 1:NVR_sources) = QSOUR(1:neq, 1:NVR_sources)
    NVR_in = 0
-   do i = 1, NVR_sources_init
-      XPO(1, NVR_ext_init + i) = XPO(1, NVR_ext_init + i) + U*T_in
-      if (XPO(1, NVR_ext_init + i) .gt. XO .and. qflag(NVR_ext_init + i) .eq. 0) then
-         NVR_in = NVR_in + 1
-         Qflag(NVR_ext_init + i) = 1
-         XP_tmp(1:3, NVR_sources + NVR_in) = XPO(1:3, NVR_ext_init + i)
-         QP_tmp(1:neq, NVR_sources + NVR_in) = QPO(1:neq, NVR_ext_init + i)
-      end if
-   end do
-   deallocate (XSOUR, QSOUR)
-   NVR_sources = NVR_sources + NVR_in
-   allocate (XSOUR(1:3, NVR_sources), QSOUR(1:neq, NVR_sources))
-   XSOUR = XP_tmp
-   QSOUR = QP_tmp
-   deallocate (XP_tmp, QP_tmp)
+   ! do i = 1, NVR_sources_init
+   !    XPO(1, NVR_ext_init + i) = XPO(1, NVR_ext_init + i) + U*T_in
+   !    if (XPO(1, NVR_ext_init + i) .gt. XO .and. qflag(NVR_ext_init + i) .eq. 0) then
+   !       NVR_in = NVR_in + 1
+   !       Qflag(NVR_ext_init + i) = 1
+   !       XP_tmp(1:3, NVR_sources + NVR_in) = XPO(1:3, NVR_ext_init + i)
+   !       QP_tmp(1:neq, NVR_sources + NVR_in) = QPO(1:neq, NVR_ext_init + i)
+   !    end if
+   ! end do
+   ! deallocate (XSOUR, QSOUR)
+   ! NVR_sources = NVR_sources + NVR_in
+   ! allocate (XSOUR(1:3, NVR_sources), QSOUR(1:neq, NVR_sources))
+   ! XSOUR = XP_tmp
+   ! QSOUR = QP_tmp
+   ! deallocate (XP_tmp, QP_tmp)
+
    write (*, *) achar(9), 'Sources in', NVR_in
 End Subroutine find_par_in
 
@@ -463,6 +471,9 @@ Subroutine move_par_out(DT)
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, NXf_bl, NXs_bl, &
                      YMIN_pm, NYf_bl, NYs_bl, NZf_bl, NZs_bl, ZMIN_pm
 
+   ! Subroutine to move particles out of the domain
+   ! It moves the particles out of the domain if they are outside the domain
+   
    Implicit None
    double precision, intent(in)::DT
    integer  :: i
@@ -500,112 +511,112 @@ Subroutine move_par_out(DT)
    return
 End Subroutine move_par_out
 
-Subroutine create_sources(UINF)
-   use vpm_size, only: Dpm
-   use vpm_vars, only: interf_iproj, neqpm
-   use test_mod, only: NVR_sources, XSOUR, QSOUR
-   use pmgrid, only: NXf_bl, NXs_bl, NYf_bl, NYs_bl, NZf_bl, NZs_bl, &
-                     DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm
+! Subroutine create_sources(UINF)
+!    use vpm_size, only: Dpm
+!    use vpm_vars, only: interf_iproj, neqpm
+!    use test_mod, only: NVR_sources, XSOUR, QSOUR
+!    use pmgrid, only: NXf_bl, NXs_bl, NYf_bl, NYs_bl, NZf_bl, NZs_bl, &
+!                      DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm
 
-   Implicit None
-   double precision, intent(in) :: UINF(3)
-   double precision :: X(8), Y(8), Z(8)
-   integer :: nxfin, nxstart, nyfin, nystart, nzfin, nzstart, NXpm1, NYpm1, NZpm1
-   integer :: i, j, k, npar
-   nxfin = NXf_bl(1) - interf_iproj/2
-   nxstart = NXs_bl(1) + interf_iproj/2
-   nyfin = NYf_bl(1) - interf_iproj/2
-   nystart = NYs_bl(1) + interf_iproj/2
-   nzfin = NZf_bl(1) - interf_iproj/2
-   nzstart = NZs_bl(1) + interf_iproj/2
-   NXpm1 = nxfin - nxstart
-   NYpm1 = nyfin - nystart
-   NZpm1 = nzfin - nzstart
-   NVR_sources = NXpm1*NYpm1*2 + NXpm1*NZpm1*2
-   Dpm(1) = DXpm; Dpm(2) = DYpm; Dpm(3) = DZpm
-   allocate (XSOUR(3, NVR_sources), QSOUR(neqpm + 1, NVR_sources))
-   XSOUR = 0
-   QSOUR = 0
-   npar = 0
-   j = nystart
-   do k = nzstart, nzfin - 1
-      do i = nxstart, nxfin - 1
-         npar = npar + 1
-         X(1) = XMIN_pm + Dpm(1)*(i - 1)
-         X(2) = XMIN_pm + Dpm(1)*(i)
+!    Implicit None
+!    double precision, intent(in) :: UINF(3)
+!    double precision :: X(8), Y(8), Z(8)
+!    integer :: nxfin, nxstart, nyfin, nystart, nzfin, nzstart, NXpm1, NYpm1, NZpm1
+!    integer :: i, j, k, npar
+!    nxfin = NXf_bl(1) - interf_iproj/2
+!    nxstart = NXs_bl(1) + interf_iproj/2
+!    nyfin = NYf_bl(1) - interf_iproj/2
+!    nystart = NYs_bl(1) + interf_iproj/2
+!    nzfin = NZf_bl(1) - interf_iproj/2
+!    nzstart = NZs_bl(1) + interf_iproj/2
+!    NXpm1 = nxfin - nxstart
+!    NYpm1 = nyfin - nystart
+!    NZpm1 = nzfin - nzstart
+!    NVR_sources = NXpm1*NYpm1*2 + NXpm1*NZpm1*2
+!    Dpm(1) = DXpm; Dpm(2) = DYpm; Dpm(3) = DZpm
+!    allocate (XSOUR(3, NVR_sources), QSOUR(neqpm + 1, NVR_sources))
+!    XSOUR = 0
+!    QSOUR = 0
+!    npar = 0
+!    j = nystart
+!    do k = nzstart, nzfin - 1
+!       do i = nxstart, nxfin - 1
+!          npar = npar + 1
+!          X(1) = XMIN_pm + Dpm(1)*(i - 1)
+!          X(2) = XMIN_pm + Dpm(1)*(i)
 
-         Y(1) = YMIN_pm + Dpm(2)*(j - 1)
+!          Y(1) = YMIN_pm + Dpm(2)*(j - 1)
 
-         Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
-         Z(2) = ZMIN_pm + Dpm(3)*(k)
+!          Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
+!          Z(2) = ZMIN_pm + Dpm(3)*(k)
 
-         XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
-         XSOUR(2, npar) = Y(1)
-         XSOUR(3, npar) = 0.5d0*(Z(1) + Z(2))
+!          XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
+!          XSOUR(2, npar) = Y(1)
+!          XSOUR(3, npar) = 0.5d0*(Z(1) + Z(2))
 
-         QSOUR(3, npar) = -UINF(1)*Dpm(1)*Dpm(3)
-      end do
-   end do
+!          QSOUR(3, npar) = -UINF(1)*Dpm(1)*Dpm(3)
+!       end do
+!    end do
 
-   j = nyfin
-   do k = nzstart, nzfin - 1
-      do i = nxstart, nxfin - 1
-         npar = npar + 1
-         X(1) = XMIN_pm + Dpm(1)*(i - 1)
-         X(2) = XMIN_pm + Dpm(1)*(i)
+!    j = nyfin
+!    do k = nzstart, nzfin - 1
+!       do i = nxstart, nxfin - 1
+!          npar = npar + 1
+!          X(1) = XMIN_pm + Dpm(1)*(i - 1)
+!          X(2) = XMIN_pm + Dpm(1)*(i)
 
-         Y(1) = YMIN_pm + Dpm(2)*(j - 1)
+!          Y(1) = YMIN_pm + Dpm(2)*(j - 1)
 
-         Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
-         Z(2) = ZMIN_pm + Dpm(3)*(k)
+!          Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
+!          Z(2) = ZMIN_pm + Dpm(3)*(k)
 
-         XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
-         XSOUR(2, npar) = Y(1)
-         XSOUR(3, npar) = 0.5d0*(Z(1) + Z(2))
+!          XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
+!          XSOUR(2, npar) = Y(1)
+!          XSOUR(3, npar) = 0.5d0*(Z(1) + Z(2))
 
-         QSOUR(3, npar) = UINF(1)*Dpm(1)*Dpm(3)
-      end do
-   end do
+!          QSOUR(3, npar) = UINF(1)*Dpm(1)*Dpm(3)
+!       end do
+!    end do
 
-   k = nzstart
-   do j = nystart, nyfin - 1
-      do i = nxstart, nxfin - 1
-         npar = npar + 1
-         X(1) = XMIN_pm + Dpm(1)*(i - 1)
-         X(2) = XMIN_pm + Dpm(1)*(i)
+!    k = nzstart
+!    do j = nystart, nyfin - 1
+!       do i = nxstart, nxfin - 1
+!          npar = npar + 1
+!          X(1) = XMIN_pm + Dpm(1)*(i - 1)
+!          X(2) = XMIN_pm + Dpm(1)*(i)
 
-         Y(1) = YMIN_pm + Dpm(2)*(j - 1)
-         Y(2) = YMIN_pm + Dpm(2)*(j)
+!          Y(1) = YMIN_pm + Dpm(2)*(j - 1)
+!          Y(2) = YMIN_pm + Dpm(2)*(j)
 
-         Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
+!          Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
 
-         XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
-         XSOUR(2, npar) = 0.5d0*(Y(1) + Y(2))
-         XSOUR(3, npar) = Z(1)
+!          XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
+!          XSOUR(2, npar) = 0.5d0*(Y(1) + Y(2))
+!          XSOUR(3, npar) = Z(1)
 
-         QSOUR(2, npar) = UINF(1)*Dpm(1)*Dpm(2)
-      end do
-   end do
+!          QSOUR(2, npar) = UINF(1)*Dpm(1)*Dpm(2)
+!       end do
+!    end do
 
-   k = nzfin
-   do j = nystart, nyfin - 1
-      do i = nxstart, nxfin - 1
-         npar = npar + 1
-         X(1) = XMIN_pm + Dpm(1)*(i - 1)
-         X(2) = XMIN_pm + Dpm(1)*(i)
+!    k = nzfin
+!    do j = nystart, nyfin - 1
+!       do i = nxstart, nxfin - 1
+!          npar = npar + 1
+!          X(1) = XMIN_pm + Dpm(1)*(i - 1)
+!          X(2) = XMIN_pm + Dpm(1)*(i)
 
-         Y(1) = YMIN_pm + Dpm(2)*(j - 1)
-         Y(2) = YMIN_pm + Dpm(2)*(j)
+!          Y(1) = YMIN_pm + Dpm(2)*(j - 1)
+!          Y(2) = YMIN_pm + Dpm(2)*(j)
 
-         Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
+!          Z(1) = ZMIN_pm + Dpm(3)*(k - 1)
 
-         XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
-         XSOUR(2, npar) = 0.5d0*(Y(1) + Y(2))
-         XSOUR(3, npar) = Z(1)
+!          XSOUR(1, npar) = 0.5d0*(X(1) + X(2))
+!          XSOUR(2, npar) = 0.5d0*(Y(1) + Y(2))
+!          XSOUR(3, npar) = Z(1)
 
-         QSOUR(2, npar) = -UINF(1)*Dpm(1)*Dpm(2)
-      end do
-   end do
+!          QSOUR(2, npar) = -UINF(1)*Dpm(1)*Dpm(2)
+!       end do
+!    end do
 
-   QSOUR = -QSOUR
-End Subroutine create_sources
+!    QSOUR = -QSOUR
+! End Subroutine create_sources

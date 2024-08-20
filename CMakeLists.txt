@@ -151,7 +151,7 @@ if (USE_INTEL)
     
     set(CMAKE_Fortran_FLAGS_RELEASE "-O3 ${MKL_FLAG} -qopenmp")
     
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 ${MKL_FLAG} -qopenmp")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 ${MKL_FLAG} -qopenmp -fPIC")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(EXENAME "${EXENAMEIN}_debug")
@@ -205,9 +205,10 @@ set(YAPS_INCL
     ${SRC_HP}/yaps3d.f90
 )
 
+
 set(TEST_EXE_SRC
     ${SRC_TEST}/test.f90
-    ${SRC_TEST}/test_applic.f90
+    ${SRC_TEST}/test_problems.f90
 )
 
 add_library(io SHARED ${SRC_HP}/io.f90)
@@ -236,12 +237,16 @@ add_library(yaps SHARED ${SRC_HP}/yaps.f90)
 target_include_directories(yaps PUBLIC ${YAPS_INCL})
 target_link_libraries(yaps PRIVATE mkl_poisson mpi_matrices)
 
+add_library(vpm_vars SHARED ${SRC_HP}/vpm_vars.f90)
+add_library(vpm_size SHARED ${SRC_HP}/vpm_size.f90)
+
 add_library(vpm SHARED ${SRC_HP}/vpm.f90)
 target_include_directories(vpm PUBLIC ${VPM_LIB_INCL})
+target_link_libraries(vpm PRIVATE vpm_vars vpm_size)
 
 # Add all object files as sources to a dummy target
 add_custom_target(dummy ALL
-    DEPENDS mkl_poisson mpi_matrices yaps pmlib pmproject vpm parvar pmeshpar pmgrid 
+    DEPENDS mkl_poisson mpi_matrices yaps pmlib pmproject vpm parvar pmeshpar pmgrid vpm_vars vpm_size io
 )
 
 # -------------------------------------------------------------------------------------------------
@@ -259,7 +264,7 @@ target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile 
 # Add executable for testing purposes (not necessary)
 add_executable(${EXENAME}_exe ${TEST_EXE_SRC})
 add_dependencies(${EXENAME}_exe dummy)
-target_link_libraries(${EXENAME}_exe PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm) #PUBLIC ${LINK_FLAGS}
+target_link_libraries(${EXENAME}_exe PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm vpm_vars vpm_size) #PUBLIC ${LINK_FLAGS}
 target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP}) 
 target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
 

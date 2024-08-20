@@ -295,12 +295,15 @@ Subroutine particles_scat
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
+   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'Scattering Particles', achar(27)//'[0m'
+
    !---------------------------------------------
    if (my_rank .eq. 0) then
       XP_scatt(1:3, 1:NVR_p) = XP(1:3, 1:NVR_p)
       QP_scatt(1:neqpm + 1, 1:NVR_p) = QP(1:neqpm + 1, 1:NVR_p)
       NVR_pr = NVR_p
       NVR_r = NVR/np
+      write (*, *) achar(9), achar(9), "Processor 0: NVR_p = ", NVR_p
       if (NVR_r .gt. 0) then
          do i = 2, np
             dest = i - 1
@@ -323,8 +326,20 @@ Subroutine particles_scat
          call mpimat2_pm(mat2, neqpm + 1, NVR_p, neqpm + 1, NVR_p, 0)
          call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
          call MPI_TYPE_FREE(mat2, ierr)
+         write (*, *) achar(9), achar(9), "Processor ", my_rank, " got : NVR_p = ", NVR_p
+      else 
+         write (*, *) achar(9), achar(9), "Got 0 particles on processor ", my_rank
       end if
    end if
+   
+   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+   if (my_rank .eq. 0) then
+      write (*, *) achar(9), achar(9), "Total number of particles distributed = ", NVR_pr
+      write (*, *) achar(9), achar(9), "Total number of particles = ", NVR
+      write (*, *) ''
+   end if 
+   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
 End Subroutine particles_scat
 
 Subroutine particles_gath

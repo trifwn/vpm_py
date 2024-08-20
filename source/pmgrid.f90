@@ -209,10 +209,18 @@ contains
       velvrz_pm = velvrz_pm_
    end Subroutine set_velvrz_pm
 
-   Subroutine set_RHS_pm(RHS_pm_)
-      double precision, allocatable, intent(in) :: RHS_pm_
-      RHS_pm = RHS_pm_
-   end Subroutine set_RHS_pm
+   subroutine set_RHS_pm(RHS_pm_in)
+      double precision, intent(in) :: RHS_pm_in(:,:,:,:)
+      
+      ! Deallocate previous RHS_pm if it is allocated
+      if (allocated(RHS_pm)) deallocate(RHS_pm)
+
+      ! Allocate RHS_pm to match the shape of RHS_pm_in
+      allocate(RHS_pm(size(RHS_pm_in,1), size(RHS_pm_in,2), size(RHS_pm_in,3), size(RHS_pm_in,4)))
+
+      ! Copy data from RHS_pm_in to RHS_pm
+      RHS_pm = RHS_pm_in
+   end subroutine set_RHS_pm
 
    Subroutine set_XMIN_pm(XMIN_pm_)
       double precision, intent(in) :: XMIN_pm_

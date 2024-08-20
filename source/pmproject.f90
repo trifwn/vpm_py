@@ -47,19 +47,21 @@ contains
          DVpm = DXpm*DYpm*DZPm
       end if
 
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, "initiated projlib"
-      ! call print_projlib_info
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
-      ! print *, '-----------------------------------'
+      ! if (my_rank.eq.0) then
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, "initiated projlib"
+      !    call print_projlib_info
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      !    print *, '-----------------------------------'
+      ! end if
    End Subroutine projlibinit
    ! --------------------------------------------------------------------------!
    !-->Subroutine project_particles_3D                                          !
@@ -97,7 +99,7 @@ contains
       integer, intent(in) :: Qprojtype(iparsize)
       double precision   :: fx, fy, fz, f, x, y, z
       integer            :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
-      integer           :: my_rank, ierr, np!, tot_par_num
+      integer           :: my_rank, ierr!, tot_par_num
       ! double precision, dimension(neq) :: temp
       ! integer            :: nbj, nb
 

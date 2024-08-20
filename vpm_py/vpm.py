@@ -2,11 +2,14 @@ import numpy as np
 import os
 import glob
 
-from ctypes import c_bool, c_int, c_float, byref, POINTER, cdll, c_double
+from ctypes import c_int,  byref, POINTER, cdll, c_double
 from shutil import copy2
 from tempfile import NamedTemporaryFile
 from mpi4py import MPI
-from time import sleep
+
+# Local imports
+from . import ParticleMesh
+from . import Particles
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_path = glob.glob(os.path.join(here, 'libvpm_*.so'))[0]
@@ -23,7 +26,8 @@ def print_IMPORTANT(text):
     print(f"\033[91m{text}\033[00m")
     print(f"\033[93m{'-'*100}\033[00m")
 
-def print0(text):
+def print0(rank, text):
+    """Print only if rank is 0"""
     if rank == 0:
         print(text) 
 
@@ -34,7 +38,10 @@ class VPM(object):
    
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        num_equations: int = 3,
+    ):
         super().__init__()
         tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_ext)
         tmp.close()
@@ -67,7 +74,6 @@ class VPM(object):
         ]
         # API.finalize
         self._lib.finalize.argtypes = []
-        self.finalize = self._lib.finalize
         
         # API.remesh_particles_3d
         self._lib.remesh_particles_3d.argtypes = [POINTER(c_int)]
@@ -94,7 +100,8 @@ class VPM(object):
         if self.rank == 0:
             print(f"Number of processors: {self.num_procs}")
             print(f"NBI: {NBI}, NBJ: {NBJ}, NBK: {NBK}")
-
+        
+        self.dpm = np.zeros(3)
         # Initialize the VPM
         self.initialize(
             DXpm=4.0,
@@ -104,6 +111,8 @@ class VPM(object):
             NBJ=NBJ,
             NBK=NBK
         )
+        self.particle_mesh = ParticleMesh()
+        self.particles = Particles()
 
     def initialize(
         self, 
@@ -154,6 +163,7 @@ class VPM(object):
             IPMWSTART (int, optional): Write IPM start. Defaults to 1.
             IPMWSTEPS (int, optional): Write IPM steps. Defaults to 1. 
         """
+        self.dpm = np.array([DXpm, DYpm, DZpm])
         self._lib.init(
             byref(c_double(DXpm)), byref(c_double(DYpm)), byref(c_double(DZpm)), byref(c_int(projection_type)),
             byref(c_int(boundary_condition)), byref(c_int(variable_volume)), byref(c_double(EPSVOL)), byref(c_int(ncoarse)),
@@ -185,7 +195,6 @@ class VPM(object):
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
-
     
     def vpm(
         self, 
@@ -197,7 +206,6 @@ class VPM(object):
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
         RHS_PM: np.ndarray,
-        U_PM: np.ndarray,
         timestep: int,
         viscosity: float,
         max_particle_num: int = 1000
@@ -213,7 +221,6 @@ class VPM(object):
             particle_velocities (np.ndarray): Particle velocities array of shape (3, NVR_in)
             particle_deformations (np.ndarray): Particle deformation array of shape (3, NVR_in)
             RHS_PM (np.ndarray): Forcing term of $\\nabla^2 u_i = RHS_i$ of shape (num_equations, NXB, NYB, NZB)
-            U_PM (np.ndarray): Velocity field in the particle mesh of shape (3, NXB, NYB, NZB)
             timestep (int): Timestep
             viscosity (float): Viscosity term for the diffusion equation
             max_particle_num (float): Maximum number of particles allowed
@@ -223,30 +230,63 @@ class VPM(object):
         particle_strengths = np.ascontiguousarray(particle_strengths, dtype=np.float64)
         particle_velocities = np.ascontiguousarray(particle_velocities, dtype=np.float64)
         particle_deformations = np.ascontiguousarray(particle_deformations, dtype=np.float64)
+        
         RHS_PM = np.ascontiguousarray(RHS_PM, dtype=np.float64)
 
-        u_x = U_PM[0, :, :, :]
-        u_y = U_PM[1, :, :, :]
-        u_z = U_PM[2, :, :, :]
+        # Get the pointers to the numpy arrays
+        u_x = self.particle_mesh.Ux
+        u_y = self.particle_mesh.Uy
+        u_z = self.particle_mesh.Uz
         u_x = np.ascontiguousarray(u_x, dtype=np.float64)
         u_y = np.ascontiguousarray(u_y, dtype=np.float64)
         u_z = np.ascontiguousarray(u_z, dtype=np.float64)
+        Velx_ptr = u_x.ctypes.data_as(POINTER(c_double))
+        Vely_ptr = u_y.ctypes.data_as(POINTER(c_double))
+        Velz_ptr = u_z.ctypes.data_as(POINTER(c_double))
 
         XP_ptr = particle_positions.ctypes.data_as(POINTER(c_double))
         QP_ptr = particle_strengths.ctypes.data_as(POINTER(c_double))
         UP_ptr = particle_velocities.ctypes.data_as(POINTER(c_double))
         GP_ptr = particle_deformations.ctypes.data_as(POINTER(c_double))
         RHS_pm_ptr = RHS_PM.ctypes.data_as(POINTER(c_double))
-        Velx_ptr = u_x.ctypes.data_as(POINTER(c_double))
-        Vely_ptr = u_y.ctypes.data_as(POINTER(c_double))
-        Velz_ptr = u_z.ctypes.data_as(POINTER(c_double))
 
         self._lib.vpm(XP_ptr, QP_ptr, UP_ptr, GP_ptr, byref(c_int(num_particles)),
-                                  byref(c_int(num_equations)), byref(c_int(mode)), RHS_pm_ptr,
-                                  Velx_ptr, Vely_ptr, Velz_ptr, byref(c_int(timestep)),
-                                  byref(c_double(viscosity)), byref(c_int(max_particle_num)))
-        # print_green(f"WhatToDo: {mode} from {self.rank}/{self.num_procs - 1} completed successfully.")
+                        byref(c_int(num_equations)), byref(c_int(mode)), RHS_pm_ptr,
+                        Velx_ptr, Vely_ptr, Velz_ptr, byref(c_int(timestep)),
+                        byref(c_double(viscosity)), byref(c_int(max_particle_num))
+                    )
         
+        print(f"\t\tVelx_ptr: {Velx_ptr}")
+        print(f"\t\tVely_ptr: {Vely_ptr}")
+        print(f"\t\tVelz_ptr: {Velz_ptr}")
+        if mode in [1,2]:
+            # Get the values from the ptrs to the numpy arrays
+            shape_pm = (self.NX_pm, self.NY_pm, self.NZ_pm)
+            Ux = np.ctypeslib.as_array(Velx_ptr, shape=shape_pm)
+            Uy = np.ctypeslib.as_array(Vely_ptr, shape=shape_pm)
+            Uz = np.ctypeslib.as_array(Velz_ptr, shape=shape_pm)
+            # Convert to numpy arrays as they are fortran arrays
+            Ux = np.array(Ux, dtype=np.float64).T
+            Uy = np.array(Uy, dtype=np.float64).T
+            Uz = np.array(Uz, dtype=np.float64).T
+
+            self.particle_mesh.update_U(Ux, Uy, Uz)
+
+            if self.rank == 0:
+                print_IMPORTANT(f"Getting the values of Ux, Uy, Uz\nGot shape: {shape_pm}")
+                        # Check arrays for nan and print the number of nans and their positions
+                if np.isnan(Ux).any():
+                    print(f"Ux has {np.sum(np.isnan(Ux))} nans")
+                    print(np.argwhere(np.isnan(Ux)))
+                
+                if np.isnan(Uy).any():
+                    print(f"Uy has {np.sum(np.isnan(Uy))} nans")
+                    print(np.argwhere(np.isnan(Uy)))
+
+                if np.isnan(Uz).any():
+                    print(f"Uz has {np.sum(np.isnan(Uz))} nans")
+                    print(np.argwhere(np.isnan(Uz)))
+
     def remesh_particles_3d(self, iflag: int):
         """Remesh particles in 3D
 
@@ -297,6 +337,196 @@ class VPM(object):
         """
         print_IMPORTANT(f"Particle variables {self.rank}/{self.num_procs - 1}")
         self._lib.print_parvar()
+    
+    def set_rhs_pm(self, RHS_PM: np.ndarray):
+        """
+        Set the right-hand side of the particle mesh.
+        """
+        RHS_PM = np.ascontiguousarray(RHS_PM, dtype=np.float64)
+        # Pass as array of shape (num_equations, NXB, NYB, NZB) not pointer
+        RHS_PM_ = RHS_PM.ctypes.data_as(POINTER(c_double))
+        sizes = np.array(RHS_PM.shape, dtype=np.int32)
+        size1 = sizes[0]
+        size2 = sizes[1]
+        size3 = sizes[2]
+        size4 = sizes[3]
+        self._lib.set_RHS_pm(
+            RHS_PM_, 
+            byref(c_int(size1)), 
+            byref(c_int(size2)), 
+            byref(c_int(size3)), 
+            byref(c_int(size4))
+        )
+    
+
+    @property
+    def NX_pm(self):
+        NX_pm = c_int()
+        self._lib.get_NX_pm(byref(NX_pm))
+        return NX_pm.value
+    
+    @property
+    def NY_pm(self):
+        NY_pm = c_int()
+        self._lib.get_NY_pm(byref(NY_pm))
+        return NY_pm.value
+    
+    @property
+    def NZ_pm(self):
+        NZ_pm = c_int()
+        self._lib.get_NZ_pm(byref(NZ_pm))
+        return NZ_pm.value
+
+    def get_particle_positions(self):
+        """
+            Get the particle positions
+        """
+        XP = (c_double * 3 * self.NVR)()
+        self._lib.get_particle_positions(byref(XP))
+        return np.array(XP).T
+    
+    @property
+    def XP(self):
+        return self.get_particle_positions()
+    
+    @XP.setter
+    def XP(self, XP):
+        XP = np.ascontiguousarray(XP, dtype=np.float64)
+        XP_ptr = XP.ctypes.data_as(POINTER(c_double))
+        self._lib.set_particle_positions(XP_ptr)
+    
+    ##  PARTICLE STRENGTHS
+    def get_particle_strengths(self):
+        """
+            Get the particle strengths
+        """
+        neq = c_int()
+        self._lib.get_neqpm(byref(neq))
+
+        QP = (c_double * (neq.value + 1)  * self.NVR)()
+        self._lib.get_particle_strengths(byref(QP))
+        return np.array(QP).T
+
+    @property
+    def QP(self):
+        return self.get_particle_strengths()
+    
+    @QP.setter
+    def QP(self, QP):
+        QP = np.ascontiguousarray(QP, dtype=np.float64)
+        QP_ptr = QP.ctypes.data_as(POINTER(c_double))
+        self._lib.set_particle_strengths(QP_ptr)
+    
+    ## PARTICLE VELOCITIES
+    def get_particle_velocities(self):
+        """
+            Get the particle velocities
+        """
+        UP = (c_double * 3 * self.NVR)()
+        self._lib.get_particle_velocities(byref(UP))
+        return np.array(UP).T
+    
+    @property
+    def UP(self):
+        return self.get_particle_velocities()
+    
+    @UP.setter
+    def UP(self, UP):
+        UP = np.ascontiguousarray(UP, dtype=np.float64)
+        UP_ptr = UP.ctypes.data_as(POINTER(c_double))
+        self._lib.set_particle_velocities(UP_ptr)
+    
+    ## PARTICLE DEFORMATIONS
+    def get_particle_deformations(self):
+        """
+            Get the particle deformations
+        """
+        GP = (c_double * 3 * self.NVR)()
+        self._lib.get_particle_deformation(byref(GP))
+        return np.array(GP).T
+    
+    @property
+    def GP(self):
+        return self.get_particle_deformations()
+    
+    @GP.setter
+    def GP(self, GP):
+        GP = np.ascontiguousarray(GP, dtype=np.float64)
+        GP_ptr = GP.ctypes.data_as(POINTER(c_double))
+        self._lib.set_particle_deformation(GP_ptr)
+
+    def get_NVR(self):
+        """
+            Get the number of particles
+        """
+        NVR = c_int()
+        self._lib.get_num_particles(byref(NVR))
+        return NVR.value
+
+    @property
+    def NVR(self):
+        return self.get_NVR()
+
+    def get_size_XP(self):
+        """
+            Get the size of the particle positions
+        """
+        size_XP = (c_int*2)()
+        self._lib.get_size_XP(byref(size_XP))
+        return size_XP.value
+    
+    @property
+    def num_particles(self):
+        return self.get_NVR()
+
+    def get_num_equations(self):
+        """
+            Get the number of equations
+        """
+        neqpm = c_int()
+        self._lib.get_neqpm(byref(neqpm))
+        return neqpm.value
+    
+    @property
+    def num_equations(self):
+        return self.get_num_equations()
+
+    def get_NN(self):
+        """
+            Get the number of cells in each direction
+        """
+        NN = (c_int * 3)() 
+        self._lib.get_NN(byref(NN))
+        return np.array(NN)
+    
+    def get_NN_bl(self):
+        """
+            Get the number of blocks in each direction
+        """
+        # NN is an array of 6 integers
+        NN_bl = (c_int * 6)()
+        self._lib.get_NN_bl(byref(NN_bl))
+        return np.array(NN_bl) 
+
+    def get_xbound(self):
+        """
+            Get the xbound
+        """
+        xbound = (c_double * 6)()
+        self._lib.get_Xbound(byref(xbound))
+        return np.array(xbound)
+    
+    @property
+    def nn(self):
+        return self.get_NN()
+    
+    @property
+    def nn_bl(self):
+        return self.get_NN_bl()
+    
+    @property
+    def xbound(self):
+        return self.get_xbound()
  
     def finalize(self):
         self._lib.finalize()
@@ -306,135 +536,3 @@ class VPM(object):
     def __del__(self):
         self.finalize()
         os.remove(self._lib_path)
-
-# Example usage:
-if __name__ == "__main__":
-    # try:
-    #     import vpm_f2py
-    # except ImportError as e:
-    #     print(f"Error: {e}")
-    #     # exit(1)
-    vpm = VPM()
-
-
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-
-    # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
-    if rank == 0:
-        print_blue(f"Number of processes: {comm.Get_size()}")
-    comm.Barrier()
-    print_blue(f"Rank: {rank}")
-    comm.Barrier()
-    
-    
-    # Define the input parameters
-    NVR = 200
-    neqpm = 4
-    NXB = 10
-    NYB = 10
-    NZB = 10
-
-    # Distribute the particles uniformly in the domain
-    divisor = int((np.power(NVR, 1/3)))
-    x = np.linspace(0, 1, divisor)
-    y = np.linspace(0, 1, divisor)
-    z = np.linspace(0, 1, divisor)
-    NVR = len(x) * len(y) * len(z)
-
-    XP_in = np.array(np.meshgrid(x, y, z)).reshape(3, -1)
-    
-    # Define the particle quantities as random numbers
-    par_strenghts = np.ones((neqpm, NVR))
-
-    par_velocities = np.zeros((3, NVR), dtype=np.float64)
-    par_velocities[0,:] = 1.0
-
-    # Deformation of the particles
-    par_deformations = np.zeros((3, NVR), dtype=np.float64)
-    
-    RHS_pm_in = np.zeros((neqpm, NXB, NYB, NZB), dtype=np.float64)
-    Velx = np.zeros((NXB, NYB, NZB), dtype=np.float64)
-    Vely = np.zeros((NXB, NYB, NZB), dtype=np.float64)
-    Velz = np.zeros((NXB, NYB, NZB), dtype=np.float64)
-    NTIME = 0
-    NI = 0.1
-    NVRM = NVR + 10
-
-    ##################################### MODE TESTING #####################################
-    for WhatToDo in [0, 1, 2, 3, 4, 2 ,5]:
-    # 0: Initialize
-    # 1: Solve
-    # 2: Convect
-    # 3: Project
-    # 4: Back
-    # 5: Diffuse
-        if rank == 0:
-            print_IMPORTANT(f"Calling the vpm subroutine. WhatToDo = {WhatToDo}")
-            print_green(f"Number of particles: {NVR}")
-            print_green(f"Size of Velx: {Velx.shape}")
-            print_green(f"Size of Vely: {Vely.shape}")
-            print_green(f"Size of Velz: {Velz.shape}")
-            print_green(f"Size of RHS_pm: {RHS_pm_in.shape}")
-        vpm.vpm(
-            num_particles= NVR,
-            num_equations= neqpm,
-            mode= WhatToDo,
-            particle_positions= XP_in,
-            particle_strengths= par_strenghts,
-            particle_velocities= par_velocities,
-            particle_deformations= par_deformations,
-            RHS_PM= RHS_pm_in,
-            U_PM= np.array([Velx, Vely, Velz]),
-            timestep= NTIME,
-            viscosity= NI,
-            max_particle_num= NVRM
-        )
-        comm.Barrier()
-        if rank == 0:
-            print_IMPORTANT(f"Completed successfully. WhatToDo = {WhatToDo}")
-            print_green(f"Number of particles: {NVR}")
-            print_green(f"Size of Velx: {Velx.shape}")
-            print_green(f"Size of Vely: {Vely.shape}")
-            print_green(f"Size of Velz: {Velz.shape}")
-            print_green(f"Size of RHS_pm: {RHS_pm_in.shape}")
-            print('\n\n\n')
-
-        # if rank == 0:
-        #     vpm.print_projlib_parameters()
-        #     vpm.print_pmgrid_parameters()
-        #     vpm.print_pmesh_parameters()
-        #     vpm.print_vpm_vars()
-        #     vpm.print_vpm_size()
-        #     vpm.print_parvar()
-        #     print('\n\n')
-        # sleep(1)
-        # Remesh the particles
-        comm.Barrier()
-        vpm.remesh_particles_3d(1)
-        comm.Barrier()
-
-    if rank == 0:
-        # Plot the velocity fields
-        import matplotlib.pyplot as plt
-        # Make 3 3D plots for the velocity fields
-        fig , axs = plt.subplots(1, 3, figsize=(15, 5))
-        axs[0].imshow(Velx[:, :, 0])
-        axs[0].set_title("Velx")
-        axs[1].imshow(Vely[:, :, 0])
-        axs[1].set_title("Vely")
-        axs[2].imshow(Velz[:, :, 0])
-        axs[2].set_title("Velz")
-        plt.show()
-
-        # Plot the particle positions, and color them by the particle quantities and quiver plot for the particle velocities
-        fig, axs = plt.subplots(1, 4, figsize=(10, 5), subplot_kw={'projection': '3d'})
-        for i in range(3):
-            axs[i].scatter(XP_in[0], XP_in[1], XP_in[2], c=par_strenghts[i])
-            axs[i].set_title(f"Strength in eq_{['x', 'y', 'z'][i]}")
-        axs[3].quiver(XP_in[0], XP_in[1], XP_in[2], par_velocities[0], par_velocities[1], par_velocities[2])
-        axs[3].set_title("Particle velocities")
-        plt.show()
-    comm.Barrier()
-    print_green(f"Rank: {rank} completed successfully.")
-    del(vpm)

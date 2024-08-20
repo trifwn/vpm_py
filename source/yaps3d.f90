@@ -471,13 +471,12 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    itree = 0
    lmax = 0
 
+   
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-
    if (my_rank .eq. 0) then
       write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (with bc)', achar(27)//'[0m'
    end if
    do rank = 0, np - 1
-
       if (my_rank .eq. rank) then
          write (*, *) achar(9), 'np=', my_rank, 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
       end if

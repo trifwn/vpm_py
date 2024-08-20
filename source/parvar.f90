@@ -1,5 +1,5 @@
 module parvar
-   integer                             ::NVR
+   integer                            :: NVR
    double precision, pointer, save    :: XP(:, :), QP(:, :)
    double precision, pointer, save    :: UP(:, :), GP(:, :)
    !     QP

@@ -1,170 +1,3 @@
-Module vpm_vars
-   double precision, allocatable       :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
-   double precision                    :: DT_c, V_ref, NI
-   integer, allocatable                :: NVR_projscatt(:)
-   integer                             :: interf_iproj, ncell_rem
-
-   integer                             :: ncoarse, nparcell1d
-   integer                             :: neqpm, NVR_p, NVR_size, iwrite, NTIME_pm
-
-   integer, save                       :: IPMWRITE, idefine, iynslice
-   integer, save                       :: mrem = 1
-   integer, save                       :: IPMWSTART(10), IPMWSTEPS(10)
-
-   ! Printer
-   public :: print_vpm_vars_info
-
-contains
-
-   Subroutine print_vpm_vars_info
-      print *, "VPM_VARS INFO"
-      print *, "============"
-      print *, ""
-      if (allocated(XP_scatt)) then
-         print *, achar(9)//"XP_scatt", " (2D): Size = (", size(XP_scatt,1), ",", size(XP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", XP_scatt(1,1:min(4,size(XP_scatt,2)))
-      else
-         print '(A)', achar(9)//"XP_scatt Not allocated"
-      end if
-
-      if (allocated(QP_scatt)) then
-         print *, achar(9)//"QP_scatt", " (2D): Size = (", size(QP_scatt,1), ",", size(QP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", QP_scatt(1,1:min(4,size(QP_scatt,2)))
-      else
-         print '(A)', achar(9)//"QP_scatt Not allocated"
-      end if
-
-      if (allocated(UP_scatt)) then
-         print *, achar(9)//"UP_scatt", " (2D): Size = (", size(UP_scatt,1), ",", size(UP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", UP_scatt(1,1:min(4,size(UP_scatt,2)))
-      else
-         print '(A)', achar(9)//"UP_scatt Not allocated"
-      end if
-
-      if (allocated(GP_scatt)) then
-         print *, achar(9)//"GP_scatt", " (2D): Size = (", size(GP_scatt,1), ",", size(GP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", GP_scatt(1,1:min(4,size(GP_scatt,2)))
-      else
-         print '(A)', achar(9)//"GP_scatt Not allocated"
-      end if
-
-      print *, achar(9), 'DT_c = ', DT_c
-      print *, achar(9), 'V_ref = ', V_ref
-      print *, achar(9), 'NI = ', NI
-
-      if (allocated(NVR_projscatt)) then
-         print *, achar(9)//"NVR_projscatt", " (1D): Size = (", size(NVR_projscatt), ")"
-         print '(A,4I12)', achar(9)//"Sample values: ", NVR_projscatt(1:min(size(NVR_projscatt), 4))
-      else
-         print '(A)', achar(9)//"NVR_projscatt Not allocated"
-      end if
-
-      print *, achar(9), 'interf_iproj = ', interf_iproj
-      print *, achar(9), 'ncell_rem = ', ncell_rem
-      print *, achar(9), 'ncoarse = ', ncoarse
-      print *, achar(9), 'nparcell1d = ', nparcell1d
-      print *, achar(9), 'neqpm = ', neqpm
-      print *, achar(9), 'NVR_p = ', NVR_p
-      print *, achar(9), 'NVR_size = ', NVR_size
-      print *, achar(9), 'iwrite = ', iwrite
-      print *, achar(9), 'NTIME_pm = ', NTIME_pm
-      print *, achar(9), 'IPMWRITE = ', IPMWRITE
-      print *, achar(9), 'mrem = ', mrem
-      print *, achar(9), 'idefine = ', idefine
-      print *, achar(9), 'iynslice = ', iynslice
-   
-      print  *, achar(9)//"IPMWSTART", " (1D): Size = (", size(IPMWSTART), ")"
-      print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTART(1:min(size(IPMWSTART), 4))
-      print '(A)', ""
-
-      print  *, achar(9)//"IPMWSTEPS", " (1D): Size = (", size(IPMWSTEPS), ")"
-      print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTEPS(1:min(size(IPMWSTEPS), 4))
-      print '(A)', ""
-
-
-   End Subroutine print_vpm_vars_info
-
-End Module vpm_vars
-
-Module vpm_size
-   double precision, save              :: Xbound(6), Dpm(3), Xbound0(6), Dpm0(3)
-   integer, save                       :: NN_bl(6), NN(3), NN0_bl(6), NN0(3)
-   integer, save                       :: NXs0_bl(10), NYs0_bl(10), NXf0_bl(10), NYf0_bl(10), NZs0_bl(10), NZf0_bl(10)
-
-   double precision, allocatable, save :: Xbound_bl(:, :)
-   integer, allocatable, save          :: NNbl_bl(:, :), NNbl(:, :)
-
-   double precision, save              :: Xbound_tmp(6), Xbound_coarse(6), Dpm_coarse(3)
-   integer, save                       :: NN_tmp(3), NN_bl_tmp(6), NN_coarse(3), NN_bl_coarse(6)
-   integer, save                       :: nb_i, nb_j, nb_k, NBB, NXbl, NYbl, NZbl, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
-   double precision                    :: starttime, endtime, st, et, ct
-   integer, save                       :: iynbc, iret, NBI, NBJ, NBK, NVR_out_thres, NREMESH, ntorder, &
-                                          iyntree, ilevmax, itree, nsize_out(3), ibctyp, NWRITE
-
-   public :: print_vpm_size_info
-
-contains
-
-   subroutine print_vpm_size_info()
-      use io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
-                     dp_1d_alloc_info
-      print *, "VPM_SIZE INFO"
-      print *, "============"
-      print *, ""
-      call dp_1d_array_info("Xbound", Xbound, 6)
-      call dp_1d_array_info("Dpm", Dpm, 3)
-      call dp_1d_array_info("Xbound0", Xbound0, 6)
-      call dp_1d_array_info("Dpm0", Dpm0, 3)
-      call i_1d_array_info("NN_bl", NN_bl, 6)
-      call i_1d_array_info("NN", NN, 3)
-      call i_1d_array_info("NN0_bl", NN0_bl, 6)
-      call i_1d_array_info("NN0", NN0, 3)
-      call i_1d_array_info("NXs0_bl", NXs0_bl, 10)
-      call i_1d_array_info("NYs0_bl", NYs0_bl, 10)
-      call i_1d_array_info("NXf0_bl", NXf0_bl, 10)
-      call i_1d_array_info("NYf0_bl", NYf0_bl, 10)
-      call i_1d_array_info("NZs0_bl", NZs0_bl, 10)
-      call i_1d_array_info("NZf0_bl", NZf0_bl, 10)
-      call dp_2d_alloc_info("Xbound_bl", Xbound_bl)
-      call i_2d_alloc_info("NNbl_bl", NNbl_bl)
-      call i_2d_alloc_info("NNbl", NNbl)
-      call dp_1d_array_info("Xbound_tmp", Xbound_tmp, 6)
-      call dp_1d_array_info("Xbound_coarse", Xbound_coarse, 6)
-      call dp_1d_array_info("Dpm_coarse", Dpm_coarse, 3)
-      call i_1d_array_info("NN_tmp", NN_tmp, 3)
-      call i_1d_array_info("NN_bl_tmp", NN_bl_tmp, 6)
-      call i_1d_array_info("NN_coarse", NN_coarse, 3)
-      call i_1d_array_info("NN_bl_coarse", NN_bl_coarse, 6)
-      print *, achar(9)//"nb_i", " = ", nb_i
-      print  *, achar(9)//"nb_j", " = ", nb_j
-      print  *, achar(9)//"nb_k", " = ", nb_k
-      print  *, achar(9)//"NBB", " = ", NBB
-      print  *, achar(9)//"NXbl", " = ", NXbl
-      print  *, achar(9)//"NYbl", " = ", NYbl
-      print  *, achar(9)//"NZbl", " = ", NZbl
-      print  *, achar(9)//"BLOCKS", " = ", BLOCKS
-      print  *, achar(9)//"NXB", " = ", NXB
-      print  *, achar(9)//"NYB", " = ", NYB
-      print  *, achar(9)//"NZB", " = ", NZB
-      print  *, achar(9)//"ndumcell_coarse", " = ", ndumcell_coarse
-      print  *, achar(9)//"ndumcell_bl", " = ", ndumcell_bl
-      print  *, achar(9)//"iynbc", " = ", iynbc
-      print  *, achar(9)//"iret", " = ", iret
-      print  *, achar(9)//"NBI", " = ", NBI
-      print  *, achar(9)//"NBJ", " = ", NBJ
-      print  *, achar(9)//"NBK", " = ", NBK
-      print  *, achar(9)//"NVR_out_thres", " = ", NVR_out_thres
-      print  *, achar(9)//"NREMESH", " = ", NREMESH
-      print  *, achar(9)//"ntorder", " = ", ntorder
-      print  *, achar(9)//"iyntree", " = ", iyntree
-      print  *, achar(9)//"ilevmax", " = ", ilevmax
-      print  *, achar(9)//"itree", " = ", itree
-      print  *, achar(9)//"nsize_out", " = ", nsize_out
-      print  *, achar(9)//"ibctyp", " = ", ibctyp
-      print  *, achar(9)//"NWRITE", " = ", NWRITE
-   end subroutine print_vpm_size_info
-
-End Module vpm_size
 
 Module openmpth
    integer                       ::OMPTHREADS
@@ -285,15 +118,15 @@ contains
       end if
 
       if (my_rank .eq. 0) then
-         nullify (QP)
-         nullify (XP)
-         nullify (UP)
-         nullify (GP)
-         QP => QP_in; 
-         XP => XP_in
-         UP => UP_in; 
-         GP => GP_in
          NVR = NVR_in
+         nullify (XP)
+         XP => XP_in
+         nullify (QP)
+         QP => QP_in; 
+         nullify (UP)
+         UP => UP_in; 
+         nullify (GP)
+         GP => GP_in
 
       else
          nullify (QP)
@@ -366,7 +199,6 @@ contains
          allocate (SOL_pm(neqpm, NXpm, NYpm, NZpm))
          SOL_pm = 0.d0
       end if
-
       ! SOL_PM AND RHS_PM ARE 0 BOTH ON THE BL AND PM
       call project_particles ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
 
@@ -468,22 +300,21 @@ contains
          write (*, *) achar(9), 'VPM:Solving Particle Mesh', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
 
+      ! CLEAR VELOCITIES
+      if (allocated(velvrx_pm)) then
+         deallocate (velvrx_pm, velvry_pm, velvrz_pm)
+         allocate (velvrx_pm(NXpm, NYpm, NZpm), velvry_pm(NXpm, NYpm, NZpm), velvrz_pm(Nxpm, NYpm, NZpm))
+         velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
+      else
+         allocate (velvrx_pm(NXpm, NYpm, NZpm), velvry_pm(NXpm, NYpm, NZpm), velvrz_pm(Nxpm, NYpm, NZpm))
+         velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
+      end if
+
+      nullify (velx); nullify (vely); nullify (velz)
+      velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
+
       !  -> WhatToDo :  1 - GET VELOCITIES ON PM FROM PM SOLUTION
       if (WhatToDo .eq. 1) then
-
-         ! CLEAR VELOCITIES
-         if (allocated(velvrx_pm)) then
-            deallocate (velvrx_pm, velvry_pm, velvrz_pm)
-            allocate (velvrx_pm(NXpm, NYpm, NZpm), velvry_pm(NXpm, NYpm, NZpm), velvrz_pm(Nxpm, NYpm, NZpm))
-            velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
-         else
-            allocate (velvrx_pm(NXpm, NYpm, NZpm), velvry_pm(NXpm, NYpm, NZpm), velvrz_pm(Nxpm, NYpm, NZpm))
-            velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
-         end if
-
-         nullify (velx); nullify (vely); nullify (velz)
-         velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
-
          if (my_rank .eq. 0) then
             velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
 
@@ -503,7 +334,14 @@ contains
             !  RHS_pm_in=>RHS_pm
             deallocate (SOL_pm)
             deallocate (RHS_pm)
+            ! Print Velx
+            write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:'
+            write (*, *) achar(9), achar(9), maxval(velx)
+            write (*, *) achar(9), achar(9), maxval(vely)
+            write (*, *) achar(9), achar(9), maxval(velz)
+            
          end if
+         
          deallocate (SOL_pm_bl, RHS_pm_bl)
          return
       end if
@@ -511,14 +349,23 @@ contains
       !  -> WhatToDo : 2 - GET VELOCITIES AND DEFORMATION ON PM FROM PM SOLUTION
       if (WhatToDo .eq. 2) then
          if (my_rank .eq. 0) then
-            !call convect_first_order(Xbound,Dpm,NN,NN_bl)
-            st = MPI_WTIME()
             velvrx_pm = 0; velvry_pm = 0; velvrz_pm = 0
+            !call convect_first_order(Xbound,Dpm,NN,NN_bl)
+            
+            st = MPI_WTIME()
             call calc_velocity_serial_3d(1) ! VELOCITY AND THETA STO PM
             write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:'
             write (*, *) achar(9), achar(9), maxval(velvrx_pm)
             write (*, *) achar(9), achar(9), maxval(velvry_pm)
             write (*, *) achar(9), achar(9), maxval(velvrz_pm)
+            write (*, *) achar(9), "Velocity shape: "
+            write (*, *) achar(9), achar(9), shape(velvrx_pm)
+            ! CHeck for nan values
+            if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
+               write (*, *) achar(9), 'VPM: NAN VALUES IN VELOCITY'
+               stop
+            end if
+
             ! SOL_PM IS NOW FILLED WITH THETA (DEFORMATION)
 
             et = MPI_WTIME()
@@ -563,7 +410,7 @@ contains
          !  RHS_pm_in=>RHS_pm
          deallocate (SOL_pm)
          deallocate (RHS_pm)
-         deallocate (velvrx_pm, velvry_pm, velvrz_pm)
+         ! deallocate (velvrx_pm, velvry_pm, velvrz_pm)
          deallocate (SOL_pm_bl, RHS_pm_bl)
          return
       end if
@@ -601,7 +448,7 @@ contains
             if (my_rank .eq. 0) then
                write (*, *) achar(9), achar(27)//'[1;34m', 'Final PM block solution values'
             END IF
-            do rank = 1, np
+            do rank = 0, np-1
                if (my_rank .eq. rank) then
                   write (*, *) achar(9), achar(9), 'np=', my_rank, 'SOL', maxval(abs(SOL_pm_bl(neqpm, :, :, :)))
                end if
@@ -643,6 +490,11 @@ contains
             ieq(i) = i
          end do
          ! FILLS RHS_PM FROM PARTICLES
+         if (my_rank .eq. 0) then 
+            write (*, *) achar(9), achar(27)//'[1;34m', 'VPM: Projecting Particles to PM' , achar(27)//'[0m'
+         endif
+         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+         
          call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projscatt, NVR_p, neqpm + 1, ieq, neqpm + 1, QINF, NVR_p)
          call proj_gath(NN)
          ! RHS IS NOW FILLED

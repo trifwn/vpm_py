@@ -2,7 +2,7 @@
 !This Subroutine remeshes particles  on the pm grid (4 particles per cell)
 !---------------------------------------------------------------------------------------------------
 
-Subroutine remesh_particles_3d(iflag)
+Subroutine remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
    use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, &
                      DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm, &
                      NYpm, NZpm, NXs_bl, NYs_bl, NZs_bl, NXf_bl, &
@@ -11,7 +11,7 @@ Subroutine remesh_particles_3d(iflag)
    use vpm_vars, only: mrem, NEQPM, NVR_p, XP_scatt, QP_scatt, NVR_projscatt, INTERF_IPROJ, V_REF, NCELL_REM, NVR_SIZE
    use pmeshpar, only: NPAR_CELL, IDVPM, ND
 
-   use parvar, only: NVR, XP, QP
+   use parvar, only: NVR, XP, QP, GP, UP
    ! use openmpth, only: OMPTHREADS
    use MPI
 
@@ -19,6 +19,8 @@ Subroutine remesh_particles_3d(iflag)
 
    ! PARAMETERS
    integer, intent(in)  :: iflag
+   double precision, intent(out),allocatable, target :: XP_out(:, :), QP_out(:, :)
+   integer, intent(out) :: NVR_out
 
    ! LOCAL VARIABLES
    double precision, dimension(8)   :: X, Y, Z
@@ -30,7 +32,7 @@ Subroutine remesh_particles_3d(iflag)
    integer, allocatable :: ieq(:)
    double precision    :: Xbound(6), Dpm(3), wmag
    double precision, allocatable :: QINF(:)
-   integer    :: NVR_OLD !, NVR_EXT_OLD
+   integer    :: NVR_OLD 
    integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
 
    ! DEPRECATED
@@ -81,7 +83,6 @@ Subroutine remesh_particles_3d(iflag)
    Dpm(3) = (Xbound(6) - Xbound(3))/(NN(3) - 1)
 
    DVpm = Dpm(1)*Dpm(2)*Dpm(3)
-
    ! Here we project the particles on the PM grid
    if (iflag .eq. 1) then
       if (allocated(RHS_pm)) then
@@ -148,6 +149,8 @@ Subroutine remesh_particles_3d(iflag)
       NYpm1 = nyfin - nystart + 1
       NZpm1 = nzfin - nzstart + 1
       NVR = NXpm1*NYpm1*NZpm1*ncell
+      
+      print *, achar(9), achar(9), 'Allocating XP_tmp and QP_tmp with NVR:', NVR
       allocate (XP_tmp(3, NVR), QP_tmp(neqpm + 1, NVR))
       XP => XP_tmp
       QP => QP_tmp
@@ -155,8 +158,8 @@ Subroutine remesh_particles_3d(iflag)
       QP = 0
       npar = 0
       V_ref = 1.d0/float(ncell)*DVpm
-    !!$omp parallel private(i,j,k,npar,X,Y,Z) num_threads(OMPTHREADS)
-    !!$omp do
+      ! !$omp parallel private(i,j,k,npar,X,Y,Z) num_threads(OMPTHREADS)
+      ! !$omp do
       do k = nzstart, nzfin
          do j = nystart, nyfin
             do i = nxstart, nxfin
@@ -220,8 +223,14 @@ Subroutine remesh_particles_3d(iflag)
       !!$omp endparallel
       NVR = npar
       NVR_size = NVR
-      XP => XP_tmp
-      QP => QP_tmp
+      NVR_out = NVR
+
+      allocate (XP_out(3,npar), QP_out(neqpm + 1, npar))
+      XP_out = XP(:, 1:npar)
+      QP_out = QP(:, 1:npar)
+      nullify (XP, QP)
+      XP => XP_out
+      QP => QP_out
       if (ncell .gt. 1) call back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, 4)
       if (iflag .eq. 0) deallocate (RHS_pm)
 
@@ -230,8 +239,9 @@ Subroutine remesh_particles_3d(iflag)
       write (*, *) achar(9), achar(9), 'Number of particles after', NVR
       write (*, *) achar(9), achar(9), 'Volume of a cell', DVpm
       write (*, *) achar(9), achar(9), 'Number of cells', NXpm, NYpm, NZpm
+      write (*, *) achar(9), achar(9), 'Size of XP', size(XP,1) , size(XP,2)
+      write (*, *) achar(9), achar(9), 'Size of QP', size(QP,1) , size(QP,2)
       write (*, *) achar(9), achar(9), 'Maximal value of QPR', maxval(QP(neqpm, :))
-      write (*, *) achar(9), achar(9), 'NPAR:', npar
    end if
    !call back_to_particles_2D(4)
 
@@ -245,7 +255,7 @@ Subroutine remesh_particles_3d(iflag)
    !     call system('rm vr.dat')
     !!----FOR PLOTTING PURPOSES ONLY
    ! close(1)
-   deallocate (RHS_pm)
+   if (allocated(RHS_pm)) deallocate (RHS_pm)
 End Subroutine remesh_particles_3d
 
 !---------------------------------------------------------------------------!
