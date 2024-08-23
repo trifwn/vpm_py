@@ -63,6 +63,8 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        extdir = os.path.join(extdir, "shared_libs")
+        os.makedirs(extdir, exist_ok=True)
         cfg ='{}'.format('Release' if self.debug else 'Debug')
 
         cmake_args = [
@@ -77,7 +79,6 @@ class CMakeBuild(build_ext):
             # mismatching if multiple versions of Python are installed
             '-DPYTHON_EXECUTABLE={}'.format(sys.executable),
         ]
-
 
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(

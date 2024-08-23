@@ -16,6 +16,20 @@ Module vpm_size
    public :: print_vpm_size_info, get_NN_bl, get_NN, get_Xbound
 
 contains
+   Subroutine get_NN_bl(NN_bl_out)
+      integer :: NN_bl_out(6)
+      NN_bl_out = NN_bl
+   end Subroutine get_NN_bl
+
+   Subroutine get_NN(NN_out)
+      integer :: NN_out(3)
+      NN_out = NN
+   end Subroutine get_NN
+   
+   Subroutine get_Xbound(Xbound_out)
+      double precision :: Xbound_out(6)
+      Xbound_out = Xbound
+   end Subroutine get_Xbound
 
    subroutine print_vpm_size_info()
       use io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
@@ -76,19 +90,5 @@ contains
       print  *, achar(9)//"NWRITE", " = ", NWRITE
    end subroutine print_vpm_size_info
 
-   Subroutine get_NN_bl(NN_bl_out)
-      integer :: NN_bl_out(6)
-      NN_bl_out = NN_bl
-   end Subroutine get_NN_bl
-
-   Subroutine get_NN(NN_out)
-      integer :: NN_out(3)
-      NN_out = NN
-   end Subroutine get_NN
-   
-   Subroutine get_Xbound(Xbound_out)
-      double precision :: Xbound_out(6)
-      Xbound_out = Xbound
-   end Subroutine get_Xbound
 
 End Module vpm_size

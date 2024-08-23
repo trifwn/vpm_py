@@ -21,99 +21,10 @@ def print_IMPORTANT(text):
     print(f"\033[93m{'-'*100}\033[00m")
 
 def main():
-    # try:
-    #     import vpm_f2py
-    # except ImportError as e:
-    #     print(f"Error: {e}")
-    #     # exit(1)
     vpm = VPM()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     
-    ################TESTING################
-    if rank == 0:
-        lib = vpm._lib
-        import ctypes
-        import numpy as np
-        from ctypes import c_int,  byref, POINTER, cdll, c_double, c_void_p
-
-        # Declare argument and return types (updated)
-        lib.print_array.argtypes = []
-        lib.init_array.argtypes = [c_int]
-        lib.get_module_array.restype = np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS')
-
-        # Declare argument and return types for NDArray functions
-        lib.free_ndarray.argtypes = []
-        lib.get_ndarray_data_ptr.argtypes = []
-        lib.get_ndarray_data_ptr.restype = np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS')
-        lib.print_ndarray.argtypes = []
-        lib.init_ndarray.argtypes = [POINTER(c_int), POINTER(c_int)] 
-
-        # ARRAY TESTING
-        print_IMPORTANT("Testing the Fortran API - ARRAY")
-
-        # Initialize the array in Fortran
-        n = 5
-        lib.init_array(n)
-
-        # Print the initial array in Fortran
-        lib.print_array()
-
-        # Get a NumPy array view of the Fortran module array
-        print(f"Getting the array from Fortran")
-        fortran_array = lib.get_module_array()
-        arr = (ctypes.c_double * n)
-        nd_ptr = ctypes.cast(fortran_array, ctypes.POINTER(arr))
-        np_array = np.ctypeslib.as_array(nd_ptr.contents, shape=(n,))
-        print(f"NumPy array: {np_array}")
-
-        for i in range(n):
-            seed = np.random.randint(0, 100)
-            np_array[i] = seed
-            print(f"Seed: {seed}")
-            # Print the modified array in Fortran
-            lib.print_array()
-
-        lib.init_array(n)
-        lib.change_array()
-        print("After reinitialization")
-        print(f"Arry in Py: {np_array}")
-        lib.print_array()
-
-        # MATRIX TESTING
-        print_IMPORTANT("Testing the Fortran API - MATRIX")
-        # Create a 2D array in Fortran
-        shape = (3, 4, 5)  # Python tuple representing the shape
-        shape = np.ascontiguousarray(shape, dtype=np.int32)
-        shape_ptr = shape.ctypes.data_as(POINTER(c_int))
-        ndims = len(shape)
-        lib.init_ndarray(
-            shape_ptr, byref(c_int(ndims)) 
-        )
-
-        # Print the initial array in Fortran
-        lib.print_ndarray()
-        # Get the data pointer and convert to NumPy array
-        data_ptr = lib.get_ndarray_data_ptr()
-        arr = (ctypes.c_double * np.prod(shape))
-        nd_ptr = ctypes.cast(data_ptr, ctypes.POINTER(arr))
-        np_array = np.ctypeslib.as_array(nd_ptr.contents, shape=shape)
-        print(f"NumPy array: {np_array}")
-
-        # # Modify the array in Python
-        # for i in range(shape[0]):
-        #     for j in range(shape[1]):
-        #         seed = np.random.randint(0, 100)
-        #         np_array[i, j] = seed
-        #         print(f"Seed at ({i}, {j}): {seed}")
-        #         lib.print_ndarray()  # Print after each modification
-
-        # # Free the Fortran array
-        # lib.free_ndarray()
-
-        #######################################
-    exit(1)
-
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     if rank == 0:
         print_blue(f"Number of processes: {comm.Get_size()}")
@@ -203,10 +114,9 @@ def main():
         if WhatToDo == 2:
             DT = 0.1
             XP = XP + UP * DT
-            QP = QP - 1. *GP * DT
+            QP[:3, :] = QP[:3, :] - 1. *GP[:3, :] * DT
             vpm.XP = XP
             vpm.QP = QP
-
 
         # Remesh the particles
         comm.Barrier()
@@ -242,3 +152,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    MPI.Finalize()

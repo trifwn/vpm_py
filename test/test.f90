@@ -103,10 +103,14 @@ Program test_pm
    if (my_rank .eq. 0) then
       print *, 'Reading Particles:'
       open (11, file='particles.bin', form='unformatted', access='sequential', status='old') ! read particles
+      open (12, file='read_particles') ! write particles
       print *, 'particles.bin'
 
       read (11) NVR_ext
+      write (12, "(I10)") NVR_ext
       read (11) Vref
+      write (12, "(F10.5)") Vref
+
       print *, achar(9), 'NVR_ext=', NVR_ext
       print *, achar(9), 'Vref=', Vref
 
@@ -118,11 +122,13 @@ Program test_pm
       do i = 1, NVR_ext
          read (11) XPR(:, i)
          read (11) QPR(:, i)
+         write (12, "(7F10.5)") XPR(:, i),  QPR(:, i)
          write (*, *) achar(9), 'Particle: i', i
          write (*, *) achar(9), 'XPR=', XPR(:, i)
          write (*, *) achar(9), 'QPR=', QPR(:, i)
       end do
       close (11)
+      close(12)
 
       QPR(1:3, :) = -QPR(1:3, :)*Vref
       QPR(4, :) = QPR(4, :)*Vref
@@ -135,13 +141,35 @@ Program test_pm
    call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
    !--- END INITIALIZATION VPM
 
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!y
+   !--- ALLOCATIONS FOR ALL PARTICLES and sources
+   if (my_rank .eq. 0) then
+      if (allocated(UPR)) deallocate(UPR)
+      if (allocated(GPR)) deallocate(GPR)
+      ! Only particles
+      allocate (UPR(3, NVR_EXT))
+      allocate (GPR(3, NVR_EXT))
+      UPR = 0; GPR = 0
+   end if
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 2, RHS_pm_in, velx, vely, velz, 1, NI_in, NVR_MAX)
+   if (my_rank .eq. 0) then
+      write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
+      st = MPI_WTIME()
+      call write_particles(0, XP, UP, QP, NVR)
+      et = MPI_WTIME()
+      write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+   end if
+   call MPI_FINALIZE(ierr)
+   call exit(0)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
    if (my_rank .eq. 0) then
       st = MPI_WTIME()
       write (*, *) achar(27)//'[1;31mRemeshing '//achar(27)//'[0m'
    end if
-   call remesh_particles_3d(1, XPR, QPR, NVR_EXT)
+   call remesh_particles_3d(1, XPR, QPR, GPR, UPR, NVR_EXT)
    if (my_rank .eq. 0) then
       et = MPI_WTIME()
       write (*, *) achar(9), 'Remeshing took', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'

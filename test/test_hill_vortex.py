@@ -1,38 +1,22 @@
 from vpm_py import VPM
 from time import sleep
 import numpy as np
-import matplotlib.pyplot as plt
 from mpi4py import MPI
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 
-def print_blue(text):
-    print(f"\033[94m{text}\033[00m")
-
-def print_green(text):
-    print(f"\033[92m{text}\033[00m")
-
-def print_red(text):
-    print(f"\033[91m{text}\033[00m")
-
-def print_IMPORTANT(text):
-    print(f"\033[93m{'-'*100}\033[00m")
-    print(f"\033[91m{text}\033[00m")
-    print(f"\033[93m{'-'*100}\033[00m")
+from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
+from vpm_py.visualization import Particle3DPlot
 
 def main():
     vpm = VPM()
-    print_IMPORTANT(
-        vpm.original_lib
-    )
+
     # Initialize MPI
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     np_procs = comm.Get_size()
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
-    if rank == 0:
-        print_blue(f"Number of processes: {np_procs}")
+    print_blue(f"Number of processes: {np_procs}", rank)
     comm.Barrier()
     print_blue(f"Rank: {rank}")
     comm.Barrier()
@@ -41,17 +25,14 @@ def main():
     NI = 0.1
     neq = 3 
 
-    Vref = np.float64(1.) # Convert Vref to 64-bit floating point
-
     # Create particles
-    NVR = np.int32(100)
+    NVR = 100
     XPR = np.zeros((3, NVR), dtype=np.float64)
     QPR = np.ones((neq + 1, NVR), dtype=np.float64)
-    MAX_PARTICLES = 10000
     
     # Initialization VPM
     from hill_spherical_vortex import hill_assign
-    _, RHS_pm_in = hill_assign(
+    _, RHS_pm_hill = hill_assign(
         Dpm= vpm.dpm,
         NN= vpm.nn,
         NN_bl= vpm.nn_bl,
@@ -68,10 +49,9 @@ def main():
         particle_strengths=QPR, 
         particle_velocities=np.zeros((3, NVR)), 
         particle_deformations=np.zeros((3, NVR)), 
-        RHS_PM=RHS_pm_in,
+        RHS_PM= np.zeros((neq, vpm.nn[0], vpm.nn[1], vpm.nn[2]), dtype=np.float64),
         timestep=0,
         viscosity=NI,
-        max_particle_num=MAX_PARTICLES
     )
     comm.Barrier()
 
@@ -86,62 +66,61 @@ def main():
         Xbound= vpm.xbound,
         neqpm= vpm.num_equations,
     )
+    
+    print_IMPORTANT(f"Hill vortex initialization")
+    
     vpm.set_rhs_pm(RHS_pm_hill)
     if rank == 0:
         st = MPI.Wtime()
         print_red(f"Remeshing")
-    vpm.remesh_particles_3d(-1) 
+    XPR, QPR, GPR, UPR = vpm.remesh_particles_3d(-1) 
     if rank == 0:
         et = MPI.Wtime()
         print(f"\tRemeshing took {int((et - st) / 60)}m {int(et - st) % 60}s")
 
-    if rank == 0:
-        XPR = vpm.XP
-        QPR = vpm.QP
-        UPR = np.zeros_like(XPR)
-        GPR = np.zeros_like(XPR)
-        size_XPR = XPR.shape
-    else:
-        size_XPR = None
-    
-    size_XPR = comm.bcast(size_XPR, root=0)
+    print_IMPORTANT(f"Particles initialized", rank)
+    # Get the particles
+    XPR = vpm.particles.XP
+    QPR = vpm.particles.QP
+    UPR = vpm.particles.UP
+    GPR = vpm.particles.GP
+
+    UPR[:,:] = 0
+    GPR[:,:] = 0
     if rank != 0:
-        XPR = np.zeros(size_XPR, dtype=np.float64)
-        QPR = np.zeros((neq + 1, size_XPR[1]), dtype=np.float64)
-        UPR = np.zeros_like(XPR)
-        GPR = np.zeros_like(XPR)
+        XPR[:,:] = 0
+        QPR[:,:] = 0
     
     # Create the plot to live update the particles
+    print_IMPORTANT(f"Creating plot", rank)
     if rank == 0:
-        fig = plt.figure()
-        ax: Axes3D = fig.add_subplot(111, projection='3d')
-        sc = ax.scatter(XPR[0,:], XPR[1,:], XPR[2,:], c=QPR[0,:], marker='o')
-        ax.set_xlabel('X Label')
-        ax.set_ylabel('Y Label')
-        ax.set_zlabel('Z Label')
-        plt.ion()
-        plt.show(block = False)
+        plotter = Particle3DPlot()
+        plotter.update(
+            x = XPR[0,:],
+            y = XPR[1,:],
+            z = XPR[2,:],
+            c = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
+        )
 
     comm.Barrier()
     # call vpm with mode = 0
     vpm.vpm(
-        num_particles= vpm.num_particles,
+        num_particles= vpm.particles.NVR,
         num_equations= vpm.num_equations,
         mode = 0,
-        particle_positions= XPR,
-        particle_strengths=QPR,
-        particle_velocities=UPR,
-        particle_deformations=GPR,
-        RHS_PM=RHS_pm_in,
+        particle_positions    =  np.array(XPR.data,copy=True),
+        particle_strengths    =  np.array(QPR.data,copy=True),
+        particle_velocities   =  np.array(UPR.data,copy=True),
+        particle_deformations =  np.array(GPR.data,copy=True),
+        RHS_PM=RHS_pm_hill,
         timestep=0,
         viscosity=NI,
-        max_particle_num=MAX_PARTICLES
     )
 
     # Main loop
-    NVR = vpm.NVR
+    NVR = vpm.particles.NVR
     T = 0
-    max_iter = 20
+    max_iter = 100
     for i in range(1, max_iter):
         comm.Barrier()
         T += DT
@@ -152,22 +131,20 @@ def main():
             print_green(f"DT={DT}")
             print(f"---------------------------------")
 
-        UPR = np.zeros((3, NVR), dtype=np.float64)
-        GPR = np.zeros((3, NVR), dtype=np.float64)
-
+        print_IMPORTANT(f"XPR: {XPR}")
         vpm.vpm(
             num_particles=NVR,
             num_equations=neq,
             mode = 2,
-            particle_positions= XPR, 
-            particle_strengths=QPR, 
-            particle_velocities=UPR, 
-            particle_deformations=GPR, 
-            RHS_PM=RHS_pm_in,
+            particle_positions    =  XPR,
+            particle_strengths    =  QPR,
+            particle_velocities   =  UPR,
+            particle_deformations =  GPR,
+            RHS_PM=RHS_pm_hill,
             timestep=i,
             viscosity=NI,
-            max_particle_num=MAX_PARTICLES
         )
+        print_IMPORTANT(f"XPR: {XPR}")
 
         if rank == 0:
             # Print the size of the particles
@@ -214,35 +191,28 @@ def main():
             print('\n\n')
             
             # Update the plot
-            sc.set_offsets(np.c_[XPR[0,:], XPR[1,:]])
-            sc.set_3d_properties(XPR[2,:], 'z')
-            Q_MAG = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
-            sc.set_array(Q_MAG)
-            fig.suptitle(f"{NVR} Particles at T={T}")
-            
-            # Update the particles
-            fig.canvas.flush_events()
-            fig.canvas.draw()
-            plt.pause(0.0001)
+            plotter.update(
+                x = XPR[0,:],
+                y = XPR[1,:],
+                z = XPR[2,:],
+                c = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
+            ) 
         sleep(0.5)
         comm.Barrier()
 
-        # Move the particles
+        # # Move the particles
         if rank == 0:
-            XPR = vpm.XP
-            UPR = vpm.UP
-            QPR = vpm.QP
-            GPR = vpm.GP
-            for j in range(vpm.NVR):
-                XPR[:, j] += (UPR[:, j]) * DT
+            XPR = vpm.particles.XP
+            UPR = vpm.particles.UP
+            QPR = vpm.particles.QP
+            GPR = vpm.particles.GP
+            for j in range(vpm.particles.NVR):
+                XPR[:, j] += (UPR[:, j]) * DT * 0
                 FACDEF = 1.0
-                QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
-            vpm.XP = XPR
-            vpm.UP = UPR
-            vpm.QP = QPR
-            vpm.GP = GPR
+                QPR[:3, j] -= FACDEF * GPR[:3, j] * DT * 0
             print_IMPORTANT(f"Convected Particles")
 
+        print_IMPORTANT(f"XPR: {XPR}")
         vpm.vpm(
             num_particles=NVR,
             num_equations=neq,
@@ -251,10 +221,9 @@ def main():
             particle_strengths=QPR, 
             particle_velocities=UPR, 
             particle_deformations=GPR, 
-            RHS_PM=RHS_pm_in,
+            RHS_PM=RHS_pm_hill,
             timestep=i,
             viscosity=NI,
-            max_particle_num=MAX_PARTICLES
         )
         comm.Barrier()
 

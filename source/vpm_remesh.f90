@@ -2,7 +2,7 @@
 !This Subroutine remeshes particles  on the pm grid (4 particles per cell)
 !---------------------------------------------------------------------------------------------------
 
-Subroutine remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
+Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, &
                      DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm, &
                      NYpm, NZpm, NXs_bl, NYs_bl, NZs_bl, NXf_bl, &
@@ -19,7 +19,7 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
 
    ! PARAMETERS
    integer, intent(in)  :: iflag
-   double precision, intent(out),allocatable, target :: XP_out(:, :), QP_out(:, :)
+   double precision, intent(out),allocatable, target, dimension(:,:) :: XP_out, QP_out, GP_OUT, UP_OUT
    integer, intent(out) :: NVR_out
 
    ! LOCAL VARIABLES
@@ -224,15 +224,36 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
       NVR = npar
       NVR_size = NVR
       NVR_out = NVR
+   end if
 
-      allocate (XP_out(3,npar), QP_out(neqpm + 1, npar))
-      XP_out = XP(:, 1:npar)
-      QP_out = QP(:, 1:npar)
-      nullify (XP, QP)
-      XP => XP_out
-      QP => QP_out
+   ! BCAST NEW NVR
+   call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+   allocate (XP_out(3,NVR), QP_out(neqpm + 1, NVR))
+   allocate (GP_OUT(3,NVR), UP_OUT(3, NVR))
+   if (associated(XP) .and. associated(QP))then
+      XP_out = XP(:, 1:NVR)
+      QP_out = QP(:, 1:NVR)
+   else
+      XP_out = 0
+      QP_out = 0
+   end if
+   
+   if(associated(GP) .and. associated(UP)) then
+      GP_OUT = GP(:, 1:NVR)
+      UP_OUT = UP(:, 1:NVR)
+   else
+      GP_OUT = 0
+      UP_OUT = 0
+   end if
+
+   nullify (XP, QP, GP, UP)
+   XP => XP_out
+   QP => QP_out
+   GP => GP_OUT
+   UP => UP_OUT
+   
+   if (my_rank.eq.0) then
       if (ncell .gt. 1) call back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, 4)
-      if (iflag .eq. 0) deallocate (RHS_pm)
 
       write (*, *) achar(9), 'After remesh'
       write (*, *) achar(9), achar(9), 'Number of particles before', NVR_OLD
@@ -243,18 +264,8 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
       write (*, *) achar(9), achar(9), 'Size of QP', size(QP,1) , size(QP,2)
       write (*, *) achar(9), achar(9), 'Maximal value of QPR', maxval(QP(neqpm, :))
    end if
-   !call back_to_particles_2D(4)
 
-   ! open(1,file='vr.dat')
-   !  WRITE(1,*)'VARIABLES = "X" "Y" "Z"'
-   !  do  i=1, NVR
-   !       write(1,'(2(F20.10,1x))') XP(i,1), XP(i,2),XP(i,3)
-   !  enddo
-    !!-----FOR PLOTTING PURPOSES ONLY
-   !     call system('preplot vr.dat>/dev/null')
-   !     call system('rm vr.dat')
-    !!----FOR PLOTTING PURPOSES ONLY
-   ! close(1)
+
    if (allocated(RHS_pm)) deallocate (RHS_pm)
 End Subroutine remesh_particles_3d
 

@@ -146,12 +146,12 @@ if (USE_INTEL)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -debug full")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -diag-enable=all")
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -implicitnone")
-
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ffast-math  -march=native")
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-module ${PATHOBJHP} -O0 ${MKL_FLAG} -qopenmp -g -traceback -fpe0 -check all,nouninit")
     
-    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 ${MKL_FLAG} -qopenmp")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 ${MKL_FLAG} -ffast-math  -march=native -qopenmp")
     
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 ${MKL_FLAG} -qopenmp -fPIC")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-module ${PATHOBJHP} -O3 ${MKL_FLAG} -qopenmp -fPIC -ffast-math  -march=native")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(EXENAME "${EXENAMEIN}_debug")
@@ -211,6 +211,7 @@ set(TEST_EXE_SRC
     ${SRC_TEST}/test_problems.f90
 )
 
+add_library(arrays SHARED ${SRC_HP}/arrays.f90)
 add_library(io SHARED ${SRC_HP}/io.f90)
 add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
 add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
@@ -218,7 +219,7 @@ add_library(mkl_poisson SHARED ${SRC_HP}/mkl_poisson.f90)
 target_include_directories(mkl_poisson PUBLIC ${SRC_HP}/mkl_dfti.f90)
 
 add_library(parvar SHARED  ${SRC_HP}/parvar.f90)
-target_link_libraries(parvar PRIVATE io)
+target_link_libraries(parvar PRIVATE io arrays)
 
 add_library(pmgrid SHARED  ${SRC_HP}/pmgrid.f90)
 target_link_libraries(pmgrid PRIVATE io)
@@ -254,7 +255,7 @@ add_custom_target(dummy ALL
 # -------------------------------------------------------------------------------------------------
 add_library(${EXENAME} SHARED ${SRC_HP}/api.f90)
 add_dependencies(${EXENAME} dummy) # Ensure proper dependency resolution
-target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm io) #PUBLIC ${LINK_FLAGS} 
+target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm io arrays) #PUBLIC ${LINK_FLAGS} 
 target_include_directories(${EXENAME} PUBLIC ${PATHOBJHP}) # Set include directories using PUBLIC
 target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile options using PUBLIC
 
@@ -269,58 +270,18 @@ target_include_directories(${EXENAME}_exe PUBLIC ${PATHOBJHP})
 target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
 
 # # -------------------------------------------------------------------------------------------------
-#                                           #  F2PY
+#                                           #  Test Arrays
 # # -------------------------------------------------------------------------------------------------
-# message(STATUS "${Green}Creating Python module ${ColourReset}")
-# # Name of the F2PY module
-# set(f2py_module_name "vpm_f2py")
-# set(f2py_module_c "${f2py_module_name}_module.c")
-# # List of Fortran source files
-# set(FORTRAN_SOURCE_FILES
-#     ${SRC_HP}/mkl_dfti.f90
-#     ${SRC_HP}/main_pm.f90
-#     ${SRC_HP}/pmlib.f90
-#     ${SRC_HP}/yaps.f90
-    
-#     ${SRC_HP}/pmproject.f90
-#     ${SRC_HP}/vpm_mpi.f90
-#     ${SRC_HP}/vpm_time.f90
-#     ${SRC_HP}/vpm_gcalc.f90
-#     ${SRC_HP}/vpm_remesh.f90
-#     ${SRC_HP}/vpm.f90
-#     ${SRC_HP}/api.f90
-# )
-# # Generate sources using f2py
-# add_custom_target(
-#   genpyf
-#   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${f2py_module_c}"
-# )
-# add_custom_command(
-#   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${f2py_module_c}"
-#   COMMAND ${Python_EXECUTABLE} -m "numpy.f2py"
-#           ${FORTRAN_SOURCE_FILES}
-#           -m "${f2py_module_name}"
-#           --include-paths "${F2PY_INCLUDE_DIR} ${SRC_HP}/yaps2d.f90 ${SRC_HP}/yaps3d.f90"
-#           # --quiet
-#           --lower
-#   DEPENDS ${FORTRAN_SOURCE_FILES}  # Fortran source files
-# )
-# # Create a Python module from the generated sources
-# Python_add_library(${f2py_module_name} MODULE WITH_SOABI
-#   "${CMAKE_CURRENT_BINARY_DIR}/${f2py_module_c}"  # Generated C file
-#   "${F2PY_INCLUDE_DIR}/fortranobject.c"  # Required from NumPy
-#   ${FORTRAN_SOURCE_FILES}  # Fortran source files
-# )
 
-# # Link with NumPy and add dependencies
-# target_link_libraries(${f2py_module_name} PRIVATE Python::NumPy)
-# add_dependencies(${f2py_module_name} genpyf)
-# target_include_directories(${f2py_module_name} PRIVATE "${F2PY_INCLUDE_DIR}")
+add_executable(test_arrays ${SRC_TEST}/test_arrays.f90)
+add_dependencies(test_arrays arrays)
+target_link_libraries(test_arrays PRIVATE arrays)
+
 
 ###########################################################
 #    Custom targets 
 ############################################################
-# # Installation target
+# Installation target
 # install(TARGETS ${EXENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 # # Custom targets

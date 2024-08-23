@@ -34,8 +34,8 @@ contains
       ! use vpm_size
 
       use pmeshpar, only: PI, PI2, PI4, ND, SOL_PM, IDVPM
-      use parvar, only: QP, XP, UP, GP, NVR
-      use pmgrid, only: VELVRX_PM, VELVRY_PM, VELVRZ_PM, RHS_PM, NXpm, NYpm, NZpm, EPSVOL, Nblocks
+      use parvar, only: QP, XP, UP, GP, NVR, print_particle_info
+      use pmgrid, only: VELVRX_PM, VELVRY_PM, VELVRZ_PM, RHS_PM, NXpm, NYpm, NZpm, EPSVOL, Nblocks, print_RHS_pm
       use pmlib, only: pmesh
       use projlib, only: projlibinit, project_particles_3D, project_vol3d
       use yapslib, only: yaps3d
@@ -62,7 +62,7 @@ contains
       double precision, allocatable             :: SOL_pm_bl(:, :, :, :), RHS_pm_bl(:, :, :, :)
 
       integer                                   :: ierr, my_rank, np
-      integer                                   :: i !, j, k,
+      integer                                   :: i ,j, k 
 
       ! DEPRECATED
       ! double precision                          :: totmass, totvor, MACH, pr
@@ -127,7 +127,6 @@ contains
          UP => UP_in; 
          nullify (GP)
          GP => GP_in
-
       else
          nullify (QP)
          nullify (XP)
@@ -211,9 +210,9 @@ contains
             ! SOL_PM IS NOW FILLED WITH THETA (DEFORMATION)
 
             !    itypeb=1!normal back to particles
-            !    call back_to_particles_3D(SOL_pm,RHS_pm,XP,QP,UP,GP,&
+            !    call back_to_particles_3D(SOL_pm,XP,QP,UP,GP,&
             !                              velvrx_pm,velvry_pm,velvrz_pm,&
-            !                              Xbound,Dpm,NN,NN_bl,NVR,neqpm,interf_iproj,itypeb,NVR_size)
+            !                              Xbound,Dpm,NN,NVR,neqpm,interf_iproj,itypeb,NVR_size)
 
             if (IPMWRITE .GT. 0) then
                do i = 1, IPMWRITE
@@ -259,9 +258,9 @@ contains
             ! SOL_pm = -VIS \nabla \cdot RHS_pm
 
             ! itypeb=2!back to particles the diffused vorticity
-            ! call back_to_particles_3D(SOL_pm,RHS_pm,XP,QP,UP,GP,&
+            ! call back_to_particles_3D(SOL_pm,XP,QP,UP,GP,&
             !                           velvrx_pm,velvry_pm,velvrz_pm,&
-            !                           Xbound,Dpm,NN,NN_bl,NVR,neqpm,interf_iproj,itypeb,NVR_size)
+            !                           Xbound,Dpm,NN,NVR,neqpm,interf_iproj,itypeb,NVR_size)
          end if
          itypeb = 2
          ! WHEN ITYPEB = 2 WE GET THE GP FROM THE SOL_PM (DEFORMATION) and from QP
@@ -278,7 +277,9 @@ contains
       !call diffuse_vort_3d
 
       ! SCATTER PROBLEM TO ALL PROCESSORS
-      call rhsbcast(RHS_pm, NN, neqpm + 1) ! RHS PM -> TO ALL PROCESSORS
+      call rhsbcast(RHS_pm, NN, neqpm + 1) ! RHS PM -> TO ALL PROCESSORS -> RHS_PM_BL
+      call print_RHS_pm()
+
       IF (II .ne. 0) then
          nb = my_rank + 1
          NN_tmp(1:3) = NNbl(1:3, nb)
@@ -288,6 +289,7 @@ contains
          et = MPI_WTIME()
          write (*, *) achar(9), 'VPM:Broadcasting/Scattering RHS:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
+
 
       ! SOLVE THE PROBLEM
       if (my_rank .eq. 0) st = MPI_WTIME()
@@ -362,19 +364,35 @@ contains
             write (*, *) achar(9), achar(9), shape(velvrx_pm)
             ! CHeck for nan values
             if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
+               ! Print Velx
+               do i = 1, NXpm
+                  do j = 1, NYpm
+                     do k = 1, NZpm
+                        if (isnan(velvrx_pm(i, j, k)) .or. isnan(velvry_pm(i, j, k)) .or. isnan(velvrz_pm(i, j, k))) then
+                           write (*, "(A, I3, A, I3, A, I3)") &
+                                 achar(9)//"I:", i, achar(9)//"J:", j, achar(9)//"K:", k, achar(9)
+                           ! write (*, "(A, 3F15.8)") &
+                                 ! achar(9)//achar(9)//"Velx:" , velvrx_pm(i, j, k), achar(9)//"Vely", velvry_pm(i, j, k), achar(9)//"Velz", velvrz_pm(i, j, k)
+                           stop
+                        end if
+                     end do
+                  end do
+               end do
+
+
                write (*, *) achar(9), 'VPM: NAN VALUES IN VELOCITY'
                stop
             end if
-
             ! SOL_PM IS NOW FILLED WITH THETA (DEFORMATION)
+
 
             et = MPI_WTIME()
             write (*, *) achar(9), 'VPM: Velocity Calculation using FD', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
             !     call calc_antidiffusion
             ! itypeb=1
-            ! call back_to_particles_3D(SOL_pm,RHS_pm,XP,QP,UP,GP,&
+            ! call back_to_particles_3D(SOL_pm,XP,QP,UP,GP,&
             !                           velvrx_pm,velvry_pm,velvrz_pm,&
-            !                           Xbound,Dpm,NN,NN_bl,NVR,neqpm,interf_iproj,itypeb,NVR_size)
+            !                           Xbound,Dpm,NN,NVR,neqpm,interf_iproj,itypeb,NVR_size)
             !      if(mod(NTIME_pm,20).eq.0.or.NTIME_pm.eq.1) call write_pm_solution
             !if(mod(NTIME_pm,100).eq.0.or.NTIME_pm.eq.1) call write_pm_solution
             if (IPMWRITE .GT. 0) then
@@ -549,9 +567,9 @@ contains
 
          ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity
          ! WHEN ITYPEB = 2 WE GET THE GP FROM THE SOL_PM (DEFORMATION) and from QP
-         call back_to_particles_3D(SOL_pm, RHS_pm, XP_scatt, QP_scatt, UP_scatt, GP_scatt, &
+         call back_to_particles_3D(SOL_pm, XP_scatt, QP_scatt, UP_scatt, GP_scatt, &
                                    velvrx_pm, velvry_pm, velvrz_pm, &
-                                   Xbound, Dpm, NN, NN_bl, NVR_p, neqpm, interf_iproj, itypeb, NVR_p)
+                                   Xbound, Dpm, NN, NVR_p, neqpm, interf_iproj, itypeb, NVR_p)
          ! GATHERS XP, QP, UP, GP
          call particles_gath
 
@@ -802,7 +820,7 @@ contains
       write (*, *) achar(9), 'Writing solution to file: ', trim(filout)
       open (1, file=filout)
       WRITE (1, "(a)") 'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
-      WRITE (1, "(a,I5.5,a,I5.5,a,I5.5)") 'ZONE: I=', NXf_bl(1) - NXs_bl(1) + 1, ' J=', NYf_bl(1) - NYs_bl(1) + 1, &
+      WRITE (1, "(a,I5.5,a,I5.5,a,I5.5)") 'ZONE I=', NXf_bl(1) - NXs_bl(1) + 1, ' J=', NYf_bl(1) - NYs_bl(1) + 1, &
          ' K=', NZf_bl(1) - NZs_bl(1) + 1, ' F=POINT'
       ! Write the size of the loops
 
@@ -819,11 +837,13 @@ contains
                velocy = velvry_pm(i, j, k)
                velocz = velvrz_pm(i, j, k)
 
-               WRITE (1, '(9(E20.10,1x))') XPM, YPM, ZPM, velocx, velocy, velocz, &
-                  -RHS_pm(1, I, J, K), &
-                  -RHS_pm(2, I, J, K), &
-                  -RHS_pm(3, I, J, K)
-               !,RHS_pm(4,I,J,K),SOL_pm(1,I,J,K),SOL_pm(2,I,J,K), SOL_pm(3,I,J,K)
+               WRITE (1, '(9(E20.10,1x))') XPM, YPM, ZPM, &
+                                          velocx, velocy, velocz, &
+                                          -RHS_pm(1, I, J, K), &
+                                          -RHS_pm(2, I, J, K), &
+                                          -RHS_pm(3, I, J, K)
+                                          !,RHS_pm(4,I,J,K), &
+                                          ! SOL_pm(1,I,J,K),SOL_pm(2,I,J,K), SOL_pm(3,I,J,K)
 
             end do
          end do

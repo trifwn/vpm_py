@@ -1,8 +1,7 @@
 import numpy as np
 import os
-import glob
 
-from ctypes import c_int,  byref, POINTER, cdll, c_double
+from ctypes import c_int,  byref, POINTER, cdll, c_double, cast
 from shutil import copy2
 from tempfile import NamedTemporaryFile
 from mpi4py import MPI
@@ -10,109 +9,48 @@ from mpi4py import MPI
 # Local imports
 from . import ParticleMesh
 from . import Particles
-
-here = os.path.abspath(os.path.dirname(__file__))
-lib_path = glob.glob(os.path.join(here, 'libvpm_*.so'))[0]
-lib_ext = lib_path[lib_path.rfind('.'):]
-
-def print_blue(text):
-    print(f"\033[94m{text}\033[00m")
-
-def print_green(text):
-    print(f"\033[92m{text}\033[00m")
-
-def print_IMPORTANT(text):
-    print(f"\033[93m{'-'*100}\033[00m")
-    print(f"\033[91m{text}\033[00m")
-    print(f"\033[93m{'-'*100}\033[00m")
-
-def print0(rank, text):
-    """Print only if rank is 0"""
-    if rank == 0:
-        print(text) 
+from .vpm_io import  print_IMPORTANT, print_green, print_blue, print_red
+from .vpm_lib import VPM_Lib
+from .utils import divide_processors
+from .arrays import F_Array
+from .vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 
 class VPM(object):
-    """Interface to the VPM Fortran routines.
-
-    Attributes
-   
+    """
+    Interface to the VPM Fortran routines.
     """
 
     def __init__(
         self,
-        num_equations: int = 3,
+        number_of_equations: int = 3,
+        number_of_processors: int = 1,
+        max_particle_num: int = 1000,
+        rank: int = 0
     ):
-        super().__init__()
-        tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_ext)
-        tmp.close()
-        self._lib_path = tmp.name
-        self.original_lib = lib_path
-        copy2(lib_path, self._lib_path)
-        self._lib = cdll.LoadLibrary(self._lib_path)
+        lib = VPM_Lib()
+        self._lib = lib._lib_vpm
+        self.vpm_lib = lib
+
+        self.rank = rank
+        self.num_processors = number_of_processors
+        self.max_particle_num = max_particle_num
         
-        # Print the name of the so used
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.num_procs = self.comm.Get_size()
-        if self.rank == 0:
-            print_IMPORTANT(f"Using {lib_path}")
-
-        # Define argument types for the Fortran subroutines
-        # API.init
-        self._lib.init.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_int),
-                                    POINTER(c_int), POINTER(c_int), POINTER(c_double), POINTER(c_int),
-                                    POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-                                    POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-                                    POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-                                    POINTER(c_int)]
-        # API.vpm
-        self._lib.vpm.argtypes = [
-            POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_double),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_double),
-            POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_int),
-            POINTER(c_double), POINTER(c_int)
-        ]
-        # API.finalize
-        self._lib.finalize.argtypes = []
-        
-        # API.remesh_particles_3d
-        self._lib.remesh_particles_3d.argtypes = [POINTER(c_int)]
-
-
         # Divide processors into NBI, NBJ, NBK so that NBI * NBJ * NBK = number of processors
-        # Find the factors of the number of processors
-        factors = np.unique(np.array([i for i in range(1, self.num_procs + 1) if self.num_procs % i == 0]))
-        # Find the subsets of factors that multiply to the number of processors
-        subsets = []
-        for i in range(len(factors)):
-            for j in range(i, len(factors)):
-                for k in range(j, len(factors)):
-                    if factors[i] * factors[j] * factors[k] == self.num_procs:
-                        subsets.append((factors[i], factors[j], factors[k]))
-        # Find the subset that has the smallest sum
-        min_sum = np.inf
-        for subset in subsets:
-            if sum(subset) < min_sum:
-                min_sum = sum(subset)
-                NBI, NBJ, NBK = subset
-
-        # Print the number of processors in each direction
+        NBI, NBJ, NBK = divide_processors(number_of_processors)
         if self.rank == 0:
-            print(f"Number of processors: {self.num_procs}")
+            print(f"Number of processors: {self.num_processors}")
             print(f"NBI: {NBI}, NBJ: {NBJ}, NBK: {NBK}")
         
-        self.dpm = np.zeros(3)
+        self.dpm = np.array([4.0, 4.0, 4.0])
+        self.NBI = NBI
+        self.NBJ = NBJ
+        self.NBK = NBK
+        self.num_equations = number_of_equations
+
         # Initialize the VPM
-        self.initialize(
-            DXpm=4.0,
-            DYpm=4.0,
-            DZpm=4.0,
-            NBI=NBI,
-            NBJ=NBJ,
-            NBK=NBK
-        )
+        self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK)
         self.particle_mesh = ParticleMesh()
-        self.particles = Particles()
+        self.particles = Particles(number_equations= self.num_equations)
 
     def initialize(
         self, 
@@ -195,20 +133,19 @@ class VPM(object):
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
-    
+
     def vpm(
         self, 
         num_particles: int, 
         num_equations: int,
         mode: int,
-        particle_positions: np.ndarray,
-        particle_strengths: np.ndarray,
+        particle_positions: np.ndarray ,
+        particle_strengths: np.ndarray ,
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
         RHS_PM: np.ndarray,
         timestep: int,
         viscosity: float,
-        max_particle_num: int = 1000
     ):
         """_summary_
 
@@ -225,55 +162,42 @@ class VPM(object):
             viscosity (float): Viscosity term for the diffusion equation
             max_particle_num (float): Maximum number of particles allowed
         """
+
         # Ensure numpy arrays are contiguous
-        particle_positions = np.ascontiguousarray(particle_positions, dtype=np.float64)
-        particle_strengths = np.ascontiguousarray(particle_strengths, dtype=np.float64)
-        particle_velocities = np.ascontiguousarray(particle_velocities, dtype=np.float64)
-        particle_deformations = np.ascontiguousarray(particle_deformations, dtype=np.float64)
-        
-        RHS_PM = np.ascontiguousarray(RHS_PM, dtype=np.float64)
+        XP_ptr = dp_array_to_pointer(particle_positions   , copy = True)
+        QP_ptr = dp_array_to_pointer(particle_strengths   , copy = True)
+        UP_ptr = dp_array_to_pointer(particle_velocities  , copy = True)
+        GP_ptr = dp_array_to_pointer(particle_deformations, copy = True)
+        RHS_pm_ptr = dp_array_to_pointer(RHS_PM)
 
         # Get the pointers to the numpy arrays
-        u_x = self.particle_mesh.Ux
-        u_y = self.particle_mesh.Uy
-        u_z = self.particle_mesh.Uz
-        u_x = np.ascontiguousarray(u_x, dtype=np.float64)
-        u_y = np.ascontiguousarray(u_y, dtype=np.float64)
-        u_z = np.ascontiguousarray(u_z, dtype=np.float64)
-        Velx_ptr = u_x.ctypes.data_as(POINTER(c_double))
-        Vely_ptr = u_y.ctypes.data_as(POINTER(c_double))
-        Velz_ptr = u_z.ctypes.data_as(POINTER(c_double))
-
-        XP_ptr = particle_positions.ctypes.data_as(POINTER(c_double))
-        QP_ptr = particle_strengths.ctypes.data_as(POINTER(c_double))
-        UP_ptr = particle_velocities.ctypes.data_as(POINTER(c_double))
-        GP_ptr = particle_deformations.ctypes.data_as(POINTER(c_double))
-        RHS_pm_ptr = RHS_PM.ctypes.data_as(POINTER(c_double))
+        Velx_ptr = dp_array_to_pointer(self.particle_mesh.Ux)
+        Vely_ptr = dp_array_to_pointer(self.particle_mesh.Uy)
+        Velz_ptr = dp_array_to_pointer(self.particle_mesh.Uz)
 
         self._lib.vpm(XP_ptr, QP_ptr, UP_ptr, GP_ptr, byref(c_int(num_particles)),
                         byref(c_int(num_equations)), byref(c_int(mode)), RHS_pm_ptr,
                         Velx_ptr, Vely_ptr, Velz_ptr, byref(c_int(timestep)),
-                        byref(c_double(viscosity)), byref(c_int(max_particle_num))
+                        byref(c_double(viscosity)), byref(c_int(self.max_particle_num))
                     )
         
-        print(f"\t\tVelx_ptr: {Velx_ptr}")
-        print(f"\t\tVely_ptr: {Vely_ptr}")
-        print(f"\t\tVelz_ptr: {Velz_ptr}")
+        particle_positions = pointer_to_dp_array(XP_ptr, (3, num_particles))
+        particle_strengths = pointer_to_dp_array(QP_ptr, (num_equations + 1, num_particles))
+        particle_velocities = pointer_to_dp_array(UP_ptr, (3, num_particles))
+        particle_deformations = pointer_to_dp_array(GP_ptr, (3, num_particles))
+        
+
         if mode in [1,2]:
             # Get the values from the ptrs to the numpy arrays
             shape_pm = (self.NX_pm, self.NY_pm, self.NZ_pm)
-            Ux = np.ctypeslib.as_array(Velx_ptr, shape=shape_pm)
-            Uy = np.ctypeslib.as_array(Vely_ptr, shape=shape_pm)
-            Uz = np.ctypeslib.as_array(Velz_ptr, shape=shape_pm)
-            # Convert to numpy arrays as they are fortran arrays
-            Ux = np.array(Ux, dtype=np.float64).T
-            Uy = np.array(Uy, dtype=np.float64).T
-            Uz = np.array(Uz, dtype=np.float64).T
-
+            Ux = pointer_to_dp_array(Velx_ptr, shape_pm, copy=True)
+            Uy = pointer_to_dp_array(Vely_ptr, shape_pm, copy=True)
+            Uz = pointer_to_dp_array(Velz_ptr, shape_pm, copy=True)
             self.particle_mesh.update_U(Ux, Uy, Uz)
 
             if self.rank == 0:
                 print_IMPORTANT(f"Getting the values of Ux, Uy, Uz\nGot shape: {shape_pm}")
+                print(Ux)
                         # Check arrays for nan and print the number of nans and their positions
                 if np.isnan(Ux).any():
                     print(f"Ux has {np.sum(np.isnan(Ux))} nans")
@@ -286,6 +210,7 @@ class VPM(object):
                 if np.isnan(Uz).any():
                     print(f"Uz has {np.sum(np.isnan(Uz))} nans")
                     print(np.argwhere(np.isnan(Uz)))
+                print(f"{'-'*100}")
 
     def remesh_particles_3d(self, iflag: int):
         """Remesh particles in 3D
@@ -293,49 +218,68 @@ class VPM(object):
         Args:
             iflag (int): Flag to remesh particles
         """
-        self._lib.remesh_particles_3d(byref(c_int(iflag)))
-        # print_green(f"Remeshed particles {self.rank}/{self.num_procs - 1} completed successfully.")
+        NVR = self.particles.NVR
+        print_green(f"\tNumber of particles before remeshing: {NVR}")
+        XP_arr = F_Array((3, NVR))
+        QP_arr = F_Array((self.num_equations + 1, NVR))
+        UP_arr = F_Array((3, NVR))
+        GP_arr = F_Array((3, NVR))
+
+        NVR = c_int(NVR)
+        XP_struct = XP_arr.to_ctype()
+        QP_struct = QP_arr.to_ctype()
+        UP_struct = UP_arr.to_ctype()
+        GP_struct = GP_arr.to_ctype()
+        self._lib.remesh_particles_3d(
+            byref(c_int(iflag)), byref(XP_struct), byref(QP_struct),
+            byref(UP_struct), byref(GP_struct), byref(NVR)
+        )
+        XP_arr = F_Array.from_ctype(XP_struct)
+        QP_arr = F_Array.from_ctype(QP_struct)
+        UP_arr = F_Array.from_ctype(UP_struct)
+        GP_arr = F_Array.from_ctype(GP_struct)
+        return XP_arr, QP_arr, UP_arr, GP_arr
 
     def print_pmesh_parameters(self):
         """
             Print the parameters of the particle mesh
         """
-        print_IMPORTANT(f"Pmesh parameters {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"Pmesh parameters {self.rank}/{self.num_processors - 1}")
         self._lib.print_pmeshpar()
 
     def print_projlib_parameters(self):
         """
             Print the parameters of the projection library
         """
-        print_IMPORTANT(f"Proj lib parameters {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"Proj lib parameters {self.rank}/{self.num_processors - 1}")
         self._lib.print_projlib()
 
     def print_pmgrid_parameters(self):
         """
             Print the parameters of the particle mesh grid
         """
-        print_IMPORTANT(f"PM grid parameters {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"PM grid parameters {self.rank}/{self.num_processors - 1}")
         self._lib.print_pmgrid()
 
     def print_vpm_vars(self):
         """
             Print the variables of the VPM
         """
-        print_IMPORTANT(f"VPM variables {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"VPM variables {self.rank}/{self.num_processors - 1}")
         self._lib.print_vpm_vars()
     
     def print_vpm_size(self):
         """
             Print the size of the VPM
         """
-        print_IMPORTANT(f"VPM size {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"VPM size {self.rank}/{self.num_processors - 1}")
         self._lib.print_vpm_size()
 
     def print_parvar(self):
         """
             Print the particle variables
         """
-        print_IMPORTANT(f"Particle variables {self.rank}/{self.num_procs - 1}")
+        print_IMPORTANT(f"Particle variables {self.rank}/{self.num_processors - 1}")
         self._lib.print_parvar()
     
     def set_rhs_pm(self, RHS_PM: np.ndarray):
@@ -358,7 +302,6 @@ class VPM(object):
             byref(c_int(size4))
         )
     
-
     @property
     def NX_pm(self):
         NX_pm = c_int()
@@ -377,95 +320,32 @@ class VPM(object):
         self._lib.get_NZ_pm(byref(NZ_pm))
         return NZ_pm.value
 
-    def get_particle_positions(self):
+    @property
+    def nn(self):       
         """
-            Get the particle positions
+            NN(6) is the number of cells in each direction
         """
-        XP = (c_double * 3 * self.NVR)()
-        self._lib.get_particle_positions(byref(XP))
-        return np.array(XP).T
+        NN = (c_int * 3)() 
+        self._lib.get_NN(byref(NN))
+        return np.array(NN)
     
     @property
-    def XP(self):
-        return self.get_particle_positions()
-    
-    @XP.setter
-    def XP(self, XP):
-        XP = np.ascontiguousarray(XP, dtype=np.float64)
-        XP_ptr = XP.ctypes.data_as(POINTER(c_double))
-        self._lib.set_particle_positions(XP_ptr)
-    
-    ##  PARTICLE STRENGTHS
-    def get_particle_strengths(self):
+    def nn_bl(self):
         """
-            Get the particle strengths
+        NN_bl(6) is the start and end indices of the cells assigned to the processor.
         """
-        neq = c_int()
-        self._lib.get_neqpm(byref(neq))
-
-        QP = (c_double * (neq.value + 1)  * self.NVR)()
-        self._lib.get_particle_strengths(byref(QP))
-        return np.array(QP).T
-
-    @property
-    def QP(self):
-        return self.get_particle_strengths()
-    
-    @QP.setter
-    def QP(self, QP):
-        QP = np.ascontiguousarray(QP, dtype=np.float64)
-        QP_ptr = QP.ctypes.data_as(POINTER(c_double))
-        self._lib.set_particle_strengths(QP_ptr)
-    
-    ## PARTICLE VELOCITIES
-    def get_particle_velocities(self):
-        """
-            Get the particle velocities
-        """
-        UP = (c_double * 3 * self.NVR)()
-        self._lib.get_particle_velocities(byref(UP))
-        return np.array(UP).T
+        NN_bl = (c_int * 6)()
+        self._lib.get_NN_bl(byref(NN_bl))
+        return np.array(NN_bl) 
     
     @property
-    def UP(self):
-        return self.get_particle_velocities()
-    
-    @UP.setter
-    def UP(self, UP):
-        UP = np.ascontiguousarray(UP, dtype=np.float64)
-        UP_ptr = UP.ctypes.data_as(POINTER(c_double))
-        self._lib.set_particle_velocities(UP_ptr)
-    
-    ## PARTICLE DEFORMATIONS
-    def get_particle_deformations(self):
+    def xbound(self):
         """
-            Get the particle deformations
+        Xbound(6) is the boundary of the domain.
         """
-        GP = (c_double * 3 * self.NVR)()
-        self._lib.get_particle_deformation(byref(GP))
-        return np.array(GP).T
-    
-    @property
-    def GP(self):
-        return self.get_particle_deformations()
-    
-    @GP.setter
-    def GP(self, GP):
-        GP = np.ascontiguousarray(GP, dtype=np.float64)
-        GP_ptr = GP.ctypes.data_as(POINTER(c_double))
-        self._lib.set_particle_deformation(GP_ptr)
-
-    def get_NVR(self):
-        """
-            Get the number of particles
-        """
-        NVR = c_int()
-        self._lib.get_num_particles(byref(NVR))
-        return NVR.value
-
-    @property
-    def NVR(self):
-        return self.get_NVR()
+        xbound = (c_double * 6)()
+        self._lib.get_Xbound(byref(xbound))
+        return np.array(xbound)
 
     def get_size_XP(self):
         """
@@ -475,10 +355,6 @@ class VPM(object):
         self._lib.get_size_XP(byref(size_XP))
         return size_XP.value
     
-    @property
-    def num_particles(self):
-        return self.get_NVR()
-
     def get_num_equations(self):
         """
             Get the number of equations
@@ -487,47 +363,6 @@ class VPM(object):
         self._lib.get_neqpm(byref(neqpm))
         return neqpm.value
     
-    @property
-    def num_equations(self):
-        return self.get_num_equations()
-
-    def get_NN(self):
-        """
-            Get the number of cells in each direction
-        """
-        NN = (c_int * 3)() 
-        self._lib.get_NN(byref(NN))
-        return np.array(NN)
-    
-    def get_NN_bl(self):
-        """
-            Get the number of blocks in each direction
-        """
-        # NN is an array of 6 integers
-        NN_bl = (c_int * 6)()
-        self._lib.get_NN_bl(byref(NN_bl))
-        return np.array(NN_bl) 
-
-    def get_xbound(self):
-        """
-            Get the xbound
-        """
-        xbound = (c_double * 6)()
-        self._lib.get_Xbound(byref(xbound))
-        return np.array(xbound)
-    
-    @property
-    def nn(self):
-        return self.get_NN()
-    
-    @property
-    def nn_bl(self):
-        return self.get_NN_bl()
-    
-    @property
-    def xbound(self):
-        return self.get_xbound()
- 
     def finalize(self):
         self._lib.finalize()
         if self.rank == 0:
@@ -535,4 +370,4 @@ class VPM(object):
 
     def __del__(self):
         self.finalize()
-        os.remove(self._lib_path)
+        os.remove(self.vpm_lib._lib_vpm_path)

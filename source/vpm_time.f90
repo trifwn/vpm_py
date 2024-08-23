@@ -26,20 +26,20 @@ End Subroutine convect_first_order
 !   Input :                                                                 !
 !          itype (1,2) defines what value to interpolate to the particles   !
 !---------------------------------------------------------------------------!
-Subroutine back_to_particles_3D(SOL_pm, RHS_pm, XP, QP, UP, GP, &
+Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
                                 velvrx_pm, velvry_pm, velvrz_pm, &
-                                Xbound, Dpm, NN, NN_bl, NVR, neqpm, iproj, itype, NVRM)
+                                Xbound, Dpm, NN, NVR, neqpm, iproj, itype, NVRM)
 
    use openmpth
    use projlib, only: projection_fun
    Implicit None
-   integer, intent(in)             :: NN(3), NVR, iproj, NN_bl(6), neqpm, NVRM, itype
+   integer, intent(in)             :: NN(3), NVR, iproj,  neqpm, NVRM, itype
    ! double precision, intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
    ! double precision, intent(in), dimension(:,:,:) :: velvrx_pm, velvry_pm, velvrz_pm
    double precision, intent(inout) :: QP(neqpm + 1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
    ! OLD
-   double precision, intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
+   ! double precision, intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    double precision, intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: SOL_pm(neqpm, NN(1), NN(2), NN(3))

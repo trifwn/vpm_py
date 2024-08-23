@@ -1,113 +1,10 @@
-module nd_array_mod
-  use ISO_C_BINDING
-  implicit none
-
-  type, bind(C) :: nd_array_t
-      integer :: ndims   ! Number of dimensions
-      integer :: total_size  ! Total size of the data array
-      type(C_PTR) :: shape_ptr  !  shape array 
-      type(C_PTR) :: data_ptr   ! Pointer to the actual data
-  end type nd_array_t
-
-contains
-
-   function create_nd_array(ndims, arr_shape) result(arr) 
-      implicit none
-      integer(c_int) :: ndims
-      integer(c_int), allocatable, dimension(:), intent(in), target :: arr_shape
-      integer, dimension(:), contiguous, pointer :: temp_data
-      type(nd_array_t) :: arr
-      integer :: total_size, i
-
-      print *, 'Creating ND Array'
-      print *, 'Number of dimensions:', ndims
-      arr%ndims = ndims
-      
-      print *, 'Array shape:', arr_shape(1:ndims)
-      arr%shape_ptr = C_LOC(arr_shape)  ! Get the C pointer to the shape array
-      
-      total_size = 1
-      do i = 1, ndims
-         total_size = total_size * arr_shape(i)
-      end do
-      print *, 'Total size:', total_size
-      arr%total_size = total_size
-
-      ! Allocate the data array
-      call c_f_pointer(arr%data_ptr, temp_data, [total_size])
-      temp_data = 0  ! Initialize the data array to zero
-
-  end function create_nd_array
-
-  subroutine destroy_nd_array(arr)
-      implicit none
-      type(nd_array_t), intent(inout), target :: arr
-      type(C_PTR), pointer :: data_ptr
-      integer, pointer :: shape_ptr(:)
-
-      data_ptr => arr%data_ptr
-      shape_ptr => arr%shape_ptr
-
-      if (associated(data_ptr)) then
-         deallocate(data_ptr)
-      end if
-      if (associated(shape_ptr)) then
-         deallocate(shape_ptr)
-      end if
-  end subroutine destroy_nd_array
-
-  function get_nd_array_data_ptr(arr) result(data_) 
-      !  use ISO_C_BINDING
-      implicit none
-      type(nd_array_t), intent(in) :: arr
-      type(C_PTR) :: data_
-      
-      data_ = arr%data_ptr
-  end function get_nd_array_data_ptr
-
-  subroutine ndarray_print(arr)
-      use ISO_C_BINDING
-      implicit none
-      type(nd_array_t), intent(in) :: arr
-      real(C_DOUBLE), dimension(:), pointer :: data_
-      integer(C_INT), dimension(:), pointer :: shape_
-      integer :: i, j  ! Adjust for higher dimensions as needed
-
-      call c_f_pointer(arr%shape_ptr, shape_, [arr%ndims])
-      call c_f_pointer(arr%data_ptr, data_, [arr%total_size])
-      
-      print *, 'Array in Fortran (shape:', shape_, '):'
-      print *, "Total size:", arr%total_size
-      
-      write(*,*) "Address pointed to by data:", C_LOC(data_), "(decimal)"
-      write(*,*) "Address pointed to by shape:", C_LOC(shape_), "(hexadecimal)"
-      ! Implement a while loop that loops the dimensions 
-      ! and prints the data in the correct order
-      do i = 1, arr%ndims
-         write(*,*) 'Dimension:', i, 'Size:', shape_(i)
-         do j = i, i + shape_(i)
-            write(*,*) data_(j)
-         end do
-      end do
-
-
-
-      write (*, *) 'End of array'
-      write (*, *) ''
-  end subroutine ndarray_print  
-end module nd_array_mod
-
 Module api
-   use nd_array_mod
+   use ND_Arrays
    use vpm_lib
    use vpm_vars
    use vpm_size
    use openmpth
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
-
-   private
-   real(c_double), dimension(:), allocatable, target :: test_array
-   type(nd_array_t), target :: test_ndarr
 
    !private ::  starttime,endtime,st,et,ct
    !private ::  nb_i,nb_j,nb_k,NBB,NXbl,NYbl,NZbl,BLOCKS,NXB,NYB,NZB,ndumcell_coarse ,ndumcell_bl
@@ -125,6 +22,7 @@ contains
       use vpm_size, only: NREMESH, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
       use pmeshpar, only: IDVPM
       use openmpth, only: OMPTHREADS
+      use parvar, only: set_neq
       use MPI
 
       ! Declare the parameters to be passed in
@@ -183,6 +81,8 @@ contains
 
       ! OPENMPTH
       OMPTHREADS = omp_threads
+
+      call set_neq(3)
 
    end subroutine initialize
 
@@ -256,57 +156,35 @@ contains
       real(c_double), intent(inout), target :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
       real(c_double), intent(inout), target :: UP_in(3, NVR_in), GP_in(3, NVR_in)
       real(c_double), intent(inout), pointer :: RHS_pm_in(:, :, :, :), velx(:, :, :), vely(:, :, :), velz(:, :, :)
+      integer :: ierr, my_rank 
 
-      integer :: ierr, my_rank !, i, j, k, l
-
-      ! Get the rank of the process
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
       if (ierr .ne. 0) then
          print *, 'Error getting the rank of the process'
          stop
       end if
-
-      ! print *, char(9), 'Calling VPM API. Rank: ', my_rank
-      ! CALL THE VPM Subroutine
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                RHS_pm_in, velx, vely, velz, NTIME_in, NI_in, NVRM_in)
-      ! print *, char(9), 'VPM API Returned. Rank: ', my_rank
-
    End Subroutine call_vpm
 
-   Subroutine call_remesh_particles_3d(iflag) bind(C, name='remesh_particles_3d')
-      ! use vpm_vars
-      ! use vpm_size
-      ! use pmeshpar
-      ! use parvar
-      ! use pmgrid
-      ! use pmlib
-      ! use projlib
-      ! use yapslib
-      ! use openmpth
+   Subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
       use vpm_lib, only: remesh_particles_3d
-      use MPI
+      use ND_Arrays
 
       implicit none
       integer(c_int), intent(in) :: iflag
-      integer :: ierr, my_rank
-      double precision, allocatable, target :: XP_out(:, :), QP_out(:, :)
-      integer :: NVR_out
-      
+      type(ND_Array), intent(out), target :: XP_arr, QP_arr, GP_arr, UP_arr
+      integer(c_int), intent(out) :: NVR_out
 
-      ! Print all the arguments one by one
-      call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
-      if (ierr .ne. 0) then
-         print *, 'Error getting the rank of the process'
-         stop
-      end if
-      
-      ! print *, 'Calling REMESH PARTICLES 3D. Entry point: API. Rank: ', my_rank
-      call remesh_particles_3d(iflag, XP_out, QP_out, NVR_out)
+      ! Local variables
+      double precision, allocatable, target :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
 
-      ! Convert the arguments back to the original type
+      call remesh_particles_3d(iflag, XP_out, QP_out, GP_out, UP_out, NVR_out)
+      XP_arr = from_intrinsic(XP_out, shape(XP_out))
+      QP_arr = from_intrinsic(QP_out, shape(QP_out))
+      GP_arr = from_intrinsic(GP_out, shape(GP_out))
+      UP_arr = from_intrinsic(UP_out, shape(UP_out))
 
-      ! write (*, *) 'REMESH_PARTICLES_3D API FINISHED. Rank: ', my_rank
    End Subroutine call_remesh_particles_3d
 
    subroutine pmgrid_set_RHS_pm(RHS_pm_in,size1, size2, size3, size4) bind(C, name='set_RHS_pm')
@@ -326,77 +204,6 @@ contains
 
       neqpm_out = neqpm
    end subroutine get_neqpm
-
-   subroutine get_nvr(NVR_out) bind(C, name='get_num_particles')
-      use parvar, only: NVR
-      implicit none
-      integer(c_int) :: NVR_out
-
-      NVR_out = NVR
-   end subroutine get_nvr
-
-   subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
-      use parvar, only: XP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(3, NVR) :: XP_out
-      XP_out = XP
-   end subroutine get_particle_positions
-
-   subroutine set_particle_positions(XP_in) bind(C, name='set_particle_positions')
-      use parvar, only: XP, NVR
-      implicit none
-      real(c_double), dimension(3, NVR) :: XP_in
-      XP = XP_in
-   end subroutine set_particle_positions
-
-   subroutine get_particle_strengths(QP_out) bind(C, name='get_particle_strengths')
-      use parvar, only: QP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(neqpm + 1, NVR) :: QP_out
-      QP_out = QP
-   end subroutine get_particle_strengths
-
-   subroutine set_particle_strengths(QP_in) bind(C, name='set_particle_strengths')
-      use parvar, only: QP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(neqpm + 1, NVR) :: QP_in
-      QP = QP_in
-   end subroutine set_particle_strengths
-
-   subroutine get_particle_velocities(UP_out) bind(C, name='get_particle_velocities')
-      use parvar, only: UP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(3, NVR) :: UP_out
-      UP_out = UP
-   end subroutine get_particle_velocities
-
-   subroutine set_particle_velocities(UP_in) bind(C, name='set_particle_velocities')
-      use parvar, only: UP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(3, NVR) :: UP_in
-      UP = UP_in
-   end subroutine set_particle_velocities
-
-   subroutine get_particle_deformation(GP_out) bind(C, name='get_particle_deformation')
-      use parvar, only: GP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(3, NVR) :: GP_out
-      GP_out = GP
-   end subroutine get_particle_deformation
-
-   subroutine set_particle_deformation(GP_in) bind(C, name='set_particle_deformation')
-      use parvar, only: GP, NVR
-      use vpm_vars, only: neqpm
-      implicit none
-      real(c_double), dimension(3, NVR) :: GP_in
-      GP = GP_in
-   end subroutine set_particle_deformation
 
    Subroutine get_velocity_pm(velx_out, vely_out, velz_out) bind(C, name='get_velocity_pm')
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm
@@ -461,10 +268,11 @@ contains
       use vpm_size, only: get_Xbound
       implicit none
       real(c_double), dimension(6) :: Xbound_out
-
       call get_Xbound(Xbound_out)
    End Subroutine pmgrid_get_Xbound
 
+
+   !! LIBRARY PRINTS
    Subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
       use pmeshpar, only: print_pmeshpar_info
       implicit none
@@ -508,98 +316,5 @@ contains
 
       call print_parvar_info()
    End Subroutine print_parvar
-
-!!!!!!!!!!!!!!!!!!!!!!!!!! TESTS
-   subroutine print_array() bind(C, name='print_array')
-      use ISO_C_BINDING
-      implicit none
-      integer :: i
-
-      write(*,*) 'Array in Fortran:'
-      do i = 1, size(test_array)
-         write(*,*) test_array(i)
-      end do
-   end subroutine
-
-   subroutine init_array(n) bind(C, name='init_array')
-      use ISO_C_BINDING
-      implicit none
-      integer(C_INT), value :: n
-      integer :: i
-
-      if (allocated(test_array)) deallocate(test_array)  ! Deallocate if already allocated
-      allocate(test_array(n))
-
-      do i = 1, n
-         test_array(i) = i * 1.0 
-      end do
-   end subroutine
-
-   subroutine change_array() bind(C, name='change_array')
-      use ISO_C_BINDING
-      implicit none
-      integer :: i
-
-      do i = 1, size(test_array)
-         test_array(i) = test_array(i) * 2.0
-      end do
-   end subroutine
-
-   function get_module_array() result(array) bind(C, name='get_module_array')
-      use ISO_C_BINDING
-      implicit none
-      type(C_PTR) :: array
-
-      array = C_LOC(test_array)  ! Get the C pointer to the module array
-   end function
-
-   subroutine free_array() bind(C, name='free_array')
-      use ISO_C_BINDING
-      implicit none
-
-      if (allocated(test_array)) deallocate(test_array)
-   end subroutine
-
-   Subroutine init_ndarray(arr_shape, ndims) bind(C, name='init_ndarray')
-      use ISO_C_BINDING
-      use nd_array_mod
-      implicit none
-      integer(c_int) :: ndims
-      integer(c_int), dimension(ndims) , intent(in) :: arr_shape
-      test_ndarr = create_nd_array(ndims, arr_shape)
-   end Subroutine init_ndarray
-
-   Subroutine free_ndarray() bind(C, name='free_ndarray')
-      use ISO_C_BINDING
-      use nd_array_mod
-      implicit none
-
-      call destroy_nd_array(test_ndarr)
-   end Subroutine free_ndarray
-
-   function get_ndarray_data_ptr() result(array) bind(C, name='get_ndarray_data_ptr')
-      use ISO_C_BINDING
-      use nd_array_mod
-      implicit none
-      type(C_PTR) :: array
-      real(C_DOUBLE), dimension(:), pointer :: data_
-      real(C_DOUBLE), dimension(:), allocatable, target :: temp_data
-      
-      print *, '1 Getting ND Array Data Pointer'
-      data_ = get_nd_array_data_ptr(test_ndarr)
-      print *, '2 Got Something'
-
-      temp_data = data_
-      array = C_LOC(temp_data)  ! Get the C pointer to the module array
-
-   end function get_ndarray_data_ptr
-
-   Subroutine print_ndarray() bind(C, name='print_ndarray')
-      use ISO_C_BINDING
-      use nd_array_mod
-      implicit none
-
-      call ndarray_print(test_ndarr)
-   end Subroutine print_ndarray
 
 End Module api

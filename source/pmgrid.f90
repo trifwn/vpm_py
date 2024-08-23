@@ -405,5 +405,9 @@ contains
       print *, achar(9), "NBlocks: ", NBlocks
    end Subroutine print_pmgrid_info
 
+   Subroutine print_RHS_pm()
+      use io, only: dp_4d_alloc_info 
+      call dp_4d_alloc_info("RHS_pm", RHS_pm) 
+   end Subroutine print_RHS_pm
 
 end module pmgrid

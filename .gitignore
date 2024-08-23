@@ -12,3 +12,4 @@ vpm_py.egg-info/
 .vscode
 fort*
 **/sol/** 
+vpm_py/shared_libs

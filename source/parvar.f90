@@ -11,84 +11,12 @@ module parvar
    !   -->6 Mass
    !   -->7 Volume
    integer, allocatable, save         :: NVR_projtype(:)
+   integer, save                      :: neq
 
-   ! double precision, allocatable        :: XP_CFD_Sa(:, :), UT_CFD_Sa(:), UN_CFD_Sa(:), &
-      ! DS_CFD_Sa(:), Vo_CFD_Sa(:)
-
-   ! Getters
-   public :: get_NVR, get_XP, get_QP, get_UP, get_GP, get_NVR_projtype
-   ! Setters
-   public :: set_NVR, set_XP, set_QP, set_UP, set_GP, set_NVR_projtype
    ! Printers
    public :: print_parvar_info
 
 contains
-
-   !!!!!!!!!!!!!!!!!!!!!!!
-   ! Getters
-   !!!!!!!!!!!!!!!!!!!!!!!
-   function get_NVR() result(NVR_)
-      integer :: NVR_
-      NVR_ = NVR
-   end function get_NVR
-
-   function get_XP() result(XP_)
-      double precision, pointer :: XP_(:, :)
-      XP_ => XP
-   end function get_XP
-
-   function get_QP() result(QP_)
-      double precision, pointer :: QP_(:, :)
-      QP_ => QP
-   end function get_QP
-
-   function get_UP() result(UP_)
-      double precision, pointer :: UP_(:, :)
-      UP_ => UP
-   end function get_UP
-
-   function get_GP() result(GP_)
-      double precision, pointer :: GP_(:, :)
-      GP_ => GP
-   end function get_GP
-
-   function get_NVR_projtype() result(NVR_projtype_)
-      integer, allocatable :: NVR_projtype_(:)
-      NVR_projtype_ = NVR_projtype
-   end function get_NVR_projtype
-
-   !!!!!!!!!!!!!!!!!!!!!!!
-   ! Setters
-   !!!!!!!!!!!!!!!!!!!!!!!
-   subroutine set_NVR(NVR_)
-      integer, intent(in) :: NVR_
-      NVR = NVR_
-   end subroutine set_NVR
-
-   subroutine set_XP(XP_)
-      double precision, pointer, intent(in) :: XP_(:, :)
-      XP => XP_
-   end subroutine set_XP
-
-   subroutine set_QP(QP_)
-      double precision, pointer, intent(in) :: QP_(:, :)
-      QP => QP_
-   end subroutine set_QP
-
-   subroutine set_UP(UP_)
-      double precision, pointer, intent(in) :: UP_(:, :)
-      UP => UP_
-   end subroutine set_UP
-
-   subroutine set_GP(GP_)
-      double precision, pointer, intent(in) :: GP_(:, :)
-      GP => GP_
-   end subroutine set_GP
-
-   subroutine set_NVR_projtype(NVR_projtype_)
-      integer, intent(in) :: NVR_projtype_(:)
-      NVR_projtype = NVR_projtype_
-   end subroutine set_NVR_projtype
 
    !!!!!!!!!!!!!!!!!!!!!!!
    ! Printers
@@ -107,6 +35,92 @@ contains
 
    end subroutine print_parvar_info
 
+   subroutine print_particle_info() bind(C, name='print_particles')
+      integer :: i
+      do i = 1, NVR
+         write(*, "(A, 1I5, A, 3F15.5)") "Particle X", i, "->", XP(1, i), XP(2, i), XP(3, i)
+         write(*, "(A, 1I5, A, 6F15.5)") "Particle U", i, "->", UP(1, i), UP(2, i), UP(3, i)
+         write(*, "(A, 1I5, A, 6F15.5)") "Particle G", i, "->", GP(1, i), GP(2, i), GP(3, i)
+         write(*, "(A, 1I5, A, 6F15.5)") "Particle Q", i, "->", QP(1, i), QP(2, i), QP(3, i), QP(4, i)
+         write (*, *) ""
+      end do
+   end subroutine print_particle_info
 
+   !!!!!!!!!!!!!!!!!!!!!!!
+   ! Setters and Getters
+   !!!!!!!!!!!!!!!!!!!!!!!
 
+   Subroutine set_neq(neq_in)
+      implicit none
+      integer, intent(in):: neq_in
+      neq = neq_in
+   end subroutine set_neq
+
+   subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
+      use iso_c_binding
+      use ND_Arrays
+      implicit none
+      type(ND_Array), intent(out) :: XP_out
+      XP_out = from_intrinsic(XP, shape(XP))
+   end subroutine get_particle_positions
+
+   subroutine get_particle_strengths(QP_out) bind(C, name='get_particle_strengths')
+      use iso_c_binding
+      use ND_Arrays
+      implicit none
+      type(ND_Array), intent(out) :: QP_out
+      QP_out = from_intrinsic(QP, shape(QP))
+   end subroutine get_particle_strengths
+
+   subroutine get_particle_deformation(GP_out) bind(C, name='get_particle_deformation')
+      use iso_c_binding
+      use ND_Arrays
+      implicit none
+      type(ND_Array), intent(out) :: GP_out
+      GP_out = from_intrinsic(GP, shape(GP))
+   end subroutine get_particle_deformation
+
+   subroutine get_particle_velocities(UP_out) bind(C, name='get_particle_velocities')
+      use iso_c_binding
+      use ND_Arrays
+      implicit none
+      type(ND_Array), intent(out) :: UP_out
+      UP_out = from_intrinsic(UP, shape(UP))
+   end subroutine get_particle_velocities
+
+   subroutine set_particle_positions(XP_in) bind(C, name='set_particle_positions')
+      use iso_c_binding
+      implicit none
+      real(c_double), dimension(3, NVR) :: XP_in
+      XP = XP_in
+   end subroutine set_particle_positions
+
+   subroutine set_particle_strengths(QP_in) bind(C, name='set_particle_strengths')
+      use iso_c_binding
+      implicit none
+      real(c_double), dimension(neq + 1, NVR) :: QP_in
+      QP = QP_in
+   end subroutine set_particle_strengths
+
+   subroutine set_particle_velocities(UP_in) bind(C, name='set_particle_velocities')
+      use iso_c_binding
+      implicit none
+      real(c_double), dimension(3, NVR) :: UP_in
+      UP = UP_in
+   end subroutine set_particle_velocities
+
+   subroutine set_particle_deformation(GP_in) bind(C, name='set_particle_deformation')
+      use iso_c_binding
+      implicit none
+      real(c_double), dimension(3, NVR) :: GP_in
+      GP = GP_in
+   end subroutine set_particle_deformation
+
+   subroutine get_nvr(NVR_out) bind(C, name='get_num_particles')
+      use iso_c_binding
+      implicit none
+      integer(c_int) :: NVR_out
+
+      NVR_out = NVR
+   end subroutine get_nvr
 end module parvar
