@@ -12,6 +12,7 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    use pmeshpar, only: NPAR_CELL, IDVPM, ND
 
    use parvar, only: NVR, XP, QP, GP, UP
+   use base_types, only: dp
    ! use openmpth, only: OMPTHREADS
    use MPI
 
@@ -278,6 +279,7 @@ End Subroutine remesh_particles_3d
 Subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
    use openmpth
    use projlib, only: projection_fun
+   use base_types, only: dp
    Implicit None
    integer, intent(in)             :: NN(3), NVR, iproj
    ! real(dp), intent(in), dimension(:, :, :, :) :: RHS_pm
@@ -404,6 +406,7 @@ end function cell3d_interp_euler
 !>@param [out] KSI(2*N),HTA(2*N) local position
 !--------------------------------------------------------------------------------
 Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
+   use base_types, only: dp
    Implicit None
 
    integer, intent(in)           :: M

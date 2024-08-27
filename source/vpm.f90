@@ -7,7 +7,10 @@ Module vpm_lib
    use base_types, only: dp
    use vpm_vars
    use vpm_size
+   ! SPEED 
    use openmpth
+   use MPI
+   use mkl_service
    !  WhatToDo flags
    integer, parameter :: DEFINE_PROBLEM = 0,                                        &
                          SOLVE_VELOCITY = 1,                                        &
@@ -46,8 +49,6 @@ contains
       use projlib, only: projlibinit, project_particles_3D, project_vol3d
       use yapslib, only: yaps3d
       ! use openmpth, only: OMPTHREADS
-      use MPI
-      use mkl_service
 
       Implicit None
 

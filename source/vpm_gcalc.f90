@@ -161,7 +161,8 @@ Subroutine diffuse_vort_3d
    DYpm2 = DYpm**2
    DZpm2 = DZpm**2
    Sol_pm = 0.d0
-   !$omp parallel private(i,j,k,dwxdx,dwydy,dwzdz,VIS) num_threads(OMPTHREADS)
+   !$omp parallel private(i,j,k,dwxdx,dwydy,dwzdz,VIS) shared(RHS_pm,SOL_pm)
+   ! num_threads(OMPTHREADS)
    !$omp do
    do k = NZs_bl(1) + 1, NZf_bl(1) - 1
       do j = NYs_bl(1) + 1, NYf_bl(1) - 1

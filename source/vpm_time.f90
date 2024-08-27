@@ -26,6 +26,7 @@ Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
 
    use openmpth
    use projlib, only: projection_fun
+   use base_types, only: dp
    Implicit None
    integer, intent(in)             :: NN(3), NVR, iproj,  neqpm, NVRM, itype
    ! real(dp), intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
@@ -34,15 +35,10 @@ Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
 
    ! OLD
    ! real(dp), intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
-   !f2py depend(neqpm, NN) :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    real(dp), intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
-   !f2py depend(neqpm, NN) :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
    real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
-   !f2py depend(NN) :: velvrx_pm(NN(1), NN(2), NN(3))
    real(dp), intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
-   !f2py depend(NN) :: velvry_pm(NN(1), NN(2), NN(3))
    real(dp), intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
-   !f2py depend(NN) :: velvrz_pm(NN(1), NN(2), NN(3))
 
    real(dp), intent(in)    :: Xbound(6), Dpm(3)
 

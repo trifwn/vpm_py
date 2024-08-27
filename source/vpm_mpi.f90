@@ -4,11 +4,9 @@ Subroutine rhsbcast(RHS_pm, NN, neq)
    use mpi_matrices, only: mpimat4
    Implicit None
 
-   integer, intent(in)                                                  :: NN(3), neq
-   ! real(dp), dimension(:,:,:,:), intent(inout)                  :: RHS_pm
-   real(dp), dimension(neq, NN(1), NN(2), NN(3)), intent(inout)    :: RHS_pm
-   !f2py depend(neq, NN) :: RHS_pm(neq, NN(1), NN(2), NN(3))
-   integer                                                              :: my_rank, np, ierr, mat4
+   integer, intent(in)                                            :: NN(3), neq
+   real(dp), dimension(neq, NN(1), NN(2), NN(3)), intent(inout)   :: RHS_pm
+   integer                                                        :: my_rank, np, ierr, mat4
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)

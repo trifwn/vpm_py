@@ -2,7 +2,7 @@ module constants
     use base_types, only: dp
     implicit none
     private
-    public pi,pi2,pi4, e, I
+    public :: pi,pi2,pi4, e, I
     ! Constants contain more digits than double precision, so that
     ! they are rounded correctly:
     real(dp), parameter :: pi   = 3.1415926535897932384626433832795_dp
