@@ -1,6 +1,7 @@
 import numpy as np
 import ctypes
 from ctypes import c_int,  byref, POINTER, c_double, cast, cdll, Structure
+from ctypes.util import find_library
 from ctypes import CDLL
 from tempfile import NamedTemporaryFile
 import os
@@ -8,11 +9,7 @@ import glob
 from shutil import copy2
 from typing import Any
 
-print_green = lambda x: print(f"\033[92m{x}\033[00m")
-def print_IMPORTANT(text):
-    print(f"\033[93m{'-'*100}\033[00m")
-    print(f"\033[91m{text}\033[00m")
-    print(f"\033[93m{'-'*100}\033[00m")
+from vpm_py.vpm_io import print_red, print_green, print_IMPORTANT
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
@@ -27,7 +24,7 @@ class F_Array_Struct(ctypes.Structure):
         ("data_ptr", POINTER(c_double)) # Pointer to the data array (array of doubles)
     ]
 
-    def __init__(self, ndims=0, total_size=10, shape_ptr=None, data_ptr=None):
+    def __init__(self, ndims=0, total_size=0, shape_ptr=None, data_ptr=None):
         super().__init__()
         self.ndims = c_int(ndims)
         self.total_size = c_int(total_size)
@@ -46,21 +43,26 @@ class F_Array_Struct(ctypes.Structure):
 class F_Array(object):
     _lib_array: CDLL = None  
     _lib_array_path = None
+    libc = None
 
-    def __init__(self, shape):
+    def __init__(self, shape, data_container=None):
         if not F_Array._lib_array:
             F_Array._load_library()
         self.ndims = len(shape)
-        self.total_size = int(np.prod(shape))
-        
-        self.shape_np = np.array(shape, dtype=np.int32, order='C')
-        self.data_np = np.zeros(shape, dtype=np.float64, order='C')
-
-        self.shape_ptr = self.shape_np.ctypes.data_as(POINTER(c_int))
-        self.data_ptr =  self.data_np.ctypes.data_as(POINTER(c_double))
-
-        array_struct = self._lib_array.create_dtype(
-            c_int(self.ndims), c_int(self.total_size), self.shape_ptr, self.data_ptr 
+        self.total_size = int(np.prod(shape)) # Total size of the data array
+        self.shape_container = np.array(shape, dtype=np.int32, order='F')
+        if data_container is not None:
+            self.data_container = data_container
+        else:
+            self.data_container = np.zeros(shape, dtype=np.float64, order='F')
+        data_dtype = (c_double)
+        for dim in shape:
+            data_dtype = data_dtype * dim
+        self.data_ptr_type = data_dtype
+        self.shape_ptr = self.shape_container.ctypes.data_as(POINTER(c_int * self.ndims))
+        self.data_ptr =  self.data_container.ctypes.data_as(POINTER(data_dtype))
+        _ = self._lib_array.create_dtype(
+            c_int(self.ndims), c_int(self.total_size), self.shape_ptr[0], self.data_ptr[0][0]
         )
 
     @classmethod
@@ -70,6 +72,8 @@ class F_Array(object):
         F_Array._lib_array = cdll.LoadLibrary(copy2(lib_arrays_path, tmp.name))
         F_Array._lib_array_path = tmp.name
         F_Array._setup_function_signatures()
+        F_Array.libc = CDLL(find_library('c'))
+
     
     @classmethod
     def _setup_function_signatures(cls):
@@ -88,28 +92,35 @@ class F_Array(object):
 
     @classmethod
     def from_ctype(self, array_struct):
-        shape_ptr = array_struct.shape_ptr
-        data_ptr = array_struct.data_ptr
+        # Get the shape from the shape pointer
         ndims = array_struct.ndims
-        total_size = array_struct.total_size
-        arr = F_Array(np.zeros(ndims, dtype=np.int32))
-        arr.shape_ptr = shape_ptr
-        arr.data_ptr = data_ptr
-        arr.ndims = ndims
-        arr.total_size = total_size
+        shape_ptr = array_struct.shape_ptr
+        shape_ptr = cast(shape_ptr, POINTER(c_int * ndims))
+        shape = np.frombuffer(
+            shape_ptr.contents, 
+            dtype=np.int32,
+            count=ndims
+        )
+        data_ptr = array_struct.data_ptr
+        data_ptr = cast(data_ptr, POINTER(c_double*array_struct.total_size))
+        data = np.asarray(data_ptr.contents, dtype=np.float64).reshape(shape, order='F')
+        
+        arr = F_Array(shape, data_container=data)
         return arr
     
     @classmethod
     def from_ndarray(self, np_array):
-        arr = F_Array(np_array.shape)
-        arr.data[:] = np_array
+        # If the array is not Fortran ordered, make it Fortran ordered
+        if not np_array.flags['F_CONTIGUOUS']:
+            np_array = np.asfortranarray(np_array, dtype=np.float64)
+        arr = F_Array(np_array.shape, data_container=np_array)
         return arr
     
     def to_numpy(self):
         return self.data
     
     def to_ctype(self):
-        return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr, self.data_ptr)
+        return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr[0][0])
 
     def print_in_fortran(self):
         array_struct = self.to_ctype()
@@ -117,7 +128,7 @@ class F_Array(object):
 
     def _call_fortran_op(self, other: "F_Array", op: str):
         # Call Fortran operation
-        result_array = F_Array(np.array(self.shape, copy=True))
+        result_array = F_Array(np.array(self.shape, copy=True, dtype=np.float64))
 
         if op == 'add':
             self._lib_array.add(byref(self.to_ctype()), byref(other.to_ctype()), byref(result_array.to_ctype()))
@@ -182,20 +193,22 @@ class F_Array(object):
             # Ensure to call free_array correctly
             # Free the memory allocated by the Fortran code
             self._lib_array.free_array(byref(self.to_ctype()))
-            del self.array_struct
-            del self.shape_np
-            del self.data_np
+            # self.libc.free(self.data_ptr)
+            del self.data_container
+            del self.shape_container
             del self.shape_ptr
             del self.data_ptr
             del self.ndims
             del self.total_size
+            # if self._lib_array_path:
+                # os.remove(self._lib_array_path)
             del self
         except Exception as e:
             print(f"Error during deletion: {e}")
     
     def __getitem__(self, index):
         "Return the data array with the given index"
-        return self.data[index]
+        return np.asfortranarray(self.data)[index]
 
     def __setitem__(self, index, value):
         is_array = isinstance(value, F_Array)
@@ -211,28 +224,33 @@ class F_Array(object):
     
     @property
     def shape(self) -> np.ndarray[Any, np.dtype[np.int32]]:
-        shape_ptr = cast(self.shape_ptr, POINTER(c_int * self.ndims))
-        return np.ctypeslib.as_array(shape_ptr.contents, shape=[self.ndims])
+        shape = np.frombuffer(
+            cast(self.shape_ptr, POINTER(c_int * self.ndims)).contents, 
+            dtype=np.int32,
+            count=self.ndims
+        )
+        return shape
     
     @property
     def data(self)-> np.ndarray[Any, np.dtype[np.floating]]:
-        data_ptr = cast(self.data_ptr, POINTER(c_double * self.total_size))
-        data = np.ctypeslib.as_array(data_ptr.contents).reshape(self.shape)
-        return data
+        data_ = np.frombuffer(
+            cast(self.data_ptr, POINTER(self.data_ptr_type)).contents,
+            dtype =np.float64,
+            count = self.total_size,
+        ).reshape(self.shape, order='F')
+        return data_
 
     def __repr__(self):
         return f"Array with shape {self.shape}"
     
     def __str__(self):
         string = f"Array with shape {self.shape}\n"
-        string += f"Data:\n{self.data}"
+        string += f"Data:\n"
+        string += np.array2string(
+            self.data, separator=',', prefix='\t',
+            formatter={'float': lambda x: "%.3f" % x}
+        )
         return string
-
-    def __del__(self):
-        if hasattr(self, '_lib'):
-            self._lib_array.free_array(ctypes.byref(self.to_ctype()))
-            os.remove(self._lib_array_path)
-        del self
 
 def benchmark(name, func, iter = 1000, *args, **kwargs):
     import time

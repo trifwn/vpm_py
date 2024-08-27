@@ -1,14 +1,16 @@
 module test_mod
-   double precision, allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
+   use base_types, only: dp
+   real(dp), allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
                                            XPO(:, :), QPO(:, :), &
                                            XP_in(:, :), QP_in(:, :)
-   double precision, pointer:: velx(:, :, :), vely(:, :, :), velz(:, :, :)
-   double precision, pointer:: RHS_pm_in(:, :, :, :), RHS_pm_out(:, :, :, :)
+   real(dp), pointer:: velx(:, :, :), vely(:, :, :), velz(:, :, :)
+   real(dp), pointer:: RHS_pm_in(:, :, :, :), RHS_pm_out(:, :, :, :)
    integer, allocatable    :: qflag(:)
    integer :: NVR_ext, NVR_ext_init
 end module test_mod
 
 Program test_pm
+   use base_types, only: dp
    use pmgrid, only:    XMIN_pm, NXs_bl, DXpm, DYpm, DZpm, EPSVOL
    use vpm_vars, only:  mrem, interf_iproj, ncoarse, ncell_rem, iynslice, &
                         IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
@@ -25,7 +27,7 @@ Program test_pm
    use MPI
 
    Implicit None
-   double precision              :: Vref, NI_in, DT_in, RMETM, FACDEF, T, &
+   real(dp)              :: Vref, NI_in, DT_in, RMETM, FACDEF, T, &
                                     XMIN, XMAX, UINF(3)
    integer                       :: NVR_MAX
    integer                       :: my_rank, np, ierr, i, neq, j, TMAX
@@ -322,6 +324,7 @@ Program test_pm
 end Program test_pm
 
 Subroutine find_par_out
+   use base_types, only: dp
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm, &
                      NXf_bl, NXs_bl, NYf_bl, NYs_bl, NZf_bl, NZs_bl, &
                      NXpm, NYpm, NZpm
@@ -332,9 +335,9 @@ Subroutine find_par_out
    integer  :: neq
    integer  :: i, NVR_in, NVR_out, NVR_out_max
    integer, allocatable :: NVR_projout(:)
-   double precision             :: XMAX, XMIN, YMAX, YMIN, ZMIN, ZMAX, EPSX, EPSY, EPSZ
-   double precision             :: xc, yc, zc, dx, dy, dz
-   double precision, allocatable :: XP_out(:, :), QP_out(:, :), XP_tmp(:, :), QP_tmp(:, :)
+   real(dp)             :: XMAX, XMIN, YMAX, YMIN, ZMIN, ZMAX, EPSX, EPSY, EPSZ
+   real(dp)             :: xc, yc, zc, dx, dy, dz
+   real(dp), allocatable :: XP_out(:, :), QP_out(:, :), XP_tmp(:, :), QP_tmp(:, :)
    ! character *50                ::filout
 
    !an eps for arithmetic reasons
@@ -413,6 +416,7 @@ Subroutine find_par_out
 End Subroutine find_par_out
 
 Subroutine find_par_in(T_in, U)
+   use base_types, only: dp
    use vpm_vars, only: neqpm, mrem
    use test_mod, only: Qflag, QPO, QP_in, XPO, XP_in, NVR_ext, XPR, QPR, NVR_ext_init
    use pmgrid, only: XMIN_pm, NXs_bl, DXpm, NXpm, NYpm, NZpm
@@ -423,11 +427,11 @@ Subroutine find_par_in(T_in, U)
    !
 
    Implicit None
-   double precision, intent(in):: T_in, U
-   double precision           :: XO, XMIN
+   real(dp), intent(in):: T_in, U
+   real(dp)           :: XO, XMIN
    integer                    :: NVR_in, neq
    integer  :: i, NVR_in_max
-   double precision, allocatable :: XP_tmp(:, :), QP_tmp(:, :)
+   real(dp), allocatable :: XP_tmp(:, :), QP_tmp(:, :)
 
    ! Find the inflow particles
    XMIN = XMIN_pm + (NXs_bl(1) + 4 - 1)*DXpm
@@ -494,6 +498,7 @@ Subroutine find_par_in(T_in, U)
 End Subroutine find_par_in
 
 Subroutine move_par_out(DT)
+   use base_types, only: dp
    use vpm_vars, only: interf_iproj
    use test_mod, only: NVR_ext, XPR, UPR
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, NXf_bl, NXs_bl, &
@@ -503,10 +508,10 @@ Subroutine move_par_out(DT)
    ! It moves the particles out of the domain if they are outside the domain
    
    Implicit None
-   double precision, intent(in)::DT
+   real(dp), intent(in)::DT
    integer  :: i
-   double precision             :: XMAX, XMIN, YMAX, YMIN, ZMIN, ZMAX, EPSX, EPSY, EPSZ
-   double precision             :: xc, yc, zc, dx, dy, dz
+   real(dp)             :: XMAX, XMIN, YMAX, YMIN, ZMIN, ZMAX, EPSX, EPSY, EPSZ
+   real(dp)             :: xc, yc, zc, dx, dy, dz
    ! character *50                ::filout
 
    !an eps for arithmetic reasons
@@ -547,8 +552,8 @@ End Subroutine move_par_out
 !                      DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm
 
 !    Implicit None
-!    double precision, intent(in) :: UINF(3)
-!    double precision :: X(8), Y(8), Z(8)
+!    real(dp), intent(in) :: UINF(3)
+!    real(dp) :: X(8), Y(8), Z(8)
 !    integer :: nxfin, nxstart, nyfin, nystart, nzfin, nzstart, NXpm1, NYpm1, NZpm1
 !    integer :: i, j, k, npar
 !    nxfin = NXf_bl(1) - interf_iproj/2

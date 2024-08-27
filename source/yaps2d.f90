@@ -11,12 +11,12 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    integer, intent(in)            :: ND, BLOCKS, NNbl(3, BLOCKS), NNBl_bl(6, BLOCKS)
    integer, intent(in)            :: NN_coarse(3), NN_bl_coarse(6), nb_i, nb_j, NBI, NBJ
 
-   double precision, intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
-   double precision, intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
-   double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
+   real(dp), intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
+   real(dp), intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
+   real(dp), intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
 
-   double precision, allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
-   double precision             :: Xbound_tmp(6)
+   real(dp), allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
+   real(dp)             :: Xbound_tmp(6)
    integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, itree, lmax, ibctyp_c
 
    !Assign variables
@@ -288,8 +288,8 @@ contains
 
       integer :: i_nb, j_nb, icnb, jcnb, inode1, jnode1, nbc, nb_plus, nb_minus, i_check, j_check, ik, jk
       integer :: nod, ibound, isizex, isizey, i_plus, j_plus, i_minus, j_minus
-      double precision :: X1(3)
-      double precision, allocatable :: Bound_sol(:, :)
+      real(dp) :: X1(3)
+      real(dp), allocatable :: Bound_sol(:, :)
       integer  :: status(MPI_STATUS_SIZE), source, ierr, mat2, dest
 
       NXs = NNbl_bl(1, nb)
@@ -564,7 +564,7 @@ contains
 
    Subroutine interp_stencil
       use projlib, only: projection_fun
-      double precision :: addlocal, X1(2), add(neq), add_sample(neq)
+      real(dp) :: addlocal, X1(2), add(neq), add_sample(neq)
       integer          :: inode1, jnode1, i_nb, j_nb
 
       iproj = 3
@@ -627,8 +627,8 @@ contains
       Implicit none
 
       integer, intent(in) :: NN(3), NN_bl(6), NN_map(6), neqs, neqf, npmsize
-      double precision, intent(out)   :: RHS_pm(npmsize, NN(1), NN(2), NN(3))
-      double precision, intent(in)    :: SOL_pm(npmsize, NN(1), NN(2), NN(3)), Dpm(3)
+      real(dp), intent(out)   :: RHS_pm(npmsize, NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: SOL_pm(npmsize, NN(1), NN(2), NN(3)), Dpm(3)
       integer                        :: i, j
 
       RHS_pm = 0.d0

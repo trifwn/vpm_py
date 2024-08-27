@@ -1,5 +1,6 @@
 module ND_Arrays
   use ISO_C_BINDING
+  use base_types, only: dp
   implicit none
 
     type, bind(C) :: ND_Array
@@ -13,8 +14,17 @@ module ND_Arrays
         ! type(ND_Array), pointer :: parent_arr  ! Pointer to the parent array
         
         ! integer :: data_location       ! 0: Fortran, 1: C
-        ! double precision , allocatable :: data_arr(:)
+        ! real(dp) , allocatable :: data_arr(:)
     end type ND_Array
+
+    ! Create a new type that includes the data array it should inherit from the ND_Array type
+    ! type, extends(ND_Array) :: F_Array
+    !     type(C_PTR) :: shape_ptr
+    !     type(C_PTR) :: data_ptr
+    !     integer :: ndims
+    !     integer :: total_size
+    !     real(dp), dimension(:) :: data
+    ! end type F_Array
 
     type, bind(C) :: Pointers
         type(C_PTR) :: shape_ptr
@@ -126,7 +136,7 @@ contains
     subroutine set_element(arr, subscripts, elem)
         integer, dimension(:), intent(in) :: subscripts
         type(ND_Array), intent(inout) :: arr
-        double precision, intent(in) :: elem
+        real(dp), intent(in) :: elem
         integer :: offset, i
         real(c_double), dimension(:), pointer :: data_
         integer(c_int), dimension(:), pointer :: f_shape
@@ -233,7 +243,7 @@ contains
     subroutine add__(arr1, arr2, arr_res) bind(C, name='add')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(out) :: arr_res
+        type(ND_Array), intent(inout) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -250,18 +260,20 @@ contains
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
         call C_F_POINTER(arr_res%data_ptr, data_res, [arr_res%total_size])
 
-        !$OMP PARALLEL DO
-        do i = 1, arr1%total_size
-            data_res(i) = data1(i) + data2(i)
-        end do
-        !$OMP END PARALLEL DO
+        !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
+            !$OMP DO
+            do i = 1, arr1%total_size
+                data_res(i) = data1(i) + data2(i)
+            end do
+            !$OMP END DO
+        !$OMP END PARALLEL
 
     end subroutine add__
 
     subroutine sub__(arr1, arr2, arr_res) bind(C, name='sub')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(out) :: arr_res
+        type(ND_Array), intent(inout) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -278,18 +290,20 @@ contains
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
         call C_F_POINTER(arr_res%data_ptr, data_res, [arr_res%total_size])
 
-        !$OMP PARALLEL DO
-        do i = 1, arr1%total_size
-            data_res(i) = data1(i) - data2(i)
-        end do
-        !$OMP END PARALLEL DO
+        !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
+            !$OMP DO
+            do i = 1, arr1%total_size
+                data_res(i) = data1(i) - data2(i)
+            end do
+            !$OMP END DO
+        !$OMP END PARALLEL
 
     end subroutine sub__
 
     subroutine mul__(arr1, arr2, arr_res) bind(C, name='mul')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(out) :: arr_res
+        type(ND_Array), intent(inout) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -306,18 +320,20 @@ contains
         call C_F_POINTER(arr1%data_ptr, data1, [arr1%total_size])
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
 
-        !$OMP PARALLEL DO
-        do i = 1, arr1%total_size
-            data_res(i) = data1(i) * data2(i)
-        end do
-        !$OMP END PARALLEL DO
+        !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
+            !$OMP DO
+            do i = 1, arr1%total_size
+                data_res(i) = data1(i) * data2(i)
+            end do
+            !$OMP END DO
+        !$OMP END PARALLEL
 
     end subroutine mul__
 
     subroutine div__(arr1, arr2, arr_res) bind(C, name='div')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(out) :: arr_res
+        type(ND_Array), intent(inout) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -334,11 +350,14 @@ contains
         call C_F_POINTER(arr1%data_ptr, data1, [arr1%total_size])
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
 
-        !$OMP PARALLEL DO
-        do i = 1, arr1%total_size
-            data_res(i) = data1(i) / data2(i)
-        end do
-        !$OMP END PARALLEL DO
+        
+        !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
+            !$OMP DO
+            do i = 1, arr1%total_size
+                data_res(i) = data1(i) / data2(i)
+            end do
+            !$OMP END DO
+        !$OMP END PARALLEL
 
     end subroutine div__
 
@@ -381,7 +400,7 @@ contains
     !!!!!!!!!!!!!!!!!!!!! CONVERSION FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     function from_intrinsic(data_array, shape_arr) result(arr)
         implicit none
-        real(c_double), dimension(*), intent(in), target :: data_array
+        real(c_double), dimension(*), intent(in), target :: data_array ! SHOULD BE ASSUMED-RANK INSTEAD OF ASSUMED-SIZE
         integer(c_int), dimension(:), intent(in), target :: shape_arr
         real(c_double), pointer :: first_element
         type(ND_Array) :: arr

@@ -7,22 +7,26 @@
 !>@brief This module defines the variables that will be used internally in the library
 !>       All variables are private
 module pmlib
+   use base_types, only : dp
+   use constants, only : pi, pi2, pi4
+   implicit none
    ! use MKL_POISSON
-   double precision, save              :: PI, PI2, PI4
-   double precision, save               :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   double precision, save               :: DXpm, DYpm, DZpm, DXpm2, DYpm2, DZpm2
+   real(dp), save                :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
+   real(dp), save                :: DXpm, DYpm, DZpm, DXpm2, DYpm2, DZpm2
 
-   integer, save                        :: NVR, NXpm, NYpm, NZpm, ND
-   integer, save                        :: NXs_bl(10), NYs_bl(10), NXf_bl(10), NYf_bl(10), NZs_bl(10), NZf_bl(10), NBlocks
+   integer, save                 :: NVR, NXpm, NYpm, NZpm, ND
+   integer, save                 :: NXs_bl(10), NYs_bl(10), NXf_bl(10), NYf_bl(10), NZs_bl(10), NZf_bl(10), NBlocks
 
-   integer, save                        :: nbound, levmax
-!Here pointers are defined which will be assigned in the external data to save up space
-   double precision, pointer             :: SOL_pm(:, :, :, :), RHS_pm(:, :, :, :), QP(:, :), XP(:, :)
-   double precision,allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:),x_s(:,:),y_s(:,:),z_s(:,:),d_s(:),cos_s(:),sin_s(:)
-   double precision, allocatable, save    :: source_bound_lev(:, :, :), xs_lev(:, :), ys_lev(:, :), zs_lev(:, :), ds_lev(:, :)
-   integer, allocatable, save             :: nbound_lev(:), ilev_t(:, :, :)
+   integer, save                 :: nbound, levmax
 
-   private ::PI, PI2, PI4, XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm, NVR, NXpm, NYpm, NZPm, ND
+   !Here pointers are defined which will be assigned in the external data to save up space
+   real(dp), pointer             :: SOL_pm(:, :, :, :), RHS_pm(:, :, :, :), QP(:, :), XP(:, :)
+
+   real(dp), allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:),x_s(:,:),y_s(:,:),z_s(:,:),d_s(:),cos_s(:),sin_s(:)
+   real(dp), allocatable, save   :: source_bound_lev(:, :, :), xs_lev(:, :), ys_lev(:, :), zs_lev(:, :), ds_lev(:, :)
+   integer,  allocatable, save   :: nbound_lev(:), ilev_t(:, :, :)
+
+   private ::XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm, NVR, NXpm, NYpm, NZPm, ND
    private ::NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks, DXpm2, DYpm2, DZpm2
    private ::SOL_pm, RHS_pm, SOL_0_pm, QP, XP
    private ::source_bound, x_s, y_s, z_s, d_s, cos_s, sin_s
@@ -70,20 +74,15 @@ contains
       ! use parvar, only : XP, QP
       use MPI
       Implicit None
-      integer, intent(in)                       :: ibctyp, neqs, neqf, iynbc, NVR, itree, levmax
-      double precision, intent(in)              :: Xbound(6), Dpm(3)
-      integer, intent(in)                       :: NN_bl(6), NN(3), ND, Nblocks
-      double precision, intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
-      integer                                   :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
-      ! integer                                   :: ierr, my_rank, np, rank
-      ! double precision                          :: XPM, YPM, velx, vely
-      ! double precision :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
-      ! double precision :: R, DX, DY, GreenF, nv
-
-      !--> Define PI
-      PI = 4.d0*atan(1.d0)
-      PI2 = 2.d0*PI
-      PI4 = 4.d0*PI
+      integer, intent(in)              :: ibctyp, neqs, neqf, iynbc, NVR, itree, levmax
+      real(dp), intent(in)             :: Xbound(6), Dpm(3)
+      integer, intent(in)              :: NN_bl(6), NN(3), ND, Nblocks
+      real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
+      integer                          :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
+      ! integer                        :: ierr, my_rank, np, rank
+      ! real(dp)                       :: XPM, YPM, velx, vely
+      ! real(dp)                       :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
+      ! real(dp)                       :: R, DX, DY, GreenF, nv
 
       !-->Pass the external data to the namespace of the library
       XMIN_pm = Xbound(1); YMIN_pm = Xbound(2); ZMIN_pm = Xbound(3)
@@ -237,13 +236,13 @@ contains
 !--------------------------------------------------------------------------------
    Subroutine definepm(itype, Xbound, Dpm, ND, ndum, nsize, NN, NN_bl)
       Implicit None
-      integer, intent(in)             :: itype, ND, nsize(3)
-      integer, intent(in)             :: ndum
-      double precision, intent(inout) :: Xbound(6)
-      double precision, intent(inout) :: Dpm(3)
-      integer, intent(out)            :: NN(3), NN_bl(6)
-      integer :: ndum_new(3), nn1, nn2
-      ! double precision :: Xbound_old(6)
+      integer, intent(in)     :: itype, ND, nsize(3)
+      integer, intent(in)     :: ndum
+      real(dp), intent(inout) :: Xbound(6)
+      real(dp), intent(inout) :: Dpm(3)
+      integer, intent(out)    :: NN(3), NN_bl(6)
+      integer                 :: ndum_new(3), nn1, nn2
+      ! real(dp)              :: Xbound_old(6)
 
       !-> Define Pmesh X,Y,Z min/max boundaries
       if (ND .eq. 2) then

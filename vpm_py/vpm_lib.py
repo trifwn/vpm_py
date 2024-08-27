@@ -19,7 +19,6 @@ class VPM_Lib:
         if not hasattr(cls, 'instance'):
             cls.load_lib()
             cls.instance = super(VPM_Lib, cls).__new__(cls)
-            print (f"Loaded shared library from {cls._lib_vpm_path}")
         return cls.instance
     
     @classmethod

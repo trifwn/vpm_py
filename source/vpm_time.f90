@@ -1,15 +1,9 @@
 Subroutine convect_first_order()
-   use vpm_vars
-   use pmeshpar
-   use parvar
-   use pmgrid
-   use MPI
-   use pmlib
-   use projlib
-   use yapslib
-   ! double precision, intent(in)  :: Xbound(6), Dpm(3)
+   use vpm_vars, only: DT_c
+   use parvar, only: NVR, XP, UP, GP, QP
+   ! real(dp), intent(in)  :: Xbound(6), Dpm(3)
    ! integer, intent(in)           :: NN(3), NN_bl(6)
-   ! double precision, allocatable :: QINF(:)
+   ! real(dp), allocatable :: QINF(:)
    ! integer, allocatable          :: ieq(:)
    integer                      :: i
 
@@ -34,25 +28,25 @@ Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
    use projlib, only: projection_fun
    Implicit None
    integer, intent(in)             :: NN(3), NVR, iproj,  neqpm, NVRM, itype
-   ! double precision, intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
-   ! double precision, intent(in), dimension(:,:,:) :: velvrx_pm, velvry_pm, velvrz_pm
-   double precision, intent(inout) :: QP(neqpm + 1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
+   ! real(dp), intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
+   ! real(dp), intent(in), dimension(:,:,:) :: velvrx_pm, velvry_pm, velvrz_pm
+   real(dp), intent(inout) :: QP(neqpm + 1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
    ! OLD
-   ! double precision, intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
+   ! real(dp), intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
-   double precision, intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
+   real(dp), intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
    !f2py depend(neqpm, NN) :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
-   double precision, intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
+   real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
    !f2py depend(NN) :: velvrx_pm(NN(1), NN(2), NN(3))
-   double precision, intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
+   real(dp), intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
    !f2py depend(NN) :: velvry_pm(NN(1), NN(2), NN(3))
-   double precision, intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
+   real(dp), intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
    !f2py depend(NN) :: velvrz_pm(NN(1), NN(2), NN(3))
 
-   double precision, intent(in)    :: Xbound(6), Dpm(3)
+   real(dp), intent(in)    :: Xbound(6), Dpm(3)
 
-   double precision :: fx, fy, fz, f, x, y, z, Gloc(3)
+   real(dp) :: fx, fy, fz, f, x, y, z, Gloc(3)
    integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf, DVpm
    ! integer          :: ivortx, ivorty,
    if (iproj .eq. 2) then

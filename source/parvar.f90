@@ -1,7 +1,8 @@
 module parvar
+   use base_types, only: dp
    integer                            :: NVR
-   double precision, pointer, save    :: XP(:, :), QP(:, :)
-   double precision, pointer, save    :: UP(:, :), GP(:, :)
+   real(dp), pointer, save    :: XP(:, :), QP(:, :)
+   real(dp), pointer, save    :: UP(:, :), GP(:, :)
    !     QP
    !   -->1 Vorticity X
    !   -->2 Vorticity Y
@@ -46,6 +47,13 @@ contains
       end do
    end subroutine print_particle_info
 
+   subroutine print_particle_positions() bind(C, name='print_particle_positions')
+      integer :: i
+      do i = 1, NVR
+         write(*, "(A, 1I5, A, 3F15.5)") "Particle ", i, " X ->", XP(1, i), XP(2, i), XP(3, i)
+      end do
+   end subroutine print_particle_positions
+
    !!!!!!!!!!!!!!!!!!!!!!!
    ! Setters and Getters
    !!!!!!!!!!!!!!!!!!!!!!!
@@ -57,7 +65,6 @@ contains
    end subroutine set_neq
 
    subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
-      use iso_c_binding
       use ND_Arrays
       implicit none
       type(ND_Array), intent(out) :: XP_out

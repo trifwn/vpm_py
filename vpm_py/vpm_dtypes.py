@@ -7,8 +7,8 @@ def dp_array_to_pointer(array: np.ndarray, copy = False) -> _Pointer:
     Convert a numpy array to a pointer to a double array.
     """
     # Check if the array is contiguous
-    if not array.flags['C_CONTIGUOUS']:
-        array = np.ascontiguousarray(array, dtype= np.float64)   
+    if not array.flags['F_CONTIGUOUS']:
+        array = np.asfortranarray(array ,dtype= np.float64)
     
     if copy:
         array = np.array(array, copy= True, order= 'F').reshape(array.shape)
@@ -23,11 +23,9 @@ def pointer_to_dp_array(
     """
     Convert a pointer to a double array to a numpy array.
     """
-    size_array = (c_double)
-    for dim in shape:
-        size_array *= dim
-    
-    pointer = cast(pointer, POINTER(size_array))
-    data = np.ctypeslib.as_array(pointer, shape=shape)
-    # data = np.array(data, copy= copy, order= 'F').reshape(shape)
+    pointer = cast(pointer, POINTER(c_double))
+    data = np.ctypeslib.as_array(pointer, shape= shape)
+    data = data.reshape(shape, order= 'F')
+    if copy:
+        data = np.array(data, copy= True, order= 'F')
     return data

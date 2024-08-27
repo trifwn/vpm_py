@@ -17,6 +17,11 @@ class Particles:
     def __init__(self, number_equations: int) -> None:
         self.number_equations = number_equations
         self.load_lib()
+
+        self.particle_positions = np.array([])
+        self.particle_strengths = np.array([])
+        self.particle_velocities = np.array([])
+        self.particle_deformations = np.array([])
     
     def load_lib(self):
         tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_vpm_ext)
@@ -47,8 +52,13 @@ class Particles:
         self._lib_particles.print_particles.argtypes = []
         self._lib_particles.print_particles.restype = None
     
-    def print_particles(self):
+    def print_info_fortran(self):
         self._lib_particles.print_particles()
+    
+    def print_positions_fortran(self):
+        self._lib_particles.print_particle_positions()
+    
+    # def update_positions(self, XP):
     
     @property
     def XP(self):
@@ -60,7 +70,7 @@ class Particles:
         XP_struct = XP_arr.to_ctype()
         self._lib_particles.get_particle_positions(byref(XP_struct))
         XP_arr = F_Array.from_ctype(XP_struct)
-        return XP_arr.data
+        return XP_arr
 
     @XP.setter
     def XP(self, XP):
@@ -78,8 +88,7 @@ class Particles:
         QP_struct = QP_arr.to_ctype()
         self._lib_particles.get_particle_strengths(byref(QP_struct))
         QP_arr = F_Array.from_ctype(QP_struct)
-        return QP_arr.data
-        
+        return QP_arr
 
     @QP.setter
     def QP(self, QP):
@@ -97,7 +106,7 @@ class Particles:
         UP_struct = UP_arr.to_ctype()
         self._lib_particles.get_particle_velocities(byref(UP_struct))
         UP_arr = F_Array.from_ctype(UP_struct)
-        return UP_arr.data
+        return UP_arr
         
     @UP.setter
     def UP(self, UP):
@@ -115,7 +124,7 @@ class Particles:
         GP_struct = GP_arr.to_ctype()
         self._lib_particles.get_particle_deformation(byref(GP_struct))
         GP_arr = F_Array.from_ctype(GP_struct)
-        return GP_arr.data
+        return GP_arr
     
     @GP.setter
     def GP(self, GP):

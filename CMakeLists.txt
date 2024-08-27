@@ -211,8 +211,13 @@ set(TEST_EXE_SRC
     ${SRC_TEST}/test_problems.f90
 )
 
+add_library(constants OBJECT ${SRC_HP}/base_types.f90)
+add_library(types OBJECT ${SRC_HP}/constants.f90)
+
 add_library(arrays SHARED ${SRC_HP}/arrays.f90)
 add_library(io SHARED ${SRC_HP}/io.f90)
+
+# MKL
 add_library(mpi_matrices SHARED  ${SRC_HP}/mpi_matrices.f90)
 add_library(mkl_dfti SHARED ${SRC_HP}/mkl_dfti.f90)
 add_library(mkl_poisson SHARED ${SRC_HP}/mkl_poisson.f90)
@@ -255,7 +260,7 @@ add_custom_target(dummy ALL
 # -------------------------------------------------------------------------------------------------
 add_library(${EXENAME} SHARED ${SRC_HP}/api.f90)
 add_dependencies(${EXENAME} dummy) # Ensure proper dependency resolution
-target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm io arrays) #PUBLIC ${LINK_FLAGS} 
+target_link_libraries(${EXENAME} PRIVATE mkl_poisson mpi_matrices parvar pmeshpar pmgrid pmproject pmlib yaps vpm io arrays types) #PUBLIC ${LINK_FLAGS} 
 target_include_directories(${EXENAME} PUBLIC ${PATHOBJHP}) # Set include directories using PUBLIC
 target_compile_options(${EXENAME} PUBLIC ${FLAGS} ${EXTRA_FLAGS}) # Set compile options using PUBLIC
 
@@ -273,9 +278,9 @@ target_compile_options(${EXENAME}_exe PUBLIC ${FLAGS} ${EXTRA_FLAGS})
 #                                           #  Test Arrays
 # # -------------------------------------------------------------------------------------------------
 
-add_executable(test_arrays ${SRC_TEST}/test_arrays.f90)
-add_dependencies(test_arrays arrays)
-target_link_libraries(test_arrays PRIVATE arrays)
+add_executable(test_arrays_exe ${SRC_TEST}/test_arrays.f90)
+add_dependencies(test_arrays_exe arrays)
+target_link_libraries(test_arrays_exe PRIVATE arrays)
 
 
 ###########################################################

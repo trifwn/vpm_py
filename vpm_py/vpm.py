@@ -70,11 +70,11 @@ class VPM(object):
         use_tree: bool = True, 
         ilevmax: int = 1,
         OMPTHREADS: int = 1,
-        is_box_fixed: bool = True, 
+        is_box_fixed: bool = False, 
         slice: bool = True, 
         IPMWRITE: int = 1, 
         IPMWSTART: int = 1, 
-        IPMWSTEPS: int = 1
+        IPMWSTEPS: int = 150
     ):
         """Wrapper function for calling Fortran subroutine `init`.
 
@@ -139,8 +139,8 @@ class VPM(object):
         num_particles: int, 
         num_equations: int,
         mode: int,
-        particle_positions: np.ndarray ,
-        particle_strengths: np.ndarray ,
+        particle_positions: np.ndarray,
+        particle_strengths: np.ndarray,
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
         RHS_PM: np.ndarray,
@@ -162,7 +162,6 @@ class VPM(object):
             viscosity (float): Viscosity term for the diffusion equation
             max_particle_num (float): Maximum number of particles allowed
         """
-
         # Ensure numpy arrays are contiguous
         XP_ptr = dp_array_to_pointer(particle_positions   , copy = True)
         QP_ptr = dp_array_to_pointer(particle_strengths   , copy = True)
@@ -174,44 +173,22 @@ class VPM(object):
         Velx_ptr = dp_array_to_pointer(self.particle_mesh.Ux)
         Vely_ptr = dp_array_to_pointer(self.particle_mesh.Uy)
         Velz_ptr = dp_array_to_pointer(self.particle_mesh.Uz)
-
-        self._lib.vpm(XP_ptr, QP_ptr, UP_ptr, GP_ptr, byref(c_int(num_particles)),
-                        byref(c_int(num_equations)), byref(c_int(mode)), RHS_pm_ptr,
-                        Velx_ptr, Vely_ptr, Velz_ptr, byref(c_int(timestep)),
-                        byref(c_double(viscosity)), byref(c_int(self.max_particle_num))
-                    )
         
-        particle_positions = pointer_to_dp_array(XP_ptr, (3, num_particles))
-        particle_strengths = pointer_to_dp_array(QP_ptr, (num_equations + 1, num_particles))
-        particle_velocities = pointer_to_dp_array(UP_ptr, (3, num_particles))
-        particle_deformations = pointer_to_dp_array(GP_ptr, (3, num_particles))
+        self._lib.vpm(
+            XP_ptr, QP_ptr, UP_ptr, GP_ptr,
+            byref(c_int(num_particles)), byref(c_int(num_equations)),
+            byref(c_int(mode)), RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr,
+            byref(c_int(timestep)), byref(c_double(viscosity)), 
+            byref(c_int(self.max_particle_num))
+        )
+
+        # store the results
+        self.particles.particle_positions = pointer_to_dp_array(XP_ptr, particle_positions.shape)
+        self.particles.particle_strengths = pointer_to_dp_array(QP_ptr, particle_strengths.shape)
+        self.particles.particle_velocities = pointer_to_dp_array(UP_ptr, particle_velocities.shape)
+        self.particles.particle_deformations = pointer_to_dp_array(GP_ptr, particle_deformations.shape)
+        # self._store5 = RHS_pm_ptr
         
-
-        if mode in [1,2]:
-            # Get the values from the ptrs to the numpy arrays
-            shape_pm = (self.NX_pm, self.NY_pm, self.NZ_pm)
-            Ux = pointer_to_dp_array(Velx_ptr, shape_pm, copy=True)
-            Uy = pointer_to_dp_array(Vely_ptr, shape_pm, copy=True)
-            Uz = pointer_to_dp_array(Velz_ptr, shape_pm, copy=True)
-            self.particle_mesh.update_U(Ux, Uy, Uz)
-
-            if self.rank == 0:
-                print_IMPORTANT(f"Getting the values of Ux, Uy, Uz\nGot shape: {shape_pm}")
-                print(Ux)
-                        # Check arrays for nan and print the number of nans and their positions
-                if np.isnan(Ux).any():
-                    print(f"Ux has {np.sum(np.isnan(Ux))} nans")
-                    print(np.argwhere(np.isnan(Ux)))
-                
-                if np.isnan(Uy).any():
-                    print(f"Uy has {np.sum(np.isnan(Uy))} nans")
-                    print(np.argwhere(np.isnan(Uy)))
-
-                if np.isnan(Uz).any():
-                    print(f"Uz has {np.sum(np.isnan(Uz))} nans")
-                    print(np.argwhere(np.isnan(Uz)))
-                print(f"{'-'*100}")
-
     def remesh_particles_3d(self, iflag: int):
         """Remesh particles in 3D
 
@@ -219,7 +196,7 @@ class VPM(object):
             iflag (int): Flag to remesh particles
         """
         NVR = self.particles.NVR
-        print_green(f"\tNumber of particles before remeshing: {NVR}")
+        print_green(f"\tNumber of particles before remeshing: {NVR}", self.rank)
         XP_arr = F_Array((3, NVR))
         QP_arr = F_Array((self.num_equations + 1, NVR))
         UP_arr = F_Array((3, NVR))

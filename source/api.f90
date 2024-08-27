@@ -169,6 +169,7 @@ contains
 
    Subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
       use vpm_lib, only: remesh_particles_3d
+      use base_types, only: dp
       use ND_Arrays
 
       implicit none
@@ -177,7 +178,7 @@ contains
       integer(c_int), intent(out) :: NVR_out
 
       ! Local variables
-      double precision, allocatable, target :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
+      real(dp), allocatable, target :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
 
       call remesh_particles_3d(iflag, XP_out, QP_out, GP_out, UP_out, NVR_out)
       XP_arr = from_intrinsic(XP_out, shape(XP_out))

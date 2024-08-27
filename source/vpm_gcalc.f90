@@ -6,20 +6,23 @@ Subroutine calc_velocity_serial_3d(idcalc)
    use openmpth
    Implicit None
    integer, intent(in) :: idcalc
-   double precision ::  dpsidx(3), dpsidy(3), dpsidz(3)
-   ! double precision ::  dphidx, dphidy, dphidz,
-   double precision ::  wdudx, wdvdy, wdwdz!, velxp, velyp, velzp, velxm, velym, velzm
-   double precision ::  upi, umi, upj, umj, upk, umk
-   double precision ::  vpi, vmi, vpj, vmj, vpk, vmk
-   double precision ::  wpi, wmi, wpj, wmj, wpk, wmk
+   real(dp) ::  dpsidx(3), dpsidy(3), dpsidz(3)
+   ! real(dp) ::  dphidx, dphidy, dphidz,
+   real(dp) ::  wdudx, wdvdy, wdwdz!, velxp, velyp, velzp, velxm, velym, velzm
+   real(dp) ::  upi, umi, upj, umj, upk, umk
+   real(dp) ::  vpi, vmi, vpj, vmj, vpk, vmk
+   real(dp) ::  wpi, wmi, wpj, wmj, wpk, wmk
    integer          :: i, j, k
 
    if (idcalc .ge. 0) then
       DXpm2 = 2*DXpm
       DYpm2 = 2*DYpm
       DZpm2 = 2*DZpm
-      !! $omp parallel private(i,j,k,dphidx,dphidy,dphidz,dpsidx,dpsidy,dpsidz) num_threads(OMPTHREADS)
-      !!$omp do
+      !$omp parallel  &
+      !$omp private(i,j,k,dpsidx,dpsidy,dpsidz)  &
+      !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
+      !!$omp          num_threads(OMPTHREADS)
+      !$omp do
       do k = NZs_bl(1) + 1, NZf_bl(1) - 1
          do j = NYs_bl(1) + 1, NYf_bl(1) - 1
             do i = NXs_bl(1) + 1, NXf_bl(1) - 1
@@ -39,12 +42,15 @@ Subroutine calc_velocity_serial_3d(idcalc)
             end do
          end do
       end do
-      !!$omp enddo
-      !!$omp endparallel
+      !$omp end do
+      !$omp end parallel
 
       if (neqpm .eq. 4) then
-         !!$omp parallel private(i,j,k,dphidx,dphidy,dphidz,dpsidx,dpsidy,dpsidz) num_threads(OMPTHREADS)
-         !!$omp do
+         !$omp parallel &
+         !$omp private(i,j,k,dpsidx,dpsidy,dpsidz) &
+         !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
+         !!$omp num_threads(OMPTHREADS)
+         !$omp do
          do k = NZs_bl(1) + 1, NZf_bl(1) - 1
             do j = NYs_bl(1) + 1, NYf_bl(1) - 1
                do i = NXs_bl(1) + 1, NXf_bl(1) - 1
@@ -60,8 +66,8 @@ Subroutine calc_velocity_serial_3d(idcalc)
                end do
             end do
          end do
-         !!$omp enddo
-         !!$omp endparallel
+         !$omp end do
+         !$omp end parallel
       end if
    end if!
 
@@ -71,10 +77,14 @@ Subroutine calc_velocity_serial_3d(idcalc)
    SOL_pm = 0.d0
    !REMEMBER VORTICITY CARRIED IS -OMEGA and the quantity transferes is -OMEGA thus
    !deformation = - omega*\grad u
-   !!$omp parallel private(i,j,k,wdudx,wdvdy,wdwdz,&
-   !!$omp                  upi,upj,upk,vpi,vpj,vpk,wpi,wpj,wpk,umi,umj,umk,vmi,vmj,vmk,&
-   !!$omp                  wmi,wmj,wmk) num_threads(OMPTHREADS)
-   !!$omp do
+
+   !$omp parallel private(upi,upj,upk,vpi,vpj,vpk,wpi,wpj,wpk,umi,umj,umk,vmi,vmj,vmk,&
+   !$omp                  wmi,wmj,wmk,          &
+   !$omp                  i,j,k,                &  
+   !$omp                  wdudx,wdvdy,wdwdz )   & 
+   !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,RHS_pm,SOL_pm)
+   !!$omp   num_threads(OMPTHREADS)
+   !$omp do
    do k = NZs_bl(1) + 2, NZf_bl(1) - 2
       do j = NYs_bl(1) + 2, NYf_bl(1) - 2
          do i = NXs_bl(1) + 2, NXf_bl(1) - 2
@@ -133,8 +143,8 @@ Subroutine calc_velocity_serial_3d(idcalc)
          end do
       end do
    end do
-   !!$omp enddo
-   !!$omp endparallel
+   !$omp enddo
+   !$omp endparallel
 End Subroutine calc_velocity_serial_3d
 
 Subroutine diffuse_vort_3d
@@ -144,7 +154,7 @@ Subroutine diffuse_vort_3d
    use pmgrid
    use openmpth
    Implicit None
-   double precision ::  dwxdx, dwydy, dwzdz, VIS
+   real(dp) ::  dwxdx, dwydy, dwzdz, VIS
    integer          :: i, j, k
 
    DXpm2 = DXpm**2
@@ -217,9 +227,9 @@ Subroutine calc_antidiffusion
    use pmgrid
    use openmpth
    Implicit None
-   double precision ::  dwxdx, dwydy, dwzdz, Ct
+   real(dp) ::  dwxdx, dwydy, dwzdz, Ct
    integer          :: i, j, k
-   double precision, allocatable :: laplvort(:, :, :, :)
+   real(dp), allocatable :: laplvort(:, :, :, :)
 
    allocate (laplvort(3, NXpm, NYpm, NZpm))
    laplvort = 0.d0

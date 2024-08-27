@@ -1,5 +1,6 @@
 Module test_app
-   double precision, allocatable    :: analytic_sol(:, :, :, :)
+    use base_types, only: dp
+    real(dp), allocatable    :: analytic_sol(:, :, :, :)
 
 contains
     !-------Test problems
@@ -82,9 +83,9 @@ contains
 
     Subroutine hill_assign(NN,NN_bl,Xbound,Dpm,RHS_pm_bl,neqpm)
         integer,intent(in) :: NN(3),NN_bl(6),neqpm
-        double precision,intent(in) :: Xbound(6),Dpm(3)
-        double precision,intent(inout) :: RHS_pm_bl(neqpm,NN(1),NN(2),NN(3))
-        double precision :: CP(3),Uind(3),Grad(9),Defm(3),Vort(3)
+        real(dp),intent(in) :: Xbound(6),Dpm(3)
+        real(dp),intent(inout) :: RHS_pm_bl(neqpm,NN(1),NN(2),NN(3))
+        real(dp) :: CP(3),Uind(3),Grad(9),Defm(3),Vort(3)
         integer          :: i,j,k
         logical          :: I_EXIST
         RHS_pm_bl(1:3,:,:,:)=0.0d0
@@ -125,13 +126,13 @@ contains
 
     Subroutine hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
         integer,intent(in) :: NN(3),NN_bl(6)
-        double precision,intent(in)  :: Xbound(6),Dpm(3)
-        double precision,intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
-        double precision,intent(in)  :: velvrx_pm(NN(1),NN(2),NN(3))
-        double precision,intent(in)  :: velvry_pm(NN(1),NN(2),NN(3))
-        double precision,intent(in)  :: velvrz_pm(NN(1),NN(2),NN(3))
-        double precision,allocatable :: error(:,:,:,:)
-        double precision :: CP(3),mean_err(7),max_err(7)
+        real(dp),intent(in)  :: Xbound(6),Dpm(3)
+        real(dp),intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
+        real(dp),intent(in)  :: velvrx_pm(NN(1),NN(2),NN(3))
+        real(dp),intent(in)  :: velvry_pm(NN(1),NN(2),NN(3))
+        real(dp),intent(in)  :: velvrz_pm(NN(1),NN(2),NN(3))
+        real(dp),allocatable :: error(:,:,:,:)
+        real(dp) :: CP(3),mean_err(7),max_err(7)
         integer          :: i,j,k,l
 
         
@@ -180,14 +181,14 @@ contains
 
     Subroutine definevort(RHS_pm,Xbound,Dpm,NN,NN_bl)
         Implicit None
-        
-        double precision, intent(in)   :: Xbound(6),Dpm(3)
-        integer,intent(in)             :: NN(3),NN_bl(6)
-        double precision, intent(inout):: RHS_pm(7,NN(1),NN(2),NN(3))
-        double precision               :: ksi1,ksi2,th1,th2,xi,yi,w1,w2
-        integer                        :: i, j
-        double precision               :: xc1,xc2,yc1,yc2,PI
-        logical          :: I_EXIST
+
+        real(dp), intent(in)    :: Xbound(6),Dpm(3)
+        integer,intent(in)      :: NN(3),NN_bl(6)
+        real(dp), intent(inout) :: RHS_pm(7,NN(1),NN(2),NN(3))
+        real(dp)                :: ksi1,ksi2,th1,th2,xi,yi,w1,w2
+        integer                 :: i, j
+        real(dp)                :: xc1,xc2,yc1,yc2,PI
+        logical                 :: I_EXIST
         xc1=0;xc2=0;
         yc1=-1.5;yc2=1.5
         PI = 4.*datan(1.d0)
@@ -226,10 +227,10 @@ contains
 
     Subroutine vort_error(NN,NN_bl,Xbound,Dpm,SOL_pm)
         integer,intent(in) :: NN(3),NN_bl(6)
-        double precision,intent(in)  :: Xbound(6),Dpm(3)
-        double precision,intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
-        double precision,allocatable :: error(:,:,:,:)
-        double precision :: CP(3),mean_err(7),max_err(7),analytic_max
+        real(dp),intent(in)  :: Xbound(6),Dpm(3)
+        real(dp),intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
+        real(dp),allocatable :: error(:,:,:,:)
+        real(dp) :: CP(3),mean_err(7),max_err(7),analytic_max
         integer          :: i,j
 
         allocate(error(1,NN(1),NN(2),NN(3)))

@@ -21,13 +21,20 @@ def print_IMPORTANT(text):
     print(f"\033[93m{'-'*100}\033[00m")
 
 def main():
-    vpm = VPM()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    number_of_processors = comm.Get_size()
+
+    vpm = VPM(
+        number_of_equations= 3,
+        max_particle_num= 1000,
+        rank= rank,
+        number_of_processors= number_of_processors,
+    )
     
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     if rank == 0:
-        print_blue(f"Number of processes: {comm.Get_size()}")
+        print_blue(f"Number of processes: {number_of_processors}")
     comm.Barrier()
     print_blue(f"Rank: {rank}")
     comm.Barrier()
@@ -41,19 +48,20 @@ def main():
     NZB = 10
 
     # Distribute the particles uniformly in the domain
-    divisor = int((np.power(NVR, 1/3)))
+    divisor = 5# int((np.power(NVR, 1/3)))
     x = np.linspace(0, 1, divisor)
     y = np.linspace(0, 1, divisor)
     z = np.linspace(0, 1, divisor)
     NVR = len(x) * len(y) * len(z)
 
     XP_in = np.array(np.meshgrid(x, y, z)).reshape(3, -1)
-    
     # Define the particle quantities as random numbers
     par_strenghts = np.ones((neqpm, NVR))
 
     par_velocities = np.zeros((3, NVR), dtype=np.float64)
-    par_velocities[0,:] = 1.0
+    par_velocities[0,:] = -1.0
+    par_velocities[1,:] = -1.0/ 2.
+    par_velocities[2,:] = -1.0/ 3.
 
     # Deformation of the particles
     par_deformations = np.zeros((3, NVR), dtype=np.float64)
@@ -61,7 +69,7 @@ def main():
     RHS_pm_in = np.zeros((neqpm, NXB, NYB, NZB), dtype=np.float64)
     NTIME = 0
     NI = 0.1
-    NVRM = NVR + 10
+    DT = 0.1
 
     ##################################### MODE TESTING #####################################
     for WhatToDo in [0, 1, 2, 3, 4, 2 ,5]:
@@ -86,7 +94,6 @@ def main():
             RHS_PM= RHS_pm_in,
             timestep= NTIME,
             viscosity= NI,
-            max_particle_num= NVRM
         )
         comm.Barrier()
         if rank == 0:
@@ -105,22 +112,23 @@ def main():
         #     print('\n\n')
         # sleep(1)
 
-        NVR = vpm.NVR
-        XP = vpm.XP
-        QP = vpm.QP
-        UP = vpm.UP
-        GP = vpm.GP
+        XP = vpm.particles.XP
+        QP = vpm.particles.QP
+        UP = vpm.particles.UP
+        GP = vpm.particles.GP
+        NVR = vpm.particles.NVR
+
         # Convection
         if WhatToDo == 2:
-            DT = 0.1
-            XP = XP + UP * DT
-            QP[:3, :] = QP[:3, :] - 1. *GP[:3, :] * DT
-            vpm.XP = XP
-            vpm.QP = QP
-
+            for i in range(NVR):
+                XP[:, i] = XP[:, i] + UP[:, i] * DT
+                QP[:3, i] = QP[:3, i] - 1. * GP[:3, i] * DT
+            
         # Remesh the particles
         comm.Barrier()
-        vpm.remesh_particles_3d(1)
+        (
+            XP_new, QP_new, UP_new, GP_new
+        ) = vpm.remesh_particles_3d(1)
         comm.Barrier()
 
         NX_pm = vpm.NX_pm

@@ -14,9 +14,9 @@
 !----------------------------------------------------------------------------!
 Subroutine Bounds2d(itype, NXs, NXf, NYs, NYf, neqs, neqf)
    Implicit None
-   integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
-   integer           :: iconst, jconst, iplane, i, j
-   double precision  :: X, Y
+   integer, intent(in)  :: itype, NXs, NXf, NYs, NYf, neqs, neqf
+   integer              :: iconst, jconst, iplane, i, j
+   real(dp)             :: X, Y
    !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
 
    !-->In case of infinite domain bc's(sources are used),In case
@@ -163,10 +163,9 @@ End Subroutine Bounds3d
 Subroutine calc_bound2d(iplane, iconst, Ns, Nf, neqs, neqf)
    Implicit None
 
-   integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
-
-   double precision    :: X, Y, XR, YR, r
-   integer             :: i, j, nv
+   integer, intent(in)  :: iplane, iconst, Ns, Nf, neqs, neqf
+   real(dp)             :: X, Y, XR, YR, r
+   integer              :: i, j, nv
 
    !calculate bc's of all particles on the specified plane defined at iconst
    !-->Y=constant plane
@@ -218,7 +217,7 @@ Subroutine calc_bound3d(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, Z, ZR, r
+   real(dp)            :: X, Y, XR, YR, Z, ZR, r
    integer             :: i, j, k, nv
 
    !calculate bc's of all particles on the specified plane defined at iconst
@@ -295,7 +294,7 @@ Subroutine calc_boundinf_2d(iplane, iconst, Ns, Nf, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, r, DS
+   real(dp)            :: X, Y, XR, YR, r, DS
    integer             :: i, j, nv
 
    !calculate bc's of all sources on the specified plane defined at iconst
@@ -353,7 +352,7 @@ Subroutine calc_boundinf_2d_s(iplane, iconst, Ns, Nf, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, greenint, cosb, sinb, DS
+   real(dp)            :: X, Y, XR, YR, greenint, cosb, sinb, DS
    integer             :: i, j, nv
 
    !calculate bc's of all sources on the specified plane defined at iconst
@@ -409,7 +408,7 @@ Subroutine calc_boundinf_3d(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
+   real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
    integer             :: i, j, k, nv
    !-->Y=constant plane
    if (abs(iplane) .eq. 1) then
@@ -512,12 +511,10 @@ Subroutine calc_boundinf_3d_s(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
    Implicit None
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
-
-   double precision    :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
+   real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
+   real(dp)            :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
+                          AREA, DIAG, EPSS, FIS
    integer             :: i, j, k, nv
-
-   double precision    :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
-      AREA, DIAG, EPSS, FIS
    integer             :: ISING, NSIDE, si
 
    !-->Y=constant plane
@@ -636,7 +633,7 @@ Subroutine Bounds2d_lev(itype, NXs, NXf, NYs, NYf, neqs, neqf)
    Implicit None
    integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
    integer           :: iconst, jconst, iplane, i, j
-   double precision  :: X, Y
+   real(dp)          :: X, Y
    !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
 
    !-->In case of infinite domain bc's(sources are used),In case
@@ -700,7 +697,7 @@ Subroutine calc_boundinf_2d_lev(iplane, iconst, Ns, Nf, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(neqf)
+   real(dp)            :: X, Y, XR, YR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(neqf)
    integer             :: i, j, nv
    integer             :: leafstart, leaffin, lev, nlev, nleaf, branch
    !calculate bc's of all sources on the specified plane defined at iconst
@@ -742,13 +739,13 @@ Recursive Subroutine tree_calc_2d(nv, nlev, leafstart, X, Y, SOURCE, neqs, neqf)
    Implicit None
    integer, intent(in) :: nlev, nv, neqs, neqf
    integer, intent(inout) :: leafstart
-   double precision, intent(in)  :: X, Y
-   double precision, intent(inout) :: SOURCE(neqf)
+   real(dp)        , intent(in)  :: X, Y
+   real(dp)        , intent(inout) :: SOURCE(neqf)
 
    integer                         :: newlev, nleaf, leaffin, leafs, leaff
    integer                         :: listleaf(4), nlf, nn, nlist, nj
    integer                         :: nmax, npre
-   double precision                :: YR, XR, r, DS
+   real(dp)                        :: YR, XR, r, DS
    integer                         ::ierr, my_rank
    !The loop for all bounds happens here
    !lev4 is the coarsest one.We start searching the coarsest and then move in finer and finer levels
@@ -845,7 +842,7 @@ Subroutine calc_boundinf_2d_lev_s(iplane, iconst, Ns, Nf, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, r, a, b, ra, rb, greenint, cosb, sinb, DS, SOURCE(neqf)
+   real(dp)            :: X, Y, XR, YR, r, a, b, ra, rb, greenint, cosb, sinb, DS, SOURCE(neqf)
    integer             :: i, j, nv
    integer             :: leafstart, leaffin, lev, nlev, nleaf, branch
    !calculate bc's of all sources on the specified plane defined at iconst
@@ -885,15 +882,15 @@ End Subroutine calc_boundinf_2d_lev_s
 
 Recursive Subroutine tree_calc_2d_s(nv, nlev, leafstart, X, Y, cosb, sinb, PI2, SOURCE, neqs, neqf)
    Implicit None
-   integer, intent(in) :: nlev, nv, neqs, neqf
-   integer, intent(inout) :: leafstart
-   double precision, intent(in)  :: X, Y, cosb, sinb, PI2
-   double precision, intent(inout) :: SOURCE(neqf)
+   integer, intent(in)     :: nlev, nv, neqs, neqf
+   integer, intent(inout)  :: leafstart
+   real(dp), intent(in)    :: X, Y, cosb, sinb, PI2
+   real(dp), intent(inout) :: SOURCE(neqf)
 
    integer                         :: newlev, nleaf, leaffin, leafs, leaff
    integer                         :: listleaf(4), nlf, nn, nlist, nj
    integer                         :: nmax, npre
-   double precision                :: YR, XR, r, DS, greenint
+   real(dp)                        :: YR, XR, r, DS, greenint
 
    if (nlev .eq. levmax) then
       leafstart = 1
@@ -1037,7 +1034,7 @@ Subroutine calc_boundinf_3d_lev(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
+   real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
    integer             :: i, j, k, nv
    integer             :: leafstart, branch
    !-->Y=constant plane
@@ -1111,12 +1108,12 @@ Recursive Subroutine tree_calc_3d(nv, nlev, leafstart, X, Y, Z, SOURCE, neqs, ne
    Implicit None
    integer, intent(in) :: nlev, nv, neqs, neqf
    integer, intent(inout) :: leafstart
-   double precision, intent(in)  :: X, Y, Z
-   double precision, intent(inout) :: SOURCE(neqf)
+   real(dp)        , intent(in)  :: X, Y, Z
+   real(dp)        , intent(inout) :: SOURCE(neqf)
 
    integer                         :: newlev, nleaf, leaffin, leafs, leaff, listleaf(4), nlf, nn, nlist, nj
    integer                         :: nmax, npre
-   double precision                :: XR, YR, ZR, r, DS, ss(neqf)
+   real(dp)                        :: XR, YR, ZR, r, DS, ss(neqf)
    integer                         :: my_rank, ierr
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -1229,11 +1226,11 @@ Subroutine calc_boundinf_3d_lev_s(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
 
    integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-   double precision    :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
+   real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
    integer             :: i, j, k, nv
    integer             :: leafstart, branch
 
-   double precision    :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
+   real(dp)            :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
       AREA, DIAG, EPSS, FIS
    integer             :: ISING, NSIDE, si
 
@@ -1349,19 +1346,19 @@ End Subroutine calc_boundinf_3d_lev_s
 Recursive Subroutine tree_calc_3d_s(nv, nlev, leafstart, XO, SOURCE, neqs, neqf, &
                                     DIAG, E1, E2, E3, COSB, SINB, S, T, D, NSIDE, EPSS, ISING, PI4)
    Implicit None
-   integer, intent(in) :: nlev, nv, neqs, neqf
-   integer, intent(inout) :: leafstart
-   double precision, intent(in)  :: DIAG, E1(3), E2(3), E3(3), PI4
-   double precision, intent(in)  :: COSB(4), SINB(4), S(4), T(4), D(4)
-   double precision, intent(in)  :: EPSS
-   integer, intent(in)  :: ISING, NSIDE
-   double precision, intent(in)  :: XO(3)
-   double precision, intent(inout) :: SOURCE(neqf)
+   integer, intent(in)     :: nlev, nv, neqs, neqf
+   integer, intent(inout)  :: leafstart
+   real(dp), intent(in)    :: DIAG, E1(3), E2(3), E3(3), PI4
+   real(dp), intent(in)    :: COSB(4), SINB(4), S(4), T(4), D(4)
+   real(dp), intent(in)    :: EPSS
+   real(dp), intent(in)    :: XO(3)
+   real(dp), intent(inout) :: SOURCE(neqf)
+   integer, intent(in)     :: ISING, NSIDE
 
-   integer                         :: newlev, nleaf, leaffin, leafs, leaff
-   integer                         :: listleaf(4), nlf, nn, nlist, nj
-   integer                         :: nmax, npre
-   double precision                ::r, DS, RG(3), FIS, RATIO
+   integer                 :: newlev, nleaf, leaffin, leafs, leaff
+   integer                 :: listleaf(4), nlf, nn, nlist, nj
+   integer                 :: nmax, npre
+   real(dp)                ::r, DS, RG(3), FIS, RATIO
 
    listleaf = 0
 !The loop for all bounds happens here
@@ -1473,9 +1470,9 @@ End Subroutine tree_calc_3d_s
 ! DS is the area of the face cosb,sinb give the direction assumed.
 Subroutine PHIELS(X0, Y0, X1, Y1, DS, COSB, SINB, PI2, PHILS)
    Implicit None
-   double precision, intent(in) :: X0, Y0, X1, Y1, DS, COSB, SINB, PI2
-   double precision, intent(out):: PHILS
-   double precision            :: AKSIL, HTAL, TA1, TA2
+   real(dp), intent(in) :: X0, Y0, X1, Y1, DS, COSB, SINB, PI2
+   real(dp), intent(out):: PHILS
+   real(dp)             :: AKSIL, HTAL, TA1, TA2
    AKSIL = (X0 - X1)*COSB + (Y0 - Y1)*SINB !this is the vector X0-X1 in local coor
    HTAL = -(X0 - X1)*SINB + (Y0 - Y1)*COSB
    TA1 = AKSIL ! vector XO-X1 from the first point
@@ -1512,15 +1509,15 @@ Subroutine FSOUR_A4(XO, RG, E1, E2, E3, &
 
    implicit none
 
-   integer, intent(in)           :: NSIDE, ISING
-   double precision, intent(in)  :: DIAG, AREA, PI4, EPSS
-   double precision, intent(in)  :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), &
-      D(4), SINB(4), COSB(4)
-   double precision, intent(out) :: FIS
+   integer, intent(in)   :: NSIDE, ISING
+   real(dp), intent(in)  :: DIAG, AREA, PI4, EPSS
+   real(dp), intent(out) :: FIS
+   real(dp), intent(in)  :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), &
+                            D(4), SINB(4), COSB(4)
+   real(dp)              :: X, Y, Z, RO, RATIO, AREA1, RO3, P, Q, FIL, &
+                            XK, YK, ZK, A1, A2, AK, ZP, AZ, R(4), E(4), H(4), UL(3), TOO(4), TINY
 
    integer             :: K, K1, K2
-   double precision    :: X, Y, Z, RO, RATIO, AREA1, RO3, P, Q, FIL, &
-      XK, YK, ZK, A1, A2, AK, ZP, AZ, R(4), E(4), H(4), UL(3), TOO(4), TINY
 
    TINY = 1d-10
    X = (XO(1) - RG(1))*E1(1) + (XO(2) - RG(2))*E1(2) + (XO(3) - RG(3))*E1(3)

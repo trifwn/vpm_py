@@ -16,7 +16,7 @@ Subroutine infdomain(neqs, neqf)
    integer, intent(in) :: neqs, neqf
    integer            :: NXs, NXf, NYs, NYf, nn, ndum, neq_siz
    integer            :: my_rank, ierr
-   double precision   :: et, st
+   real(dp)   :: et, st
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
@@ -86,11 +86,11 @@ End Subroutine infdomain
 Subroutine infdomain_3d(neqs, neqf)
    use MPI
    Implicit None
-   integer, intent(in) :: neqs, neqf
-   integer            :: NXs, NXf, NYs, NYf, NZs, NZf, nn, ndum, neq, nworkb, neq_siz
+   integer, intent(in)  :: neqs, neqf
+   integer              :: NXs, NXf, NYs, NYf, NZs, NZf, nn, ndum, neq, nworkb, neq_siz
 
-   integer            :: my_rank, ierr
-   double precision   :: et, st
+   integer              :: my_rank, ierr
+   real(dp)             :: et, st
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    nworkb = 2*NXpm*NYpm + 2*NXpm*NZpm + 2*NZPm*Nypm
@@ -174,9 +174,9 @@ End Subroutine infdomain_3d
 !-------------------------------------------------------------------------!
 Subroutine calc_normalderiv(NXs, NXf, NYs, NYf, neqs, neqf)
    Implicit None
-   integer, intent(in):: NXs, NXf, NYs, NYf, neqs, neqf
-   integer           :: i, j, j1, i1, neq
-   double precision  :: a1, a2, a3, a4, a5, psi1, psi2
+   integer, intent(in)  :: NXs, NXf, NYs, NYf, neqs, neqf
+   integer              :: i, j, j1, i1, neq
+   real(dp)             :: a1, a2, a3, a4, a5, psi1, psi2
 
    !Sources are defined in NXs,NXf,Nys,NYf using SOL_pm0(zero bc solution)
    a1 = 25.d0/12.d0
@@ -290,9 +290,9 @@ End Subroutine calc_normalderiv
 !-------------------------------------------------------------------------!
 Subroutine calc_normalderiv_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
    Implicit None
-   integer, intent(in):: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
-   integer           :: i, j, k, j1, i1, k1, neq
-   double precision  :: a1, a2, a3, a4, a5, psi1, psi2, psi3, psi4
+   integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
+   integer              :: i, j, k, j1, i1, k1, neq
+   real(dp)             :: a1, a2, a3, a4, a5, psi1, psi2, psi3, psi4
 
    a1 = 25.d0/12.d0
    a2 = -4.d0
@@ -547,13 +547,12 @@ End Subroutine calc_normalderiv_3d
 
 Subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
    Implicit None
-   integer, intent(in):: NXs, NXf, NYs, NYf, neqs, neqf
-   integer          :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
-   integer          :: ncountlev(0:levmax), nj, nn, npre
-   integer, allocatable :: nn_lev(:, :)
-   double precision :: x, y, s, source(neqf), xc, yc, sc, sourcec(neqf)
-   double precision, allocatable :: xs_tmp(:, :), ds_tmp(:), s_tmp(:, :)
-   ! character*16    :: filout
+   integer, intent(in)     :: NXs, NXf, NYs, NYf, neqs, neqf
+   integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
+   integer                 :: ncountlev(0:levmax), nj, nn, npre
+   integer, allocatable    :: nn_lev(:, :)
+   real(dp)                :: x, y, s, source(neqf), xc, yc, sc, sourcec(neqf)
+   real(dp), allocatable   :: xs_tmp(:, :), ds_tmp(:), s_tmp(:, :)
 
    leafmax = 1
    leafmax = 2
@@ -864,14 +863,14 @@ End Subroutine build_level_nbound
 Subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
    use mpi
    Implicit None
-   integer, intent(in):: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
-   integer          :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
-   integer          :: nleaflev, nleafroot, ncountlev(0:levmax), istepj, n1s, n1f, n2s, n2f, nj, npre
-   integer          :: m, l, il, im, mm, nn, iresroot, NNX, NNY, NNZ, NNX0, NNY0, NNZ0
-   double precision :: x, y, z, s, source(neqf), xc, yc, zc, sc, sourcec(neqf)
-   double precision, allocatable :: xs_tmp(:, :), ds_tmp(:), s_tmp(:, :)
-   integer, allocatable  :: nn_lev(:, :)
-   integer  :: my_rank, ierr
+   integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
+   integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
+   integer                 :: nleaflev, nleafroot, ncountlev(0:levmax), istepj, n1s, n1f, n2s, n2f, nj, npre
+   integer                 :: m, l, il, im, mm, nn, iresroot, NNX, NNY, NNZ, NNX0, NNY0, NNZ0
+   real(dp)                :: x, y, z, s, source(neqf), xc, yc, zc, sc, sourcec(neqf)
+   real(dp), allocatable   :: xs_tmp(:, :), ds_tmp(:), s_tmp(:, :)
+   integer, allocatable    :: nn_lev(:, :)
+   integer                 :: my_rank, ierr
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    leafmax = 2

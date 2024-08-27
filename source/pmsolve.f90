@@ -7,15 +7,15 @@ Subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
    use MKL_POISSON
 
    Implicit None
-   integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
-   Integer              :: i, j, NWORK, INFO, NX, NY, nbj
-   integer              :: ipar(128), stat
-   integer              :: NN, nod
-   double precision, allocatable ::dpar(:)
-   double precision     :: XPM, YPM, XminCalc, XmaxCalc, YminCalc, YmaxCalc, pertrb
-   double precision, allocatable::SOL_pm2(:, :), WORK(:)
-   double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
-   type(DFTI_DESCRIPTOR), pointer    :: xhandle
+   integer, intent(in)              :: NXs, NXf, NYs, NYf, neq
+   Integer                          :: i, j, NWORK, INFO, NX, NY, nbj
+   integer                          :: ipar(128), stat
+   integer                          :: NN, nod
+   real(dp), allocatable            ::dpar(:)
+   real(dp)                         :: XPM, YPM, XminCalc, XmaxCalc, YminCalc, YmaxCalc, pertrb
+   real(dp), allocatable            ::SOL_pm2(:, :), WORK(:)
+   real(dp), allocatable            ::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+   type(DFTI_DESCRIPTOR), pointer   :: xhandle
 
    !--> Assignment of Boundary Values
    ipar = 0
@@ -86,10 +86,10 @@ Subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
    Integer              :: i, j, NWORK, INFO, NX, NY, nbj
    integer              :: ipar(128), stat
    integer              :: NN, nod
-   double precision, allocatable ::dpar(:)
-   double precision     :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
-   double precision, allocatable::SOL_pm2(:, :), WORK(:)
-   double precision, allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+   real(dp), allocatable ::dpar(:)
+   real(dp)     :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
+   real(dp), allocatable::SOL_pm2(:, :), WORK(:)
+   real(dp), allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
 
    type(DFTI_DESCRIPTOR), pointer    :: xhandle
 
@@ -158,8 +158,8 @@ End Subroutine solve_eq_0
 !    Implicit None
 !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
 !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-!    double precision   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-!    double precision, allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
+!    real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+!    real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
 !    !--> Assignment of Boundary Values
 
@@ -226,8 +226,8 @@ End Subroutine solve_eq_0
 !    Implicit None
 !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
 !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-!    double precision   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-!    double precision, allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
+!    real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+!    real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
 !    !--> Assignment of Boundary Values
 
@@ -278,12 +278,12 @@ Subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    Implicit None
    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-   double precision   :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
+   real(dp)   :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
    integer              :: ipar(128), stat
    integer              :: dim, dim1, dim2, dim3, nod
-   double precision, allocatable ::dpar(:)
-   double precision, allocatable, dimension(:):: f
-   double precision, allocatable, dimension(:):: bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz
+   real(dp), allocatable ::dpar(:)
+   real(dp), allocatable, dimension(:):: f
+   real(dp), allocatable, dimension(:):: bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz
    type(DFTI_DESCRIPTOR), pointer   :: xhandle, yhandle
 
    !--> Assignment of Boundary Values
@@ -368,15 +368,15 @@ Subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    Implicit None
    integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-   double precision     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
+   real(dp)     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
    integer              :: ipar(128), stat
    integer              :: NN, nod, NNX, NNY, NNZ
-   ! double precision, allocatable:: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
-   double precision     :: dpar((5*(NXf - NXs + NYf - NYs)/2) + 9)
-   double precision     ::  f((NXf - NXs + 1)*(NYf - NYs + 1)*(NZf - NZs + 1))
-   double precision     ::  bd_ax((NYf - NYs + 1)*(NZf - NZs + 1)), bd_bx((NYf - NYs + 1)*(NZf - NZs + 1))
-   double precision     ::  bd_ay((NXf - NXs + 1)*(NZf - NZs + 1)), bd_by((NXf - NXs + 1)*(NZf - NZs + 1))
-   double precision     ::  bd_az((NXf - NXs + 1)*(NYf - NYs + 1)), bd_bz((NXf - NXs + 1)*(NYf - NYs + 1))
+   ! real(dp), allocatable:: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
+   real(dp)     :: dpar((5*(NXf - NXs + NYf - NYs)/2) + 9)
+   real(dp)     ::  f((NXf - NXs + 1)*(NYf - NYs + 1)*(NZf - NZs + 1))
+   real(dp)     ::  bd_ax((NYf - NYs + 1)*(NZf - NZs + 1)), bd_bx((NYf - NYs + 1)*(NZf - NZs + 1))
+   real(dp)     ::  bd_ay((NXf - NXs + 1)*(NZf - NZs + 1)), bd_by((NXf - NXs + 1)*(NZf - NZs + 1))
+   real(dp)     ::  bd_az((NXf - NXs + 1)*(NYf - NYs + 1)), bd_bz((NXf - NXs + 1)*(NYf - NYs + 1))
    type(DFTI_DESCRIPTOR), pointer    :: xhandle, yhandle
    character(6) BCtype
 

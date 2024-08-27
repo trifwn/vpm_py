@@ -19,31 +19,31 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
 
    ! PARAMETERS
    integer, intent(in)  :: iflag
-   double precision, intent(out),allocatable, target, dimension(:,:) :: XP_out, QP_out, GP_OUT, UP_OUT
+   real(dp), intent(out),allocatable, target, dimension(:,:) :: XP_out, QP_out, GP_OUT, UP_OUT
    integer, intent(out) :: NVR_out
 
    ! LOCAL VARIABLES
-   double precision, dimension(8)   :: X, Y, Z
-   double precision    :: XMIN_vr, YMIN_vr, DXvr, DYvr, DZvr, ZMIN_vr
-   double precision, allocatable:: XC(:), YC(:), ZC(:)
-   double precision, allocatable, target::XP_tmp(:, :), QP_tmp(:, :)
+   real(dp), dimension(8)   :: X, Y, Z
+   real(dp)    :: XMIN_vr, YMIN_vr, DXvr, DYvr, DZvr, ZMIN_vr
+   real(dp), allocatable:: XC(:), YC(:), ZC(:)
+   real(dp), allocatable, target::XP_tmp(:, :), QP_tmp(:, :)
    integer             :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar, ndumc
    integer             :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin, ndum_rem, nnod, nc
    integer, allocatable :: ieq(:)
-   double precision    :: Xbound(6), Dpm(3), wmag
-   double precision, allocatable :: QINF(:)
+   real(dp)    :: Xbound(6), Dpm(3), wmag
+   real(dp), allocatable :: QINF(:)
    integer    :: NVR_OLD 
    integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
 
    ! DEPRECATED
-   ! double precision,intent(inout):: XP_in(:,:),QP_in(:,:)
-   ! double precision :: Vol, ANG, dens1, dens2, Mach,
+   ! real(dp),intent(inout):: XP_in(:,:),QP_in(:,:)
+   ! real(dp) :: Vol, ANG, dens1, dens2, Mach,
    ! integer   :: nv, inode, jnode, knode, itype
    ! integer   :: iis, jjs, kks, iif, jjf, kkf
    ! integer   :: iis2, jjs2, kks2, iif2, jjf2, kkf2
-   ! double precision    :: fx, fy, f
-   ! double precision    :: w1, w2, r1, r2, core, radi, th, xx, yy
-   ! double precision, allocatable :: rhsper(:, :, :, :)
+   ! real(dp)    :: fx, fy, f
+   ! real(dp)    :: w1, w2, r1, r2, core, radi, th, xx, yy
+   ! real(dp), allocatable :: rhsper(:, :, :, :)
 
    NVR_OLD = NVR
 
@@ -239,12 +239,11 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    end if
    
    if(associated(GP) .and. associated(UP)) then
-      GP_OUT = GP(:, 1:NVR)
-      UP_OUT = UP(:, 1:NVR)
-   else
-      GP_OUT = 0
-      UP_OUT = 0
+      ! GP_OUT = 0 !GP(:, 1:NVR)
+      ! UP_OUT = 0 !UP(:, 1:NVR)
    end if
+   GP_OUT = 0
+   UP_OUT = 0
 
    nullify (XP, QP, GP, UP)
    XP => XP_out
@@ -281,14 +280,14 @@ Subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
    use projlib, only: projection_fun
    Implicit None
    integer, intent(in)             :: NN(3), NVR, iproj
-   ! double precision, intent(in), dimension(:, :, :, :) :: RHS_pm
-   double precision, intent(in)    :: RHS_pm(4, NN(1), NN(2), NN(3))
+   ! real(dp), intent(in), dimension(:, :, :, :) :: RHS_pm
+   real(dp), intent(in)    :: RHS_pm(4, NN(1), NN(2), NN(3))
    ! f2py depend(NN) :: RHS_pm(4, NN(1), NN(2), NN(3))
-   double precision, intent(inout) :: QP(4, NVR), XP(3, NVR)
+   real(dp), intent(inout) :: QP(4, NVR), XP(3, NVR)
 
-   double precision, intent(in)    :: Xbound(6), Dpm(3)
+   real(dp), intent(in)    :: Xbound(6), Dpm(3)
 
-   double precision :: fx, fy, fz, f, x, y, z
+   real(dp) :: fx, fy, fz, f, x, y, z
    integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf
 
    if (iproj .eq. 2) then
@@ -354,15 +353,15 @@ function cell3d_interp_euler(F, N, M) result(FC)
 
    integer, parameter :: dp = real64
 
-   double precision, dimension(8), intent(in) :: F
+   real(dp), dimension(8), intent(in) :: F
    integer, intent(in) :: N, M
-   double precision, dimension(N) :: FC
+   real(dp), dimension(N) :: FC
 
    ! LOCAL VARIABLES
-   double precision :: KSIC(8), HTAC(8), ZETAC(8)
-   double precision, dimension(N) :: KSI, HTA, ZETA
+   real(dp) :: KSIC(8), HTAC(8), ZETAC(8)
+   real(dp), dimension(N) :: KSI, HTA, ZETA
    integer :: i, j
-   double precision :: addit
+   real(dp) :: addit
    integer :: NTEMP
 
    NTEMP = N
@@ -411,9 +410,9 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    integer, intent(in)           :: N
    ! N is the number of particles to remesh
    ! M is 2
-   double precision, intent(in)  :: KSIC(8), HTAC(8), ZETAC(8)
-   double precision, intent(out) :: KSI(N), HTA(N), ZETA(N)
-   double precision              :: DKSI, DHTA, DZETA
+   real(dp), intent(in)  :: KSIC(8), HTAC(8), ZETAC(8)
+   real(dp), intent(out) :: KSI(N), HTA(N), ZETA(N)
+   real(dp)              :: DKSI, DHTA, DZETA
    integer                       :: i, j, k, nod
 
    !--> find position minus ksi minus ita quadrant and then by symmerty * 4

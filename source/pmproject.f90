@@ -1,25 +1,18 @@
 Module projlib
+   use base_types, only: dp
 
-   double precision, save               :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   double precision, save               :: DXpm, DYpm, DZpm, DVpm
-   double precision, save               :: EPSVOL
-   integer, save                        :: NXpm, NYpm, NZpm, NXs, NXf, NYs, NYf, NZs, NZf
-   integer, save                        :: IDVPM, ND
+   real(dp), save       :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
+   real(dp), save       :: DXpm, DYpm, DZpm, DVpm
+   real(dp), save       :: EPSVOL
+   integer, save        :: NXpm, NYpm, NZpm, NXs, NXf, NYs, NYf, NZs, NZf
+   integer, save        :: IDVPM, ND
 
-   private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   private :: DXpm, DYpm, DZpm, DVpm
-   private :: EPSVOL
-   private :: NXpm, NYpm, NZpm
-   private :: NXs, NXf, NYs, NYf, NZs, NZf
-   private :: IDVPM, ND
-
-   ! Getters
-   public :: get_XMIN_pm, get_XMAX_pm, get_YMIN_pm, get_YMAX_pm, get_ZMIN_pm, get_ZMAX_pm
-   public :: get_DXpm, get_DYpm, get_DZpm, get_DVpm
-   public :: get_EPSVOL
-   public :: get_NXpm, get_NYpm, get_NZpm
-   public :: get_NXs, get_NXf, get_NYs, get_NYf, get_NZs, get_NZf
-   public :: get_IDVPM, get_ND
+   private              :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
+   private              :: DXpm, DYpm, DZpm, DVpm
+   private              :: EPSVOL
+   private              :: NXpm, NYpm, NZpm
+   private              :: NXs, NXf, NYs, NYf, NZs, NZf
+   private              :: IDVPM, ND
 
    ! Printers
    public :: print_projlib_info
@@ -27,7 +20,7 @@ Module projlib
 contains
    Subroutine projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL_in, IDVPM_in, ND_in)
       implicit none
-      double precision, intent(in) :: Xbound(6), Dpm(3), EPSVOL_in
+      real(dp), intent(in) :: Xbound(6), Dpm(3), EPSVOL_in
       integer, intent(in) :: NN(3), IDVPM_in, ND_in, NN_bl(6)
 
       EPSVOL = EPSVOL_in
@@ -92,15 +85,15 @@ contains
 
       Implicit None
       integer, intent(in) :: ipar, isize, ieq(neq), iparsize, neq
-      ! double precision , intent(out), dimension(:,:,:,:) :: Qproj
-      double precision, intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
+      ! real(dp) , intent(out), dimension(:,:,:,:) :: Qproj
+      real(dp), intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(neq, NXpm, NYpm, NZpm) :: Qproj(neq, NXpm, NYpm, NZpm)
-      double precision, intent(in) :: Qpar(isize, iparsize), QpX(3, iparsize), QINF(neq)
+      real(dp), intent(in) :: Qpar(isize, iparsize), QpX(3, iparsize), QINF(neq)
       integer, intent(in) :: Qprojtype(iparsize)
-      double precision   :: fx, fy, fz, f, x, y, z
+      real(dp)   :: fx, fy, fz, f, x, y, z
       integer            :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
       integer           :: my_rank, ierr!, tot_par_num
-      ! double precision, dimension(neq) :: temp
+      ! real(dp), dimension(neq) :: temp
       ! integer            :: nbj, nb
 
       call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -213,11 +206,11 @@ contains
       Implicit None
       integer, intent(in) :: neq, isize, iflag
       integer, intent(in), dimension(neq) ::  ieq
-      ! double precision , intent(out), dimension(:, :,:,:) :: Qproj
-      double precision   :: Qproj(isize, NXpm, NYpm, NZpm)
+      ! real(dp) , intent(out), dimension(:, :,:,:) :: Qproj
+      real(dp)   :: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
-      ! double precision   :: fx, fy, fz, f, x, y, z,
-      double precision     :: EPSVOLt
+      ! real(dp)   :: fx, fy, fz, f, x, y, z,
+      real(dp)     :: EPSVOLt
       integer              :: i, j, k, IDVPMt
       ! integer              :: inode, jnode, knode, nv, itype, nbj, nb
       EPSVOLt = EPSVOL
@@ -270,14 +263,14 @@ contains
 
       Implicit None
       integer, intent(in) :: ipar, isize, ieq(neq)
-      ! double precision, intent(out), dimension(:, :, :, :) :: Qproj
-      double precision, intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
+      ! real(dp), intent(out), dimension(:, :, :, :) :: Qproj
+      real(dp), intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
 
-      ! double precision, allocatable:: Qprojpriv(:, :, :, :)
-      double precision, intent(in) :: Qpar(isize, ipar), QpX(3, ipar), QINF(neq)
+      ! real(dp), allocatable:: Qprojpriv(:, :, :, :)
+      real(dp), intent(in) :: Qpar(isize, ipar), QpX(3, ipar), QINF(neq)
       integer, intent(in) :: Qprojtype(ipar)
-      double precision   :: fx, fy, f, x, y
+      real(dp)   :: fx, fy, f, x, y
       integer            :: inode, jnode, i, j, k, nv, itype, neq, ips, ipf
       ! integer          :: nbj,, knode, nb
       ! integer            ::omp_get_max_threads, omp_get_num_threads
@@ -343,13 +336,13 @@ contains
 
       Implicit None
       integer, intent(in) :: ipar, isize, ieq(neq)
-      ! double precision, intent(out), dimension(:,:,:) :: Qproj
-      double precision, intent(out):: Qproj(NXpm, NYpm, NZpm)
+      ! real(dp), intent(out), dimension(:,:,:) :: Qproj
+      real(dp), intent(out):: Qproj(NXpm, NYpm, NZpm)
       !f2py depend(NXpm, NYpm, NZpm) :: Qproj(NXpm, NYpm, NZpm)
-      ! double precision, allocatable:: Qprojpriv(:, :, :, :)
-      double precision, intent(in) :: Qpar(isize, ipar), QpX(3, ipar) !, QINF(neq)
+      ! real(dp), allocatable:: Qprojpriv(:, :, :, :)
+      real(dp), intent(in) :: Qpar(isize, ipar), QpX(3, ipar) !, QINF(neq)
       integer, intent(in) :: Qprojtype(ipar)
-      double precision   :: fx, fy, f, x, y !, z, fz
+      real(dp)   :: fx, fy, f, x, y !, z, fz
       integer            :: i, j, k, nv, inode, jnode, itype, neq, ips, ipf
       ! integer            ::omp_get_max_threads, omp_get_num_threads
       ! integer            :: knode, nbj, nb
@@ -423,11 +416,11 @@ contains
 
       Implicit None
       integer, intent(in) :: isize, ieq(neq), iflag
-      ! double precision , intent(out), dimension(:,:, :, :) :: Qproj
-      double precision   :: Qproj(isize, NXpm, NYpm, NZpm)
+      ! real(dp) , intent(out), dimension(:,:, :, :) :: Qproj
+      real(dp)   :: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
-      ! double precision   :: fx, fy, fz, f, x, y, z,
-      double precision   :: EPSVOLt
+      ! real(dp)   :: fx, fy, fz, f, x, y, z,
+      real(dp)   :: EPSVOLt
       integer            ::  i, j, k, neq, IDVPMt
       ! integer            :: inode, jnode, knode, nv, itype, nbj, nb
       EPSVOLt = EPSVOL
@@ -487,12 +480,12 @@ contains
    !      itype       : type of projection function                              !
    !      x           : position of projection
    !-----------------------------------------------------------------------------!
-   double precision function projection_fun(itype, x) !result(projection_fun)
+   real(dp) function projection_fun(itype, x) !result(projection_fun)
       Implicit None
-      double precision, intent(in) :: x
+      real(dp), intent(in) :: x
       integer, intent(in)          :: itype
 
-      double precision             :: xabs
+      real(dp)             :: xabs
 
       xabs = abs(x)
       if (itype .eq. 2) then
@@ -528,96 +521,6 @@ contains
 
    End Function projection_fun
 
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Getters
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!
-   double precision function get_XMIN_pm()
-      get_XMIN_pm = XMIN_pm
-   End Function get_XMIN_pm
-
-   double precision function get_XMAX_pm()
-      get_XMAX_pm = XMAX_pm
-   End Function get_XMAX_pm
-
-   double precision function get_YMIN_pm()
-      get_YMIN_pm = YMIN_pm
-   End Function get_YMIN_pm
-
-   double precision function get_YMAX_pm()
-      get_YMAX_pm = YMAX_pm
-   End Function get_YMAX_pm
-
-   double precision function get_ZMIN_pm()
-      get_ZMIN_pm = ZMIN_pm
-   End Function get_ZMIN_pm
-
-   double precision function get_ZMAX_pm()
-      get_ZMAX_pm = ZMAX_pm
-   End Function get_ZMAX_pm
-
-   double precision function get_DXpm()
-      get_DXpm = DXpm
-   End Function get_DXpm
-
-   double precision function get_DYpm()
-      get_DYpm = DYpm
-   End Function get_DYpm
-
-   double precision function get_DZpm()
-      get_DZpm = DZpm
-   End Function get_DZpm
-
-   double precision function get_DVpm()
-      get_DVpm = DVpm
-   End Function get_DVpm
-
-   double precision function get_EPSVOL()
-      get_EPSVOL = EPSVOL
-   End Function get_EPSVOL
-
-   integer function get_NXpm()
-      get_NXpm = NXpm
-   End Function get_NXpm
-
-   integer function get_NYpm()
-      get_NYpm = NYpm
-   End Function get_NYpm
-
-   integer function get_NZpm()
-      get_NZpm = NZpm
-   End Function get_NZpm
-
-   integer function get_NXs()
-      get_NXs = NXs
-   End Function get_NXs
-
-   integer function get_NXf()
-      get_NXf = NXf
-   End Function get_NXf
-
-   integer function get_NYs()
-      get_NYs = NYs
-   End Function get_NYs
-
-   integer function get_NYf()
-      get_NYf = NYf
-   End Function get_NYf
-
-   integer function get_NZs()
-      get_NZs = NZs
-   End Function get_NZs
-
-   integer function get_NZf()
-      get_NZf = NZf
-   End Function get_NZf
-
-   integer function get_IDVPM()
-      get_IDVPM = IDVPM
-   End Function get_IDVPM
-
-   integer function get_ND()
-      get_ND = ND
-   End Function get_ND
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Printers

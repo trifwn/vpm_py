@@ -1,6 +1,6 @@
 
 module IO
-
+    use base_types, only: dp
     integer, save :: VERBOCITY = 0
     ! Print allocatable integer arrays
     public:: i_1d_alloc_info, i_2d_alloc_info
@@ -106,13 +106,13 @@ contains
         print '(A)', ""
     end subroutine i_2d_array_info
 
+    
     ! DOUBLE PRECISION ARRAYS
-
     subroutine dp_1d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, dimension(:), allocatable, intent(in) :: arr
-        double precision, dimension(4) :: sample_values
+        real(dp), dimension(:), allocatable, intent(in) :: arr
+        real(dp), dimension(4) :: sample_values
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         if (allocated(arr)) then
@@ -134,7 +134,7 @@ contains
     subroutine dp_1d_array_info(name_in,arr, size_arr)
         integer, intent(in) :: size_arr
         character(len=*), intent(in) :: name_in
-        double precision, dimension(size_arr), intent(in) :: arr
+        real(dp), dimension(size_arr), intent(in) :: arr
         character(len=100) :: name
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
@@ -149,8 +149,8 @@ contains
     subroutine dp_1d_ptr_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, pointer, intent(in) :: arr(:)
-        double precision, dimension(4) :: sample_values
+        real(dp), pointer, intent(in) :: arr(:)
+        real(dp), dimension(4) :: sample_values
 
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         print  *, achar(9)//trim(name), " (1D): Size = (", size(arr), ")"
@@ -168,8 +168,8 @@ contains
     subroutine dp_2d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, dimension(:,:), allocatable, intent(in) :: arr
-        double precision, dimension(4) :: sample_values
+        real(dp), dimension(:,:), allocatable, intent(in) :: arr
+        real(dp), dimension(4) :: sample_values
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         if (allocated(arr)) then
@@ -191,19 +191,21 @@ contains
     subroutine dp_2d_ptr_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, pointer, intent(in) :: arr(:, :)
-        double precision, dimension(4) :: sample_values
+        real(dp), pointer, intent(in) :: arr(:, :)
+        real(dp), dimension(4) :: sample_values
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         print  *, achar(9)//trim(name), " (2D): Size = (", size(arr, 1), ", ", size(arr, 2), ")"
         sample_values =  arr(1,1:min(4,size(arr,2)))
         print '(A,4E12.4)', achar(9)//"Sample values: ", sample_values
         ! Print the number of non-zero elements
-        print  *, achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
+        print *, achar(9)//"Number of zero elements: ", count(arr == 0.0d0)
+        print *, achar(9)//"Number of NaN elements: ", count(isnan(arr))
+        print *, achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
         ! Print the mean/max/min values
-        print  *, achar(9)//"Mean value: ", sum(arr)/size(arr)
-        print  *, achar(9)//"Max value: ", maxval(arr)
-        print  *, achar(9)//"Min value: ", minval(arr)
+        print *, achar(9)//"Mean value: ", sum(arr)/size(arr)
+        print *, achar(9)//"Max value: ", maxval(arr)
+        print *, achar(9)//"Min value: ", minval(arr)
         print '(A)', ""
     end subroutine dp_2d_ptr_info
 
@@ -212,13 +214,15 @@ contains
         character(len=100) :: name
 
         integer, intent(in) :: size1, size2
-        double precision, dimension(size1, size2), intent(in) :: arr
+        real(dp), dimension(size1, size2), intent(in) :: arr
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         print  *, achar(9)//trim(name), " (2D): Size = (", size(arr,1), ",", size(arr,2), ")"
         print '(A,4E12.4)', achar(9)//"Sample values: ", arr(1,1:min(4,size(arr,2)))
         ! Print the number of non-zero elements
-        print  *, achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
+        print *, achar(9)//"Number of zero elements: ", count(arr == 0.0d0)
+        print *, achar(9)//"Number of NaN elements: ", count(isnan(arr))
+        print *, achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
         ! Print the mean/max/min values
         print  *, achar(9)//"Mean value: ", sum(arr)/size(arr)
         print  *, achar(9)//"Max value: ", maxval(arr)
@@ -230,8 +234,8 @@ contains
     subroutine dp_3d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, dimension(:,:,:), allocatable, intent(in) :: arr
-        double precision :: sample_value
+        real(dp), dimension(:,:,:), allocatable, intent(in) :: arr
+        real(dp) :: sample_value
         integer :: i, j, k
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
@@ -263,24 +267,25 @@ contains
     subroutine dp_4d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
-        double precision, dimension(:,:,:,:), allocatable, intent(in) :: arr
-        double precision, dimension(4) :: sample_value
+        real(dp), dimension(:,:,:,:), allocatable, intent(in) :: arr
+        real(dp), dimension(4) :: sample_value
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         if (allocated(arr)) then
-            print *, achar(9)//trim(name), " (4D): Size = (", size(arr,1), ",", size(arr,2), ",", size(arr,3), ",", size(arr,4), ")"
+            write(*, '(A,A,I3,A,I3,A,I3,A,I3,A)'), achar(9)//trim(name), " (4D): Size = (", &
+                            size(arr,1), ",", size(arr,2), ",", size(arr,3), ",", size(arr,4), ")"
             sample_value(1:min(4,size(arr,4))) = arr(1,1,1,1:min(4,size(arr,4)))
-            print '(A,4F12.6)', achar(9)//"Sample values: ", sample_value(1: min(4, size(arr, 4)))
+            print '(A,4F12.6)', achar(9)//achar(9)//"Sample values: ", sample_value(1: min(4, size(arr, 4)))
             ! Print the number of non-zero elements
-            print *, achar(9)//"Number of elements: ", size(arr)
-            print  *, achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
-            print  *, achar(9)//"Number of zero elements: ", count(arr == 0.0d0)
+            print *, achar(9)//achar(9)//"Number of elements: ", size(arr)
+            print *, achar(9)//achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
+            print *, achar(9)//achar(9)//"Number of zero elements: ", count(arr == 0.0d0)
             ! Print the mean/max/min values
-            print  *, achar(9)//"Mean value: ", sum(arr)/size(arr)
-            print  *, achar(9)//"Max value: ", maxval(arr)
-            print  *, achar(9)//"Min value: ", minval(arr)
+            print *, achar(9)//achar(9)//"Mean value: ", sum(arr)/size(arr)
+            print *, achar(9)//achar(9)//"Max value: ", maxval(arr)
+            print *, achar(9)//achar(9)//"Min value: ", minval(arr)
         else
-            print '(A,A)', achar(9)//trim(name), ": Not allocated"
+            print '(A,A)', achar(9)//achar(9)//trim(name), ": Not allocated"
         end if
         print '(A)', ""
     end subroutine dp_4d_alloc_info

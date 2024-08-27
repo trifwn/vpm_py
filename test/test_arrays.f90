@@ -1,9 +1,10 @@
 program test_arrays
     use ND_Arrays
+    use base_types, only: dp
     implicit none
 
     type(ND_Array) :: arr1, arr2, arr_add, arr_sub, arr_mul, arr_div, arr_slice!, test_ndarr
-    double precision , dimension(:, :) , allocatable :: data1, data2
+    real(dp) , dimension(:, :) , allocatable :: data1, data2
     integer, dimension(2) , target:: shape_arr
     integer :: i, j
 

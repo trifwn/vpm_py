@@ -1,12 +1,13 @@
 
 Module vpm_vars
-   double precision, allocatable       :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
-   double precision                    :: DT_c, V_ref, NI
+   use base_types, only: dp
+   real(dp), allocatable       :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
+   real(dp)                    :: DT_c, V_ref, NI
    integer, allocatable                :: NVR_projscatt(:)
    integer                             :: interf_iproj, ncell_rem
 
    integer                             :: ncoarse, nparcell1d
-   integer                             :: neqpm, NVR_p, NVR_size, iwrite, NTIME_pm
+   integer                             :: neqpm, NVR_p, NVR_size, NTIME_pm
 
    integer, save                       :: IPMWRITE, idefine, iynslice
    integer, save                       :: mrem = 1
@@ -67,7 +68,6 @@ contains
       print *, achar(9), 'neqpm = ', neqpm
       print *, achar(9), 'NVR_p = ', NVR_p
       print *, achar(9), 'NVR_size = ', NVR_size
-      print *, achar(9), 'iwrite = ', iwrite
       print *, achar(9), 'NTIME_pm = ', NTIME_pm
       print *, achar(9), 'IPMWRITE = ', IPMWRITE
       print *, achar(9), 'mrem = ', mrem

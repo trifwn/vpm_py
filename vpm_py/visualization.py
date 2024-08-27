@@ -23,7 +23,7 @@ class Particle3DPlot:
         # Color bar
         self.fig.colorbar(self.sc, ax=self.ax, label="Strenghts")
         plt.ion()
-        plt.show(block=False)
+        self.fig.show()
 
     def update(self, x, y, z, c):
         """
@@ -36,8 +36,8 @@ class Particle3DPlot:
         c: color of the particles.
         """
         self.fig.canvas.flush_events()
-        print_green(f"Updating plot")
-        print_green(f"Number of particles: {len(x)}")
+        print_green(f"\tUpdating plot")
+        print_green(f"\tNumber of particles: {len(x)}")
         self.sc.set_offsets(np.c_[x, y])
         self.sc.set_3d_properties(z, 'z')
         self.sc.set_array(c)
@@ -49,8 +49,11 @@ class Particle3DPlot:
         self.sc.set_clim(min(c), max(c))
         
         # Redraw the plot
+        self.ax.relim()
+        self.ax.autoscale_view()
+        # self.ax.autoscale()
         self.fig.canvas.draw()
-        plt.pause(1)
+        plt.pause(0.01)
 
     def close(self):
         """

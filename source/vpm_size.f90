@@ -1,15 +1,16 @@
 Module vpm_size
-   double precision, save              :: Xbound(6), Dpm(3), Xbound0(6), Dpm0(3)
+   use base_types, only: dp
+   real(dp), save              :: Xbound(6), Dpm(3), Xbound0(6), Dpm0(3)
    integer, save                       :: NN_bl(6), NN(3), NN0_bl(6), NN0(3)
    integer, save                       :: NXs0_bl(10), NYs0_bl(10), NXf0_bl(10), NYf0_bl(10), NZs0_bl(10), NZf0_bl(10)
 
-   double precision, allocatable, save :: Xbound_bl(:, :)
+   real(dp), allocatable, save :: Xbound_bl(:, :)
    integer, allocatable, save          :: NNbl_bl(:, :), NNbl(:, :)
 
-   double precision, save              :: Xbound_tmp(6), Xbound_coarse(6), Dpm_coarse(3)
+   real(dp), save              :: Xbound_tmp(6), Xbound_coarse(6), Dpm_coarse(3)
    integer, save                       :: NN_tmp(3), NN_bl_tmp(6), NN_coarse(3), NN_bl_coarse(6)
    integer, save                       :: nb_i, nb_j, nb_k, NBB, NXbl, NYbl, NZbl, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
-   double precision                    :: starttime, endtime, st, et, ct
+   real(dp)                    :: starttime, endtime, st, et, ct
    integer, save                       :: iynbc, iret, NBI, NBJ, NBK, NVR_out_thres, NREMESH, ntorder, &
                                           iyntree, ilevmax, itree, nsize_out(3), ibctyp, NWRITE
 
@@ -27,7 +28,7 @@ contains
    end Subroutine get_NN
    
    Subroutine get_Xbound(Xbound_out)
-      double precision :: Xbound_out(6)
+      real(dp) :: Xbound_out(6)
       Xbound_out = Xbound
    end Subroutine get_Xbound
 

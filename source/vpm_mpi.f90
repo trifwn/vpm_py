@@ -5,8 +5,8 @@ Subroutine rhsbcast(RHS_pm, NN, neq)
    Implicit None
 
    integer, intent(in)                                                  :: NN(3), neq
-   ! double precision, dimension(:,:,:,:), intent(inout)                  :: RHS_pm
-   double precision, dimension(neq, NN(1), NN(2), NN(3)), intent(inout)    :: RHS_pm
+   ! real(dp), dimension(:,:,:,:), intent(inout)                  :: RHS_pm
+   real(dp), dimension(neq, NN(1), NN(2), NN(3)), intent(inout)    :: RHS_pm
    !f2py depend(neq, NN) :: RHS_pm(neq, NN(1), NN(2), NN(3))
    integer                                                              :: my_rank, np, ierr, mat4
 
@@ -26,8 +26,8 @@ Subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
    use MPI
    Implicit None
    integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, NN_bl(6), NN_tmp(3)
-   ! double precision, dimension(:,:,:,:)  :: RHS_pm_bl
-   double precision, intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+   ! real(dp), dimension(:,:,:,:)  :: RHS_pm_bl
+   real(dp), intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    !f2py depend(neqpm, NN_tmp) :: RHS_pm(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    integer :: my_rank, ierr
    integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, NN(3)
@@ -62,10 +62,10 @@ Subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
    use MPI
    Implicit None
    integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NN_bl(6), NN_tmp(3)
-   ! double precision, dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
-   double precision, intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+   ! real(dp), dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
+   real(dp), intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    !f2py depend(neqpm, NN_tmp) :: SOL_pm(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-   double precision, allocatable :: SOL_pm_tmp(:, :, :, :)
+   real(dp), allocatable :: SOL_pm_tmp(:, :, :, :)
    integer :: my_rank, ierr, source, dest, status(MPI_STATUS_SIZE), mat4
    integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, j, NN_block(3), i, nbs
 
@@ -132,8 +132,8 @@ Subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RH
    use MPI
    Implicit None
    integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, nb_k, NN_bl(6), NN_tmp(3)
-   ! double precision, dimension(:,:,:,:), intent(out)  :: RHS_pm_bl
-   double precision, intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+   ! real(dp), dimension(:,:,:,:), intent(out)  :: RHS_pm_bl
+   real(dp), intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    !f2py depend(neqpm, NN_tmp) :: RHS_pm(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    integer :: my_rank, ierr
    integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf, NN(3)
@@ -175,10 +175,10 @@ Subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
    use MPI
    Implicit None
    integer, intent(in)           :: BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NBK, NN_bl(6), NN_tmp(3)
-   ! double precision, dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
-   double precision, intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+   ! real(dp), dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
+   real(dp), intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    ! f2py depend(neqpm, NN_tmp) :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-   double precision, allocatable :: SOL_pm_tmp(:, :, :, :)
+   real(dp), allocatable :: SOL_pm_tmp(:, :, :, :)
    integer :: my_rank, ierr, source, dest, status(MPI_STATUS_SIZE), mat4
    integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf, j, k, NN_block(3), i, nbs
 
@@ -432,7 +432,7 @@ Subroutine proj_gath(NN)
    integer :: my_rank, np, ierr, i
    integer :: dest, source, mat4
    integer :: status(MPI_STATUS_SIZE)
-   double precision, allocatable:: RHS_pm_tmp(:, :, :, :)
+   real(dp), allocatable:: RHS_pm_tmp(:, :, :, :)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
@@ -468,8 +468,8 @@ Subroutine proj_gath_new(NN)
    integer :: source, mat4
    integer :: status(MPI_STATUS_SIZE)
    integer :: imax, imin, jmax, jmin, kmax, kmin
-   double precision, allocatable:: RHS_pmtmp(:, :, :, :)
-   double precision            :: xpmax, xpmin, ypmax, ypmin, zpmax, zpmin
+   real(dp), allocatable:: RHS_pmtmp(:, :, :, :)
+   real(dp)            :: xpmax, xpmin, ypmax, ypmin, zpmax, zpmin
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
