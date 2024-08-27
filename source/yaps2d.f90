@@ -3,7 +3,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
                   iyntree, ilevmax, npmsize)
 
    use projlib
-   use pmlib
+   use pmlib, only: pmesh
    use mpi_matrices!, only: mpimat4, mpimat5_old, mpimat2,
    use MPI
    Implicit None
@@ -13,11 +13,11 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
    real(dp), intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
    real(dp), intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
-   real(dp), intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
+   real(dp), intent(inout), target :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
 
-   real(dp), allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
-   real(dp)             :: Xbound_tmp(6)
-   integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, itree, lmax, ibctyp_c
+   real(dp), allocatable            :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
+   real(dp)                         :: Xbound_tmp(6)
+   integer                          :: NN_tmp(3), NN_bl_tmp(6), iynbc, itree, lmax, ibctyp_c
 
    !Assign variables
    ibctyp_c = ibctyp

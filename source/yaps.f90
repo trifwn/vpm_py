@@ -2,7 +2,7 @@
 Module yapslib
    use base_types, only: dp
    use projlib
-   use pmlib
+   ! use pmlib
    use mpi_matrices!, only: mpimat4, MPIMAT5_OLD, mpimat2, mpimat5, mpimat2_pm_
    use MPI
 

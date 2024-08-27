@@ -194,7 +194,8 @@ set(VPM_LIB_INCL
     ${SRC_HP}/vpm_gcalc.f90
 )
 
-set(PM_LIB_INCL
+set(PM_LIB_FILES
+    ${SRC_HP}/pmlib.f90
     ${SRC_HP}/pmsolve.f90
     ${SRC_HP}/pmbound.f90
     ${SRC_HP}/pinfdomain.f90
@@ -235,9 +236,9 @@ target_link_libraries(pmeshpar PRIVATE io)
 add_library(pmproject SHARED ${SRC_HP}/pmproject.f90)
 target_link_libraries(pmproject PRIVATE mkl_poisson)
 
-add_library(pmlib SHARED ${SRC_HP}/pmlib.f90)
-target_include_directories(pmlib PUBLIC ${PM_LIB_INCL})
-target_link_libraries(pmlib PRIVATE mkl_poisson)
+add_library(pmlib SHARED ${PM_LIB_FILES})
+# target_include_directories(pmlib PUBLIC ${PM_LIB_FILES})
+target_link_libraries(pmlib PRIVATE mkl_poisson) 
 
 add_library(yaps SHARED ${SRC_HP}/yaps.f90)
 target_include_directories(yaps PUBLIC ${YAPS_INCL})

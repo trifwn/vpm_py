@@ -3,7 +3,7 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
                   nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
    use projlib
-   use pmlib
+   use pmlib, only: pmesh
    use MPI
 
    Implicit None

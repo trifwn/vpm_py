@@ -18,6 +18,7 @@ module pmlib
    integer, save                 :: NXs_bl(10), NYs_bl(10), NXf_bl(10), NYf_bl(10), NZs_bl(10), NZf_bl(10), NBlocks
 
    integer, save                 :: nbound, levmax
+   integer, save                 :: itree, ibctyp 
 
    !Here pointers are defined which will be assigned in the external data to save up space
    real(dp), pointer             :: SOL_pm(:, :, :, :), RHS_pm(:, :, :, :), QP(:, :), XP(:, :)
@@ -33,52 +34,147 @@ module pmlib
    private ::source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
    private ::nbound, ilev_t
 
+! pinfdomain.f90
+   interface infdomain
+      module subroutine infdomain(neqs, neqf)
+         Implicit None
+         integer, intent(in) :: neqs, neqf
+      end subroutine infdomain
+   end interface
+   interface build_level_nbound
+      module subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
+         Implicit None
+         integer, intent(in)     :: NXs, NXf, NYs, NYf, neqs, neqf
+      end subroutine build_level_nbound
+   end interface
+   interface infdomain_3D
+      module subroutine infdomain_3D(neqs, neqf)
+         Implicit None
+         integer, intent(in) :: neqs, neqf
+      end subroutine infdomain_3D
+   end interface
+
+   interface build_level_nbound_3d
+      module subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
+         Implicit None
+         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
+      end subroutine build_level_nbound_3d
+   end interface
+
+! pmsolve.f90
+   interface solve_eq
+      module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
+         Implicit None
+         integer, intent(in)  :: NXs, NXf, NYs, NYf, neq
+      end subroutine solve_eq
+   end interface
+
+   interface solve_eq_0
+      module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
+         Implicit None
+         integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
+      end subroutine solve_eq_0
+   end interface
+
+   interface solve_eq_3D
+      module subroutine solve_eq_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq)
+         Implicit None
+         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+      end subroutine solve_eq_3D
+   end interface
+
+   interface solve_eq_0_3D
+      module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
+         Implicit None
+         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+      end subroutine solve_eq_0_3D
+   end interface
+
+! pmbound.f90
+   interface Bounds2D
+      module subroutine Bounds2d(itype, NXs, NXf, NYs, NYf, neqs, neqf)
+         Implicit None
+         integer, intent(in)  :: itype, NXs, NXf, NYs, NYf, neqs, neqf
+      end subroutine Bounds2D
+   end interface
+
+   interface Bounds2d_lev
+      module subroutine Bounds2d_lev(itype, NXs, NXf, NYs, NYf, neqs, neqf)
+         Implicit None
+         integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
+      end subroutine Bounds2d_lev
+   end interface
+
+   interface Bounds3d
+      module subroutine Bounds3d(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
+         Implicit None
+         integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
+      end subroutine Bounds3d
+   end interface
+
+   interface Bounds3d_lev
+      module subroutine Bounds3d_lev(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
+         Implicit None
+         integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
+      end subroutine Bounds3d_lev
+   end interface
+
 contains
-!--------------------------------------------------------------------------------
-!>@function
-! Subroutine  pmesh
-!>
-!>@author Papis
-!>
-!>@brief
-!>This is the main subroutine of the Poisson solver library
-!>The input of the subroutine is DSOL_pm,DRHS_pm,DQP,DXP and d velocities.These variables are assigned the
-!>specified pointers.What is also needed is
-!> Dpm,NN,NN_bl,Nblocks,Xbound which define the grid
-!> Dpm(3)   is DX,DY,DZ
-!> NN(3)    is the size of extend domain which coincides with the size of DSOL_pm,DRHS_pm
-!> NN_bl(6) is the size of the original grid (smaller domain) in which the poisson problem will be solved
-!>          (NN_bl(1:3),the starting nodes of the grid(X,Y,Z) with respect to the extended domain)
-!>          (NN_bl(4:6),the last nodes of the grid(X,Y,Z)  with respect to the extended domain)
-!>Nblocks is deprecated
-!>Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the extended domain
-!>ibctyp (1 for bio savart law) (2 for infinite domain boundary conditions)
-!>neqs,neqf is an option if we want to solve more than one equation.neqs,neqf shoud coresspond to
-!>DSOL_pm(:,:,:,neqs,neqf)...
-!>iynbc is in case we want to add externally bc's for our equation.0 means normal solve (which means the
-!>solution at boundaries is from ibctyp.1 means keeps the solution at the boundaries at what is defined
-!> externally)
-!>IMPORTANT NOTE: The following library assumes that there are two domains.
-!>                -->the original domain and
-!>                -->an extended domain(that's why NN differ from NN_bl)
-!>                The solution is found on the extended domain.
-!>                IF you don't want an extended domain then set NN_bl(1)=1,NN_bl(4)=NN(1)..NN_bl(2)..
-!>                EXTERNALLY
-!REVISION HISTORY
-!> TODO_dd
-!>
-!>@param [in]
-!>@param [out]
-!--------------------------------------------------------------------------------
-   Subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND, Nblocks, ibctyp, neqs, neqf, iynbc, NVR, itree, levmax)
+   !--------------------------------------------------------------------------------
+   !>@function
+   ! Subroutine  pmesh
+   !>
+   !>@author Papis
+   !>
+   !>@brief
+   !>This is the main subroutine of the Poisson solver library
+   !>The input of the subroutine is DSOL_pm,DRHS_pm,DQP,DXP and d velocities.These variables are assigned the
+   !>specified pointers.What is also needed is
+   !> Dpm,NN,NN_bl,Nblocks,Xbound which define the grid
+   !> Dpm(3)   is DX,DY,DZ
+   !> NN(3)    is the size of extend domain which coincides with the size of DSOL_pm,DRHS_pm
+   !> NN_bl(6) is the size of the original grid (smaller domain) in which the poisson problem will be solved
+   !>          (NN_bl(1:3),the starting nodes of the grid(X,Y,Z) with respect to the extended domain)
+   !>          (NN_bl(4:6),the last nodes of the grid(X,Y,Z)  with respect to the extended domain)
+   !>Nblocks is deprecated
+   !>Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the extended domain
+   !>ibctyp (1 for bio savart law) (2 for infinite domain boundary conditions)
+   !>neqs,neqf is an option if we want to solve more than one equation.neqs,neqf shoud coresspond to
+   !>DSOL_pm(:,:,:,neqs,neqf)...
+   !>iynbc is in case we want to add externally bc's for our equation.0 means normal solve (which means the
+   !>solution at boundaries is from ibctyp.1 means keeps the solution at the boundaries at what is defined
+   !> externally)
+   !>IMPORTANT NOTE: The following library assumes that there are two domains.
+   !>                -->the original domain and
+   !>                -->an extended domain(that's why NN differ from NN_bl)
+   !>                The solution is found on the extended domain.
+   !>                IF you don't want an extended domain then set NN_bl(1)=1,NN_bl(4)=NN(1)..NN_bl(2)..
+   !>                EXTERNALLY
+   !REVISION HISTORY
+   !> TODO_dd
+   !>
+   !>@param [in]
+   !>@param [out]
+   !>--------------------------------------------------------------------------------
+   Subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND_in, Nblocks_in, ibctyp_in, &
+                    neqs, neqf, iynbc, NVR_in, itree_in, levmax_in)
       ! use parvar, only : XP, QP
       use MPI
       Implicit None
-      integer, intent(in)              :: ibctyp, neqs, neqf, iynbc, NVR, itree, levmax
-      real(dp), intent(in)             :: Xbound(6), Dpm(3)
-      integer, intent(in)              :: NN_bl(6), NN(3), ND, Nblocks
       real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
+      integer, intent(in)              :: ibctyp_in, itree_in, NVR_in, levmax_in, iynbc, neqs, neqf
+      real(dp), intent(in)             :: Xbound(6), Dpm(3)
+      integer, intent(in)              :: NN_bl(6), NN(3), ND_in, Nblocks_in
+      ! Local variables
       integer                          :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
+
+      ibctyp = ibctyp_in
+      itree = itree_in
+      NVR = NVR_in
+      levmax = levmax_in
+      ND = ND_in
+      NBlocks = Nblocks_in
+
       ! integer                        :: ierr, my_rank, np, rank
       ! real(dp)                       :: XPM, YPM, velx, vely
       ! real(dp)                       :: xi, yi, ksi1, ksi2, th1, th2, w1, w2
@@ -205,12 +301,13 @@ contains
       ! enddo
 
       nullify (SOL_pm, RHS_pm, QP, XP)
-   contains
-      include 'pmsolve.f90'
-      include 'pmbound.f90'
-      include 'pinfdomain.f90'
-
+   
+      
    End Subroutine pmesh
+   ! contains
+   !    include 'pmsolve.f90'
+   !    include 'pmbound.f90'
+   !    include 'pinfdomain.f90'
 
 !--------------------------------------------------------------------------------
 !>@function
