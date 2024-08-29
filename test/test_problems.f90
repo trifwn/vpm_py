@@ -81,7 +81,8 @@ contains
 
         end subroutine
 
-    Subroutine hill_assign(NN,NN_bl,Xbound,Dpm,RHS_pm_bl,neqpm)
+    !> 
+    subroutine hill_assign(NN,NN_bl,Xbound,Dpm,RHS_pm_bl,neqpm)
         integer,intent(in) :: NN(3),NN_bl(6),neqpm
         real(dp),intent(in) :: Xbound(6),Dpm(3)
         real(dp),intent(inout) :: RHS_pm_bl(neqpm,NN(1),NN(2),NN(3))
@@ -89,9 +90,9 @@ contains
         integer          :: i,j,k
         logical          :: I_EXIST
         RHS_pm_bl(1:3,:,:,:)=0.0d0
-        INQUIRE (FILE='hillref.plt', EXIST=I_EXIST)
+        INQUIRE (FILE='sol/hillref.plt', EXIST=I_EXIST)
         if(I_EXIST.eqv..false.) then 
-            open(1,file='hillref.dat')
+            open(1,file='sol/hillref.dat')
             WRITE(1,'(a190)')'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
             WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
                 ' K=',NN_bl(6)-NN_bl(3) + 1 ,' F=POINT'
@@ -122,9 +123,9 @@ contains
         ! call system('rm hillref.dat')
         endif
 
-    End Subroutine hill_assign
+    End subroutine hill_assign
 
-    Subroutine hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
+    subroutine hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
         integer,intent(in) :: NN(3),NN_bl(6)
         real(dp),intent(in)  :: Xbound(6),Dpm(3)
         real(dp),intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
@@ -177,9 +178,9 @@ contains
         ! call system('~/bin/preplot hillerror.dat >/dev/null')
         ! call system('rm hillerror.dat')
         return
-    End Subroutine hill_error
+    End subroutine hill_error
 
-    Subroutine definevort(RHS_pm,Xbound,Dpm,NN,NN_bl)
+    subroutine definevort(RHS_pm,Xbound,Dpm,NN,NN_bl)
         Implicit None
 
         real(dp), intent(in)    :: Xbound(6),Dpm(3)
@@ -222,10 +223,10 @@ contains
         ! call system('~/bin/preplot vortref.dat >/dev/null')
         ! call system('rm vortref.dat')
         endif
-    End Subroutine definevort
+    End subroutine definevort
 
 
-    Subroutine vort_error(NN,NN_bl,Xbound,Dpm,SOL_pm)
+    subroutine vort_error(NN,NN_bl,Xbound,Dpm,SOL_pm)
         integer,intent(in) :: NN(3),NN_bl(6)
         real(dp),intent(in)  :: Xbound(6),Dpm(3)
         real(dp),intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
@@ -257,6 +258,6 @@ contains
         ! call system('~/bin/preplot vorterror.dat >/dev/null')
         ! call system('rm vorterror.dat')
         return
-    End Subroutine vort_error
+    End subroutine vort_error
 
 end module test_app

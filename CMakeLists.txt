@@ -247,7 +247,7 @@ target_link_libraries(yaps PRIVATE mkl_poisson mpi_matrices)
 add_library(vpm_vars SHARED ${SRC_HP}/vpm_vars.f90)
 add_library(vpm_size SHARED ${SRC_HP}/vpm_size.f90)
 
-add_library(vpm SHARED ${SRC_HP}/vpm.f90)
+add_library(vpm SHARED ${SRC_HP}/vpm.f90 )
 target_include_directories(vpm PUBLIC ${VPM_LIB_INCL})
 target_link_libraries(vpm PRIVATE vpm_vars vpm_size)
 

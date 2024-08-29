@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-from vpm_py.vpm_io import print_green
+from vpm_py.vpm_io import print_green, print_IMPORTANT
 
 class Particle3DPlot:
     """
@@ -12,6 +12,7 @@ class Particle3DPlot:
         """
         Initialize the particle plot.
         """
+        print_IMPORTANT("Creating 3D plot")
         self.fig = plt.figure()
         self.ax: Axes3D = self.fig.add_subplot(111, projection="3d")
         self.ax.set_xlabel("X")

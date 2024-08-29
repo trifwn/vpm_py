@@ -6,11 +6,6 @@ Module api
    use openmpth
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
-   !private ::  starttime,endtime,st,et,ct
-   !private ::  nb_i,nb_j,nb_k,NBB,NXbl,NYbl,NZbl,BLOCKS,NXB,NYB,NZB,ndumcell_coarse ,ndumcell_bl
-   !private :: II,iynbc,iret,NBI,NBJ,NBK,NVR_out_thres,NREMESH,ntorder,&
-   !                                   iyntree,ilevmax,itree,nsize_out,ibctyp
-
 contains
    subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type, eps_vol, &
                          num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, num_remesh_cells, tree_type, &
@@ -48,7 +43,6 @@ contains
       DXpm = dx_pm
       DYpm = dy_pm
       DZpm = dz_pm
-      write (*, *) 'PM GRID: DXpm: ', DXpm, ' DYpm: ', DYpm, ' DZpm: ', DZpm
       EPSVOL = eps_vol
 
       ! VPM_VARS
@@ -86,7 +80,7 @@ contains
 
    end subroutine initialize
 
-   Subroutine finalize() bind(C, name='finalize')
+   subroutine finalize() bind(C, name='finalize')
       use vpm_vars
       use vpm_size
       use pmeshpar
@@ -117,9 +111,9 @@ contains
       ! call free_pmlib()
       ! call free_projlib()
       ! call free_yapslib()
-   End Subroutine finalize
+   End subroutine finalize
 
-   Subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
+   subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                        RHS_pm_in, Velx, Vely, Velz, NTIME_in, NI_in, NVRM_in) bind(C, name='vpm')
       !  -> XP : particle positions (3 * NVR)
       !  -> QP : particle quantities (neqpm + 1 ) * NVR)
@@ -155,7 +149,7 @@ contains
       ! real(c_double), intent(inout), target :: XP_in(:,:), QP_in(:,:), UP_in(:,:), GP_in(:,:)
       real(c_double), intent(inout), target :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
       real(c_double), intent(inout), target :: UP_in(3, NVR_in), GP_in(3, NVR_in)
-      real(c_double), intent(inout), pointer :: RHS_pm_in(:, :, :, :), velx(:, :, :), vely(:, :, :), velz(:, :, :)
+      real(c_double), intent(inout), pointer :: RHS_pm_in(:, :, :, :), Velx(:, :, :), Vely(:, :, :), Velz(:, :, :)
       integer :: ierr, my_rank 
 
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
@@ -164,10 +158,10 @@ contains
          stop
       end if
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_in, velx, vely, velz, NTIME_in, NI_in, NVRM_in)
-   End Subroutine call_vpm
+               RHS_pm_in, Velx, Vely, Velz, NTIME_in, NI_in, NVRM_in)
+   End subroutine call_vpm
 
-   Subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
+   subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
       use vpm_lib, only: remesh_particles_3d
       use base_types, only: dp
       use ND_Arrays
@@ -186,7 +180,7 @@ contains
       GP_arr = from_intrinsic(GP_out, shape(GP_out))
       UP_arr = from_intrinsic(UP_out, shape(UP_out))
 
-   End Subroutine call_remesh_particles_3d
+   End subroutine call_remesh_particles_3d
 
    subroutine pmgrid_set_RHS_pm(RHS_pm_in,size1, size2, size3, size4) bind(C, name='set_RHS_pm')
       use pmgrid, only: set_RHS_pm
@@ -206,7 +200,7 @@ contains
       neqpm_out = neqpm
    end subroutine get_neqpm
 
-   Subroutine get_velocity_pm(velx_out, vely_out, velz_out) bind(C, name='get_velocity_pm')
+   subroutine get_velocity_pm(velx_out, vely_out, velz_out) bind(C, name='get_velocity_pm')
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm
       implicit none
       real(c_double), dimension(:,:,:), pointer :: velx_out, vely_out, velz_out
@@ -214,108 +208,108 @@ contains
       velx_out => velvrx_pm
       vely_out => velvry_pm
       velz_out => velvrz_pm
-   End Subroutine get_velocity_pm
+   End subroutine get_velocity_pm
 
-   Subroutine get_size_XP(size_out) bind(C, name='get_size_XP')
+   subroutine get_size_XP(size_out) bind(C, name='get_size_XP')
       use parvar, only: XP
       implicit none
       integer(c_int), dimension(2) :: size_out
 
       size_out = [size(XP, 1), size(XP, 2)]
-   End Subroutine get_size_XP
+   End subroutine get_size_XP
 
-   Subroutine pmgrid_get_NN(NN_out) bind(C, name='get_NN') 
+   subroutine pmgrid_get_NN(NN_out) bind(C, name='get_NN') 
       use vpm_size, only: get_NN
       implicit none
       integer(c_int), dimension(3) :: NN_out
 
       call get_NN(NN_out)
-   End Subroutine pmgrid_get_NN
+   End subroutine pmgrid_get_NN
 
-   Subroutine pmgrid_get_NN_bl(NN_bl_out) bind(C, name='get_NN_bl') 
+   subroutine pmgrid_get_NN_bl(NN_bl_out) bind(C, name='get_NN_bl') 
       use vpm_size, only: get_NN_bl
       implicit none
       integer(c_int), dimension(6) :: NN_bl_out
 
       call get_NN_bl(NN_bl_out)
       
-   End Subroutine pmgrid_get_NN_bl
+   End subroutine pmgrid_get_NN_bl
 
-   Subroutine pmgrid_get_NX_pm(NX_pm_out) bind(C, name='get_NX_pm') 
+   subroutine pmgrid_get_NX_pm(NX_pm_out) bind(C, name='get_NX_pm') 
       use pmgrid, only: get_NXpm
       implicit none
       integer(c_int) :: NX_pm_out
 
       call get_NXpm(NX_pm_out)
-   End Subroutine pmgrid_get_NX_pm
+   End subroutine pmgrid_get_NX_pm
 
-   Subroutine pmgrid_get_NY_pm(NY_pm_out) bind(C, name='get_NY_pm') 
+   subroutine pmgrid_get_NY_pm(NY_pm_out) bind(C, name='get_NY_pm') 
       use pmgrid, only: get_NYpm
       implicit none
       integer(c_int) :: NY_pm_out
 
       call get_NYpm(NY_pm_out)
-   End Subroutine pmgrid_get_NY_pm
+   End subroutine pmgrid_get_NY_pm
 
-   Subroutine pmgrid_get_NZ_pm(NZ_pm_out) bind(C, name='get_NZ_pm') 
+   subroutine pmgrid_get_NZ_pm(NZ_pm_out) bind(C, name='get_NZ_pm') 
       use pmgrid, only: get_NZpm
       implicit none
       integer(c_int) :: NZ_pm_out
 
       call get_NZpm(NZ_pm_out)
-   End Subroutine pmgrid_get_NZ_pm
+   End subroutine pmgrid_get_NZ_pm
 
-   Subroutine pmgrid_get_Xbound(Xbound_out) bind(C, name='get_Xbound') 
+   subroutine pmgrid_get_Xbound(Xbound_out) bind(C, name='get_Xbound') 
       use vpm_size, only: get_Xbound
       implicit none
       real(c_double), dimension(6) :: Xbound_out
       call get_Xbound(Xbound_out)
-   End Subroutine pmgrid_get_Xbound
+   End subroutine pmgrid_get_Xbound
 
 
    !! LIBRARY PRINTS
-   Subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
+   subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
       use pmeshpar, only: print_pmeshpar_info
       implicit none
 
       call print_pmeshpar_info()
 
-   End Subroutine print_pmeshpar
+   End subroutine print_pmeshpar
 
-   Subroutine print_projlib() bind(C, name='print_projlib')
+   subroutine print_projlib() bind(C, name='print_projlib')
       use projlib, only: print_projlib_info
       implicit none
 
       call print_projlib_info()
 
-   End Subroutine print_projlib
+   End subroutine print_projlib
 
-   Subroutine print_pmgrid() bind(C, name='print_pmgrid')
+   subroutine print_pmgrid() bind(C, name='print_pmgrid')
       use pmgrid, only: print_pmgrid_info
       implicit none
 
       call print_pmgrid_info()
-   End Subroutine print_pmgrid
+   End subroutine print_pmgrid
 
-   Subroutine print_vpm_vars() bind(C, name='print_vpm_vars')
+   subroutine print_vpm_vars() bind(C, name='print_vpm_vars')
       use vpm_vars, only: print_vpm_vars_info
       implicit none
 
       call print_vpm_vars_info()
-   End Subroutine print_vpm_vars
+   End subroutine print_vpm_vars
 
-   Subroutine print_vpm_size() bind(C, name='print_vpm_size')
+   subroutine print_vpm_size() bind(C, name='print_vpm_size')
       use vpm_size, only: print_vpm_size_info
       implicit none
 
       call print_vpm_size_info()
-   End Subroutine print_vpm_size
+   End subroutine print_vpm_size
 
-   Subroutine print_parvar() bind(C, name='print_parvar')
+   subroutine print_parvar() bind(C, name='print_parvar')
       use parvar, only: print_parvar_info
       implicit none
 
       call print_parvar_info()
-   End Subroutine print_parvar
+   End subroutine print_parvar
 
 End Module api

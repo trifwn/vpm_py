@@ -1,5 +1,4 @@
-
-Subroutine rhsbcast(RHS_pm, NN, neq)
+subroutine rhsbcast(RHS_pm, NN, neq)
    use MPI
    use mpi_matrices, only: mpimat4
    Implicit None
@@ -16,17 +15,15 @@ Subroutine rhsbcast(RHS_pm, NN, neq)
    call MPI_BCAST(RHS_pm, 1, mat4, 0, MPI_COMM_WORLD, ierr)
    call MPI_TYPE_FREE(mat4, ierr)
    !-----------------------------------
-End Subroutine rhsbcast
+end subroutine rhsbcast
 
-Subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
+subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
    use vpm_vars, only: neqpm
    use pmgrid, only: RHS_pm
    use MPI
    Implicit None
    integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, NN_bl(6), NN_tmp(3)
-   ! real(dp), dimension(:,:,:,:)  :: RHS_pm_bl
    real(dp), intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-   !f2py depend(neqpm, NN_tmp) :: RHS_pm(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
    integer :: my_rank, ierr
    integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, NN(3)
 
@@ -50,9 +47,9 @@ Subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
    if (nb_i .gt. 1) RHS_pm_bl(:, NXs, :, :) = 0.d0
    if (nb_j .gt. 1) RHS_pm_bl(:, :, NYs, :) = 0.d0
 
-End Subroutine rhsscat
+end subroutine rhsscat
 
-Subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
+subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
    ! use pmgrid
    use vpm_vars, only: neqpm
    use pmeshpar, only: SOL_pm
@@ -121,9 +118,9 @@ Subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
       call MPI_TYPE_FREE(mat4, ierr)
    end if
 
-End Subroutine solget
+end subroutine solget
 
-Subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
+subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
    ! use pmeshpar
    use vpm_vars, only: neqpm
    use pmgrid, only: RHS_pm
@@ -163,9 +160,9 @@ Subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RH
    if (nb_j .gt. 1) RHS_pm_bl(:, :, NYs, :) = 0.d0
    if (nb_k .gt. 1) RHS_pm_bl(:, :, :, NZs) = 0.d0
 
-End Subroutine rhsscat_3d
+end subroutine rhsscat_3d
 
-Subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
+subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
    ! use pmeshpar
    use vpm_vars, only: neqpm
    use pmeshpar, only: SOL_pm
@@ -259,10 +256,10 @@ Subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
       call MPI_TYPE_FREE(mat4, ierr)
    end if
 
-End Subroutine solget_3d
+end subroutine solget_3d
 
-Subroutine velbcast_3d
-   use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, NXpm, NYpm, NZpm
+subroutine velbcast_3d
+   use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, NXpm_coarse, NYpm_coarse, NZpm_coarse
    use mpi_matrices, only: mpimat3_pm
    use MPI
    Implicit None
@@ -272,15 +269,15 @@ Subroutine velbcast_3d
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
    !---------------------------------------------
-   call mpimat3_pm(mat3, NXpm, NYpm, NZpm)
+   call mpimat3_pm(mat3, NXpm_coarse, NYpm_coarse, NZpm_coarse)
    call MPI_BCAST(velvrx_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
    call MPI_BCAST(velvry_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
    call MPI_BCAST(velvrz_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
    call MPI_TYPE_FREE(mat3, ierr)
    !--------------------------------------------
-End Subroutine velbcast_3d
+end subroutine velbcast_3d
 
-Subroutine particles_scat
+subroutine particles_scat
    use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt, NVR_size
    use parvar, only: XP, QP, NVR
    use mpi_matrices, only: mpimat2_pm
@@ -293,7 +290,7 @@ Subroutine particles_scat
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
-   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'Scattering Particles', achar(27)//'[0m'
+   if (my_rank .eq. 0) write (*, *) achar(9)//achar(9)//achar(27)//'[1;34m', 'Scattering Particles to all Processes'//achar(27)//'[0m'
 
    !---------------------------------------------
    if (my_rank .eq. 0) then
@@ -301,7 +298,7 @@ Subroutine particles_scat
       QP_scatt(1:neqpm + 1, 1:NVR_p) = QP(1:neqpm + 1, 1:NVR_p)
       NVR_pr = NVR_p
       NVR_r = NVR/np
-      write (*, *) achar(9), achar(9), "Processor 0: NVR_p = ", NVR_p
+      write (*, *) achar(9)//achar(9)//achar(9)//"Processor 0: NVR_p = ", NVR_p
       if (NVR_r .gt. 0) then
          do i = 2, np
             dest = i - 1
@@ -324,23 +321,23 @@ Subroutine particles_scat
          call mpimat2_pm(mat2, neqpm + 1, NVR_p, neqpm + 1, NVR_p, 0)
          call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
          call MPI_TYPE_FREE(mat2, ierr)
-         write (*, *) achar(9), achar(9), "Processor ", my_rank, " got : NVR_p = ", NVR_p
+         write (*, *) achar(9)//achar(9)//achar(9)//"Processor ", my_rank, " got : NVR_p = ", NVR_p
       else 
-         write (*, *) achar(9), achar(9), "Got 0 particles on processor ", my_rank
+         write (*, *) achar(9)//achar(9)//achar(9)//"Got 0 particles on processor ", my_rank
       end if
    end if
    
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
    if (my_rank .eq. 0) then
-      write (*, *) achar(9), achar(9), "Total number of particles distributed = ", NVR_pr
-      write (*, *) achar(9), achar(9), "Total number of particles = ", NVR
+      write (*, *) achar(9)//achar(9)//achar(9)//"Total number of particles distributed = ", NVR_pr
+      write (*, *) achar(9)//achar(9)//achar(9)//"Total number of particles = ", NVR
       write (*, *) ''
    end if 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-End Subroutine particles_scat
+end subroutine particles_scat
 
-Subroutine particles_gath
+subroutine particles_gath
    use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt, UP_scatt, GP_scatt
    use parvar, only: XP, QP, UP, GP, NVR
    use mpi_matrices, only: mpimat2_pm
@@ -416,9 +413,9 @@ Subroutine particles_gath
    !do i = 1,NVR_p
    !   write(15,'(7(e28.17,1x))') XP_scatt(1:3,i)!,QP_scatt(1:neqpm+1,i)
    !enddo
-End Subroutine particles_gath
+end subroutine particles_gath
 
-Subroutine proj_gath(NN)
+subroutine proj_gath(NN)
    use vpm_vars, only: neqpm
    use pmgrid, only: RHS_pm
    ! use pmeshpar
@@ -450,9 +447,9 @@ Subroutine proj_gath(NN)
       call MPI_SEND(RHS_pm, 1, mat4, dest, 1, MPI_COMM_WORLD, ierr)
       call MPI_TYPE_FREE(mat4, ierr)
    end if
-End Subroutine proj_gath
+end subroutine proj_gath
 
-Subroutine proj_gath_new(NN)
+subroutine proj_gath_new(NN)
    use vpm_vars, only: interf_iproj, neqpm, XP_scatt, neqpm
    use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
    use pmeshpar, only: ND
@@ -517,5 +514,4 @@ Subroutine proj_gath_new(NN)
       end do
    end if
 
-End Subroutine proj_gath_new
-
+end subroutine proj_gath_new

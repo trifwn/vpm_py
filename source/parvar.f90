@@ -58,7 +58,7 @@ contains
    ! Setters and Getters
    !!!!!!!!!!!!!!!!!!!!!!!
 
-   Subroutine set_neq(neq_in)
+   subroutine set_neq(neq_in)
       implicit none
       integer, intent(in):: neq_in
       neq = neq_in

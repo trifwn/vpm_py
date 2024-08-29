@@ -1,4 +1,4 @@
-Subroutine convect_first_order()
+subroutine convect_first_order()
    use vpm_vars, only: DT_c
    use parvar, only: NVR, XP, UP, GP, QP
    ! real(dp), intent(in)  :: Xbound(6), Dpm(3)
@@ -11,16 +11,16 @@ Subroutine convect_first_order()
       XP(1:3, i) = XP(1:3, i) + UP(1:3, i)*DT_c
       QP(1:3, i) = QP(1:3, i) + GP(1:3, i)*DT_c
    end do
-End Subroutine convect_first_order
+end subroutine convect_first_order
 
 !---------------------------------------------------------------------------!
-!-> Subroutine back_to_particles                                            !
+!-> subroutine back_to_particles                                            !
 !   This subroutine interpolates PM grid values back to particles at the    !
 !   positions they ARE.Convections takes place afterwards.                  !
 !   Input :                                                                 !
 !          itype (1,2) defines what value to interpolate to the particles   !
 !---------------------------------------------------------------------------!
-Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
+subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
                                 velvrx_pm, velvry_pm, velvrz_pm, &
                                 Xbound, Dpm, NN, NVR, neqpm, iproj, itype, NVRM)
 
@@ -134,5 +134,5 @@ Subroutine back_to_particles_3D(SOL_pm,XP, QP, UP, GP, &
          GP(3, nv) = GP(3, nv)*QP(neqpm + 1, nv)
       end do
    end if
-End Subroutine back_to_particles_3D
+end subroutine back_to_particles_3D
 

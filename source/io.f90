@@ -272,7 +272,8 @@ contains
         
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         if (allocated(arr)) then
-            write(*, '(A,A,I3,A,I3,A,I3,A,I3,A)'), achar(9)//trim(name), " (4D): Size = (", &
+            write(*, "(A)") achar(9)//trim(name)//" (4D):"
+            write(*, '(A,I3,A,I3,A,I3,A,I3,A)'), achar(9)//achar(9)//"Size = (", &
                             size(arr,1), ",", size(arr,2), ",", size(arr,3), ",", size(arr,4), ")"
             sample_value(1:min(4,size(arr,4))) = arr(1,1,1,1:min(4,size(arr,4)))
             print '(A,4F12.6)', achar(9)//achar(9)//"Sample values: ", sample_value(1: min(4, size(arr, 4)))
@@ -280,6 +281,7 @@ contains
             print *, achar(9)//achar(9)//"Number of elements: ", size(arr)
             print *, achar(9)//achar(9)//"Number of non-zero elements: ", count(arr /= 0.0d0)
             print *, achar(9)//achar(9)//"Number of zero elements: ", count(arr == 0.0d0)
+            print *, achar(9)//achar(9)//"Number of NaN elements: ", count(isnan(arr))
             ! Print the mean/max/min values
             print *, achar(9)//achar(9)//"Mean value: ", sum(arr)/size(arr)
             print *, achar(9)//achar(9)//"Max value: ", maxval(arr)

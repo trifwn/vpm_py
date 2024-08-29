@@ -10,7 +10,7 @@ class ParticleMesh:
         self.Ux = np.zeros((Nx, Ny, Nz))
         self.Uy = np.zeros((Nx, Ny, Nz))
         self.Uz = np.zeros((Nx, Ny, Nz))
-        self.RHS = np.zeros((Nx, Ny, Nz))
+        self.RHS = np.zeros((3, Nx, Ny, Nz))
     
     def update_U(self, Ux, Uy, Uz):
         self.Ux = Ux

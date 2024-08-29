@@ -3,8 +3,8 @@ submodule(pmlib) pmsolve
 contains
 
    !-----------------------------------------------------------------------!
-   !-> Subroutine solve_phiz                                                !
-   !   This Subroutines calls the fft library to solve for Phi poisson     !
+   !-> subroutine solve_phiz                                                !
+   !   This subroutines calls the fft library to solve for Phi poisson     !
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
    module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
@@ -81,7 +81,7 @@ contains
          end do
       end do
 
-   End Subroutine solve_eq!_i
+   End subroutine solve_eq!_i
 
    module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
       use MKL_POISSON
@@ -152,7 +152,7 @@ contains
          end do
       end do
 
-   End Subroutine solve_eq_0
+   End subroutine solve_eq_0
 
    module subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
       use MKL_POISSON
@@ -241,7 +241,7 @@ contains
          end do
       end do
 
-   End Subroutine solve_eq_3d
+   End subroutine solve_eq_3d
 
    module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
       use MKL_POISSON
@@ -373,14 +373,14 @@ contains
             end do
          end do
       end do
-   End Subroutine solve_eq_0_3d
+   End subroutine solve_eq_0_3d
 
    !-----------------------------------------------------------------------!
-   !-> Subroutine solve_phiz                                                !
-   !   This Subroutines calls the fft library to solve for Phi poisson     !
+   !-> subroutine solve_phiz                                                !
+   !   This subroutines calls the fft library to solve for Phi poisson     !
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
-   ! Subroutine solve_eq_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
+   ! subroutine solve_eq_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    !    Implicit None
    !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
@@ -446,9 +446,9 @@ contains
    !                NX, NY, Sol_pm2, IERROR)
    !    SOL_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
    !    if (IERROR .ne. 0) write (*, *) 'WRONG SOLUTION', ierror
-   ! End Subroutine solve_eq_3d_i
+   ! End subroutine solve_eq_3d_i
 
-   ! Subroutine solve_eq_0_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
+   ! subroutine solve_eq_0_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
    !    Implicit None
    !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
    !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
@@ -497,6 +497,6 @@ contains
    !    SOL_0_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
 
    !    if (IERROR .ne. 0) write (*, *) 'WRONG SOLUTION', ierror
-   ! End Subroutine solve_eq_0_3d_i
+   ! End subroutine solve_eq_0_3d_i
 
 End Submodule pmsolve

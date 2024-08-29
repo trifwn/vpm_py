@@ -10,12 +10,11 @@ module pmlib
    use base_types, only : dp
    use constants, only : pi, pi2, pi4
    implicit none
-   ! use MKL_POISSON
    real(dp), save                :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   real(dp), save                :: DXpm, DYpm, DZpm, DXpm2, DYpm2, DZpm2
+   real(dp), save                :: DXpm, DYpm, DZpm
 
    integer, save                 :: NVR, NXpm, NYpm, NZpm, ND
-   integer, save                 :: NXs_bl(10), NYs_bl(10), NXf_bl(10), NYf_bl(10), NZs_bl(10), NZf_bl(10), NBlocks
+   integer, save                 :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
 
    integer, save                 :: nbound, levmax
    integer, save                 :: itree, ibctyp 
@@ -23,16 +22,17 @@ module pmlib
    !Here pointers are defined which will be assigned in the external data to save up space
    real(dp), pointer             :: SOL_pm(:, :, :, :), RHS_pm(:, :, :, :), QP(:, :), XP(:, :)
 
-   real(dp), allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:),x_s(:,:),y_s(:,:),z_s(:,:),d_s(:),cos_s(:),sin_s(:)
+   real(dp), allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:),x_s(:,:),y_s(:,:),z_s(:,:),d_s(:)
    real(dp), allocatable, save   :: source_bound_lev(:, :, :), xs_lev(:, :), ys_lev(:, :), zs_lev(:, :), ds_lev(:, :)
    integer,  allocatable, save   :: nbound_lev(:), ilev_t(:, :, :)
 
-   private ::XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm, NVR, NXpm, NYpm, NZPm, ND
-   private ::NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks, DXpm2, DYpm2, DZpm2
-   private ::SOL_pm, RHS_pm, SOL_0_pm, QP, XP
-   private ::source_bound, x_s, y_s, z_s, d_s, cos_s, sin_s
-   private ::source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
+   private ::XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm
+   private ::NVR, NXpm, NYpm, NZPm, ND
+   private ::NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
    private ::nbound, ilev_t
+   private ::SOL_pm, RHS_pm,QP, XP,SOL_0_pm
+   private ::source_bound, x_s, y_s, z_s, d_s
+   private ::source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
 
 ! pinfdomain.f90
    interface infdomain
@@ -122,7 +122,7 @@ module pmlib
 contains
    !--------------------------------------------------------------------------------
    !>@function
-   ! Subroutine  pmesh
+   ! subroutine  pmesh
    !>
    !>@author Papis
    !>
@@ -156,7 +156,7 @@ contains
    !>@param [in]
    !>@param [out]
    !>--------------------------------------------------------------------------------
-   Subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND_in, Nblocks_in, ibctyp_in, &
+   subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND_in, Nblocks_in, ibctyp_in, &
                     neqs, neqf, iynbc, NVR_in, itree_in, levmax_in)
       ! use parvar, only : XP, QP
       use MPI
@@ -166,7 +166,7 @@ contains
       real(dp), intent(in)             :: Xbound(6), Dpm(3)
       integer, intent(in)              :: NN_bl(6), NN(3), ND_in, Nblocks_in
       ! Local variables
-      integer                          :: i, j, k, nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
+      integer                          ::  nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
 
       ibctyp = ibctyp_in
       itree = itree_in
@@ -184,11 +184,10 @@ contains
       XMIN_pm = Xbound(1); YMIN_pm = Xbound(2); ZMIN_pm = Xbound(3)
       XMAX_pm = Xbound(4); YMAX_pm = Xbound(5); ZMAX_pm = Xbound(6)
       DXpm = Dpm(1); DYpm = Dpm(2); DZpm = Dpm(3)
-      DXpm2 = 2*DXpm; DYpm2 = 2*DYpm; DZpm2 = 2*DZpm
       !NXs_bl,NXf_bl refer to the starting ending node of the domain we want to solve
       NXpm = NN(1); NYpm = NN(2); NZpm = NN(3)
-      NXs_bl(1) = NN_bl(1); NYs_bl(1) = NN_bl(2); NZs_bl(1) = NN_bl(3)
-      NXf_bl(1) = NN_bl(4); NYf_bl(1) = NN_bl(5); NZf_bl(1) = NN_bl(6)
+      NXs_bl = NN_bl(1); NYs_bl = NN_bl(2); NZs_bl = NN_bl(3)
+      NXf_bl = NN_bl(4); NYf_bl = NN_bl(5); NZf_bl = NN_bl(6)
       !Assign the pointers to the external data
       SOL_pm => DSOL_pm; RHS_pm => DRHS_pm; !QP => DQP; XP => DXP
       !-->
@@ -210,10 +209,10 @@ contains
          if (ND .eq. 2) then
             if (ibctyp .eq. 1) then
                !Biot Savart boundary conditions(set on the ext. domain because that's what will be solved)
-               NXs = 1              ! NXs_bl(1)
-               NXf = NXpm           !  NXf_bl(1)
-               NYs = 1              !NYs_bl(1)
-               NYf = NYpm           !NYf_bl(1)
+               NXs = 1              ! NXs_bl
+               NXf = NXpm           !  NXf_bl
+               NYs = 1              !NYs_bl
+               NYf = NYpm           !NYf_bl
                call Bounds2D(ibctyp, NXs, NXf, NYs, NYf, neqs, neqf)
             else
                !Infinite domain boundary conditions(asume zero bc' at the boundary
@@ -222,12 +221,12 @@ contains
          else if (ND .eq. 3) then
             if (ibctyp .eq. 1) then
                !Biot Savart boundary conditions(set on the ext. domain because that's what will be solved)
-               NXs = 1           !NXs_bl(1)
-               NXf = NXpm        !NXf_bl(1)
-               NYs = 1           !NYs_bl(1)
-               NYf = NYpm        !NYf_bl(1)
-               NZs = 1           !NZs_bl(1)
-               NZf = NZpm        !NZf_bl(1)
+               NXs = 1           !NXs_bl
+               NXf = NXpm        !NXf_bl
+               NYs = 1           !NYs_bl
+               NYf = NYpm        !NYf_bl
+               NZs = 1           !NZs_bl
+               NZf = NZpm        !NZf_bl
                call Bounds3D(ibctyp, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
             else
                !Infinite domain boundary conditions(asume zero bc' at the boundary
@@ -238,21 +237,21 @@ contains
          !Boundary calculations have finished now we have the boundary conditions at NXs,NXf...
          if (ND .eq. 2) then
             nb = 1
-            NXs = 1           !NXs_bl(nb)
-            NXf = NXpm        !NXf_bl(nb)
-            NYs = 1           !NYs_bl(nb)
-            NYf = NYpm        !NYf_bl(nb)
+            NXs = 1           !NXs_bl(1)
+            NXf = NXpm        !NXf_bl
+            NYs = 1           !NYs_bl
+            NYf = NYpm        !NYf_bl
             !Solve poisson problem with the boundary conditions set at Nxs,NXf.....
             do neq = neqs, neqf
                call solve_eq(NXs, NXf, NYs, NYf, neq)
             end do
          else
             nb = 1
-            NXs = 1         !NXs_bl(1)
-            NXf = NXpm      !NXf_bl(1)
-            NYs = 1         !NYs_bl(1)
-            NYf = NYpm      !NYf_bl(1)
-            NZs = 1         !NZs_bl(1)
+            NXs = 1         !NXs_bl
+            NXf = NXpm      !NXf_bl
+            NYs = 1         !NYs_bl
+            NYf = NYpm      !NYf_bl
+            NZs = 1         !NZs_bl
             NZf = NZpm
             !Solve poisson problem with the boundary conditions set at Nxs,NXf.....
             do neq = neqs, neqf
@@ -267,22 +266,22 @@ contains
          !boundary conditions are assumed ok.
          if (ND .eq. 2) then
             nb = 1
-            NXs = NXs_bl(nb)
-            NXf = NXf_bl(nb)
-            NYs = NYs_bl(nb)
-            NYf = NYf_bl(nb)
+            NXs = NXs_bl
+            NXf = NXf_bl
+            NYs = NYs_bl
+            NYf = NYf_bl
             !Solve poisson problem with the boundary conditions set at Nxs,NXf.....
             do neq = neqs, neqf
                call solve_eq(NXs, NXf, NYs, NYf, neq)
             end do
          else
             nb = 1
-            NXs = NXs_bl(1)
-            NXf = NXf_bl(1)
-            NYs = NYs_bl(1)
-            NYf = NYf_bl(1)
-            NZs = NZs_bl(1)
-            NZf = NZf_bl(1)
+            NXs = NXs_bl
+            NXf = NXf_bl
+            NYs = NYs_bl
+            NYf = NYf_bl
+            NZs = NZs_bl
+            NZf = NZf_bl
             !Solve poisson problem with the boundary conditions set at Nxs,NXf.....
             do neq = neqs, neqf
                call solve_eq_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq)
@@ -303,7 +302,7 @@ contains
       nullify (SOL_pm, RHS_pm, QP, XP)
    
       
-   End Subroutine pmesh
+   end subroutine pmesh
    ! contains
    !    include 'pmsolve.f90'
    !    include 'pmbound.f90'
@@ -311,7 +310,7 @@ contains
 
 !--------------------------------------------------------------------------------
 !>@function
-! Subroutine  definepm
+! subroutine  definepm
 !>
 !>@author Papis
 !>
@@ -331,7 +330,7 @@ contains
 !>@param [in]
 !>@param [out]
 !--------------------------------------------------------------------------------
-   Subroutine definepm(itype, Xbound, Dpm, ND, ndum, nsize, NN, NN_bl)
+   subroutine definepm(itype, Xbound, Dpm, ND, ndum, nsize, NN, NN_bl)
       Implicit None
       integer, intent(in)     :: itype, ND, nsize(3)
       integer, intent(in)     :: ndum
@@ -348,51 +347,30 @@ contains
       end if
 
       ndum_new = ndum
-      !Itype 1 extends the domain by ndum_new cells
-      if (itype .eq. 1) then
-         !extend domain by ndum cells
+      
+      select case(itype)
+      case(1)
+         !Itype 1:
+         ! extends the domain by ndum_new cells
          Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
          Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
 
          Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
          Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-         if (ND .eq. 3) then
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-         end if
-
+         
          !Find number of nodes with the Dpm given from input
          NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
          NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         if (ND .eq. 3) NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-      else if (itype .eq. 4) then
-         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
 
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         ndum_new(1) = nsize(1) - mod(NN(1) - 1, nsize(1))
-         !if (mod(ndum_new(1),2).ne.0) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(1),NN(1)
-         ! !   stop
-         !endif
-         !if (mod(ndum_new(2),2).ne.0) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(2),NN(2)
-         ! !   stop
-         !endif
-         !if (mod(ndum_new(3),2).ne.0.and.ND.eq.3) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(3),NN(3)
-         ! !   stop
-         !endif
-         ndum_new(1) = ndum_new(1)
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-         ndum_new(1) = ndum_new(1) + ndum
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         NN_bl(1) = ndum + 1
-         NN_bl(4) = NN(1) - ndum
-         return
-
-      else if (itype .eq. 2) then
-         !Itype 2 extends the domain by ndum_new cells and changes Dpm so that the number
+         ! Do the same for the 3d direction
+         if (ND .eq. 3) then
+            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
+            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
+            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
+         end if
+      case(2)
+         !Itype 2:
+         ! extends the domain by ndum_new cells and changes Dpm so that the number
          !of cells are divided exactly by nsize
          Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
          Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
@@ -418,26 +396,15 @@ contains
          ! write(*,*) 'New Dpm(1),Dpm(2),Dpm(3)'
          ! write(*,*) Dpm(1),Dpm(2),Dpm(3)
          ! write(*,*) NN
-
-      else if (itype .eq. 3) then
-         !Itype 3 extends the domain by ndum_new cells and adds dummy cells at both directions
-         !so that the total cells are divided by nsize
+      case(4)
+         !Itype 4:
+         ! extends the domain by ndum_new cells 
+         ! and adds dummy cells at both directions
          Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
          Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
 
-         Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
-         Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-
-         if (ND .eq. 3) then
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-         end if
          NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         if (ND .eq. 3) NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
          ndum_new(1) = nsize(1) - mod(NN(1) - 1, nsize(1))
-         ndum_new(2) = nsize(2) - mod(NN(2) - 1, nsize(2))
-         ndum_new(3) = nsize(3) - mod(NN(3) - 1, nsize(3))
          !if (mod(ndum_new(1),2).ne.0) then
          !   write(*,*) 'error sizes',ndum_new,nsize(1),NN(1)
          ! !   stop
@@ -450,100 +417,101 @@ contains
          !   write(*,*) 'error sizes',ndum_new,nsize(3),NN(3)
          ! !   stop
          !endif
+         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
+         ndum_new(1) = ndum_new(1) + ndum
+         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
+      case(3)
+         !Itype 3: 
+         ! extends the domain by ndum_new cells 
+         ! and adds dummy cells at both directions so that the total cells are divided by nsize
+         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
+         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
+
+         Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
+         Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
+         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
+         NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
+
+         if (ND .eq. 3) then
+            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
+            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
+            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
+         end if
+         
+         ndum_new(1) = nsize(1) - mod(NN(1) - 1, nsize(1)) ! X direction
+         ndum_new(2) = nsize(2) - mod(NN(2) - 1, nsize(2)) ! Y direction
+         ndum_new(3) = nsize(3) - mod(NN(3) - 1, nsize(3)) ! Z direction
+
          if (mod(ndum_new(1), 2) .eq. 0) then
             ndum_new(1) = ndum_new(1)/2
             Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
             Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
             ndum_new(1) = ndum_new(1) + ndum
             NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-            NN_bl(1) = ndum + 1
-            NN_bl(4) = NN(1) - ndum
          else
-            !write(*,*) 'aaaaa1'
             nn1 = mod(ndum_new(1), 2)
             nn2 = int(ndum_new(1))/int(2)
             Xbound(1) = Xbound(1) - ((nn1 + nn2)*Dpm(1))
             Xbound(4) = Xbound(4) + ((nn2)*Dpm(1))
             NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-            !NN_bl(1) = ndum_new(1)+ ndum + 1
-            !NN_bl(1) = ndum_new(1)+ ndum + 1
-            NN_bl(1) = ndum + 1
-            NN_bl(4) = NN(1) - ndum
          end if
+
          if (mod(ndum_new(2), 2) .eq. 0) then
             ndum_new(2) = ndum_new(2)/2
             Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
             Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
             ndum_new(2) = ndum_new(2) + ndum !add the initial dummy cells
             NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-            !NN_bl(2) = ndum_new(2) + 1
-            !NN_bl(5) = NN(2) - ndum_new(2)
-            NN_bl(2) = ndum + 1
-            NN_bl(5) = NN(2) - ndum
          else
-            ! write(*,*) 'aaaaa2'
             nn1 = mod(ndum_new(2), 2)
             nn2 = int(ndum_new(2))/int(2)
             Xbound(2) = Xbound(2) - ((nn1 + nn2)*Dpm(2))
             Xbound(5) = Xbound(5) + ((nn2)*Dpm(2))
             NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-            !NN_bl(2) = ndum_new(2)+ ndum + 1
-            !NN_bl(5) = NN(2) - ndum
-
-            NN_bl(2) = ndum + 1
-            NN_bl(5) = NN(2) - ndum
          end if
+
          if (ND .eq. 3) then
-         if (mod(ndum_new(3), 2) .eq. 0) then
-            ndum_new(3) = ndum_new(3)/2
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-            ndum_new(3) = ndum_new(3) + ndum !add the initial dummy cells
-            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-            !NN_bl(3) = ndum_new(3) + 1
-            !NN_bl(6) = NN(3) - ndum_new(3)
-            NN_bl(3) = ndum + 1
-            NN_bl(6) = NN(3) - ndum
-         else
-            !write(*,*) 'aaaaa3'
-            nn1 = mod(ndum_new(3), 2)
-            nn2 = int(ndum_new(3))/int(2)
-            Xbound(3) = Xbound(3) - ((nn1 + nn2)*Dpm(3))
-            Xbound(6) = Xbound(6) + ((nn2)*Dpm(3))
-            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-            !NN_bl(3) = ndum_new(3) + ndum + 1
-            !NN_bl(6) = NN(3) - ndum
-            NN_bl(3) = ndum + 1
-            NN_bl(6) = NN(3) - ndum
-         end if
-         end if
-
-         if (ND .eq. 2) then
-            NN(3) = 1
-            NN_bl(3) = 1
-            NN_bl(6) = 1
-         end if
-         return
-
-      end if
+            if (mod(ndum_new(3), 2) .eq. 0) then
+               ndum_new(3) = ndum_new(3)/2
+               Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
+               Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
+               ndum_new(3) = ndum_new(3) + ndum !add the initial dummy cells
+               NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
+            else
+               nn1 = mod(ndum_new(3), 2)
+               nn2 = int(ndum_new(3))/int(2)
+               Xbound(3) = Xbound(3) - ((nn1 + nn2)*Dpm(3))
+               Xbound(6) = Xbound(6) + ((nn2)*Dpm(3))
+               NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
+            end if
+         endif   
+      end select
+      
       !2d do not have Z nodes
       if (ND .eq. 2) NN(3) = 1
-
+      
       !Define the nodes which the original domain starts (corresponding to Xbound_in)
-      NN_bl(1) = ndum_new(1) + 1
-      NN_bl(4) = NN(1) - ndum_new(1)
-
-      NN_bl(2) = ndum_new(2) + 1
-      NN_bl(5) = NN(2) - ndum_new(2)
-
-      NN_bl(3) = ndum_new(3) + 1
-      NN_bl(6) = NN(3) - ndum_new(3)
-
+      !NN_bl(1) = ndum_new(1)+ ndum + 1
+      !NN_bl(1) = ndum_new(1)+ ndum + 1
+      NN_bl(1) = ndum + 1
+      NN_bl(4) = NN(1) - ndum
+      
+      !NN_bl(2) = ndum_new(2)+ ndum + 1
+      !NN_bl(5) = NN(2) - ndum
+      NN_bl(2) = ndum + 1
+      NN_bl(5) = NN(2) - ndum
+      
       !2d do not have Z nodes
       if (ND .eq. 2) then
+         NN(3) = 1
          NN_bl(3) = 1
          NN_bl(6) = 1
+      else if (ND .eq. 3) then
+         !NN_bl(3) = ndum_new(3) + ndum + 1
+         !NN_bl(6) = NN(3) - ndum
+         NN_bl(3) = ndum + 1
+         NN_bl(6) = NN(3) - ndum
       end if
-   End Subroutine definepm
+   end subroutine definepm
 
 end module pmlib

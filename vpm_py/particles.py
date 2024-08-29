@@ -2,9 +2,11 @@ import os
 import glob
 from shutil import copy2
 from tempfile import NamedTemporaryFile
-from ctypes import c_double, c_int, POINTER, cdll, CDLL, byref, cast
-from .arrays import F_Array, F_Array_Struct
+from ctypes import c_double, c_int, POINTER, cdll, CDLL, byref
 import numpy as np
+
+from vpm_py.arrays import F_Array, F_Array_Struct
+from vpm_py.vpm_io import print_IMPORTANT
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
@@ -66,10 +68,10 @@ class Particles:
         Particle positions
         """
         NVR = self.NVR
-        XP_arr = F_Array((3, NVR))
-        XP_struct = XP_arr.to_ctype()
+        XP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
         self._lib_particles.get_particle_positions(byref(XP_struct))
-        XP_arr = F_Array.from_ctype(XP_struct)
+        XP_arr = F_Array.from_ctype(XP_struct, name = "from fortran XP")
+        # self.particle_positions = XP_arr.data
         return XP_arr
 
     @XP.setter
@@ -84,10 +86,10 @@ class Particles:
         Particle strengths
         """
         NVR = self.NVR
-        QP_arr = F_Array((self.number_equations + 1, NVR))
-        QP_struct = QP_arr.to_ctype()
+        neq = self.number_equations
+        QP_struct = F_Array_Struct.null(ndims=2, total_size=(neq + 1)*NVR)
         self._lib_particles.get_particle_strengths(byref(QP_struct))
-        QP_arr = F_Array.from_ctype(QP_struct)
+        QP_arr = F_Array.from_ctype(QP_struct, name ="from fortran QP")
         return QP_arr
 
     @QP.setter
@@ -102,10 +104,9 @@ class Particles:
             Particle velocities
         """
         NVR = self.NVR
-        UP_arr = F_Array((3, NVR))
-        UP_struct = UP_arr.to_ctype()
+        UP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
         self._lib_particles.get_particle_velocities(byref(UP_struct))
-        UP_arr = F_Array.from_ctype(UP_struct)
+        UP_arr = F_Array.from_ctype(UP_struct,name = "from fortran UP")
         return UP_arr
         
     @UP.setter
@@ -120,10 +121,9 @@ class Particles:
             Particle deformations
         """
         NVR = self.NVR
-        GP_arr = F_Array((3, NVR))
-        GP_struct = GP_arr.to_ctype()
+        GP_struct = F_Array_Struct.null(ndims=2, total_size = 3*NVR)
         self._lib_particles.get_particle_deformation(byref(GP_struct))
-        GP_arr = F_Array.from_ctype(GP_struct)
+        GP_arr = F_Array.from_ctype(GP_struct,name = "from fortran GP")
         return GP_arr
     
     @GP.setter
@@ -138,6 +138,13 @@ class Particles:
         self._lib_particles.get_num_particles(byref(NVR))
         return NVR.value
     
+    def print_data_ownership(self):
+        print_IMPORTANT(f"owners of the data:", color_divider="yellow", color_text="yellow")
+        print(f"\tXP data owner: {self.particle_positions.__array_interface__['data']}")
+        print(f"\tQP data owner: {self.particle_strengths.__array_interface__['data']}")
+        print(f"\tUP data owner: {self.particle_velocities.__array_interface__['data']}")
+        print(f"\tGP data owner: {self.particle_deformations.__array_interface__['data']}")
+
     def __del__(self):
         self._lib_particles.finalize()
         os.remove(self._lib_particles_path)

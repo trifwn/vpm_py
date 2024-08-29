@@ -1,4 +1,4 @@
-Subroutine calc_velocity_serial_3d(idcalc)
+subroutine calc_velocity_serial_3d(idcalc)
    use vpm_vars
    use pmeshpar
    use parvar
@@ -12,7 +12,8 @@ Subroutine calc_velocity_serial_3d(idcalc)
    real(dp) ::  upi, umi, upj, umj, upk, umk
    real(dp) ::  vpi, vmi, vpj, vmj, vpk, vmk
    real(dp) ::  wpi, wmi, wpj, wmj, wpk, wmk
-   integer          :: i, j, k
+   real(dp) ::  DXpm2, DYpm2, DZpm2
+   integer  :: i, j, k
 
    if (idcalc .ge. 0) then
       DXpm2 = 2*DXpm
@@ -23,9 +24,9 @@ Subroutine calc_velocity_serial_3d(idcalc)
       !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
       !!$omp          num_threads(OMPTHREADS)
       !$omp do
-      do k = NZs_bl(1) + 1, NZf_bl(1) - 1
-         do j = NYs_bl(1) + 1, NYf_bl(1) - 1
-            do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+      do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
+         do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
+            do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
 
                !--> dpsi(x,y,z) / d(xyz)
                dpsidx(1:3) = (SOL_pm(1:3, i + 1, j, k) - SOL_pm(1:3, i - 1, j, k))/DXpm2
@@ -51,9 +52,9 @@ Subroutine calc_velocity_serial_3d(idcalc)
          !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
          !!$omp num_threads(OMPTHREADS)
          !$omp do
-         do k = NZs_bl(1) + 1, NZf_bl(1) - 1
-            do j = NYs_bl(1) + 1, NYf_bl(1) - 1
-               do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+         do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
+            do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
+               do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
 
                   !--> dpsi(x,y,z)d(xyz)
                   dpsidx(1) = (SOL_pm(4, i + 1, j, k) - SOL_pm(4, i - 1, j, k))/DXpm2
@@ -85,9 +86,9 @@ Subroutine calc_velocity_serial_3d(idcalc)
    !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,RHS_pm,SOL_pm)
    !!$omp   num_threads(OMPTHREADS)
    !$omp do
-   do k = NZs_bl(1) + 2, NZf_bl(1) - 2
-      do j = NYs_bl(1) + 2, NYf_bl(1) - 2
-         do i = NXs_bl(1) + 2, NXf_bl(1) - 2
+   do k = NZs_coarse_bl + 2, NZf_coarse_bl - 2
+      do j = NYs_coarse_bl + 2, NYf_coarse_bl - 2
+         do i = NXs_coarse_bl + 2, NXf_coarse_bl - 2
             ! velxp = velvrx_pm(i + 1, j, k)
             ! velxm = velvrx_pm(i - 1, j, k)
 
@@ -145,9 +146,9 @@ Subroutine calc_velocity_serial_3d(idcalc)
    end do
    !$omp enddo
    !$omp endparallel
-End Subroutine calc_velocity_serial_3d
+end subroutine calc_velocity_serial_3d
 
-Subroutine diffuse_vort_3d
+subroutine diffuse_vort_3d
    use vpm_vars
    use pmeshpar
    use parvar
@@ -155,7 +156,8 @@ Subroutine diffuse_vort_3d
    use openmpth
    Implicit None
    real(dp) ::  dwxdx, dwydy, dwzdz, VIS
-   integer          :: i, j, k
+   real(dp) ::  DXpm2, DYpm2, DZpm2 
+   integer  :: i, j, k
 
    DXpm2 = DXpm**2
    DYpm2 = DYpm**2
@@ -164,9 +166,9 @@ Subroutine diffuse_vort_3d
    !$omp parallel private(i,j,k,dwxdx,dwydy,dwzdz,VIS) shared(RHS_pm,SOL_pm)
    ! num_threads(OMPTHREADS)
    !$omp do
-   do k = NZs_bl(1) + 1, NZf_bl(1) - 1
-      do j = NYs_bl(1) + 1, NYf_bl(1) - 1
-         do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+   do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
+      do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
+         do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
             if (neqpm .eq. 3) then
                VIS = NI
             else
@@ -208,9 +210,9 @@ Subroutine diffuse_vort_3d
 
    !!$omp parallel private(i,j,k) num_threads(OMPTHREADS)
    !!$omp do
-   !do k = NZs_bl(1) + 1, NZf_bl(1)- 1
-   !    do j = NYs_bl(1) + 1, NYf_bl(1 )- 1
-   !       do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+   !do k = NZs_bl + 1, NZf_bl- 1
+   !    do j = NYs_bl + 1, NYf_bl(1 )- 1
+   !       do i = NXs_bl + 1, NXf_bl - 1
 
    !            !--> Remember that RHS = -w
    !            RHS_pm(1:3, i, j, k) = RHS_pm(1:3, i, j, k) - NI * SOL_pm(1,i,j,k)
@@ -219,29 +221,30 @@ Subroutine diffuse_vort_3d
    !enddo
    !!$omp enddo
    !!$omp endparallel
-End Subroutine diffuse_vort_3d
+end subroutine diffuse_vort_3d
 
-Subroutine calc_antidiffusion
+subroutine calc_antidiffusion
    use vpm_vars
    use pmeshpar
    use parvar
    use pmgrid
    use openmpth
    Implicit None
-   real(dp) ::  dwxdx, dwydy, dwzdz, Ct
-   integer          :: i, j, k
-   real(dp), allocatable :: laplvort(:, :, :, :)
+   real(dp)                ::  dwxdx, dwydy, dwzdz, Ct
+   real(dp)                ::  DXpm2, DYpm2, DZpm2
+   integer                 :: i, j, k
+   real(dp), allocatable   :: laplvort(:, :, :, :)
 
-   allocate (laplvort(3, NXpm, NYpm, NZpm))
+   allocate (laplvort(3, NXpm_coarse, NYpm_coarse, NZpm_coarse))
    laplvort = 0.d0
    DXpm2 = DXpm**2
    DYpm2 = DYpm**2
    DZpm2 = DZpm**2
    Sol_pm = 0.d0
    Ct = 6.8*DXpm**2/4
-   do k = NZs_bl(1) + 1, NZf_bl(1) - 1
-      do j = NYs_bl(1) + 1, NYf_bl(1) - 1
-         do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+   do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
+      do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
+         do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
             !write(*,*) VIS,neqpm
             !--> Remember that RHS = -w
             dwxdx = -(RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
@@ -274,9 +277,9 @@ Subroutine calc_antidiffusion
       end do
    end do
 
-   do k = NZs_bl(1) + 1, NZf_bl(1) - 1
-      do j = NYs_bl(1) + 1, NYf_bl(1) - 1
-         do i = NXs_bl(1) + 1, NXf_bl(1) - 1
+   do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
+      do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
+         do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
             !write(*,*) VIS,neqpm
             !Minus because of (-w) has been included in laplvort
             dwxdx = (laplvort(1, i + 1, j, k) - 2*laplvort(1, i, j, k) &
@@ -309,4 +312,4 @@ Subroutine calc_antidiffusion
       end do
    end do
 
-End Subroutine calc_antidiffusion
+end subroutine calc_antidiffusion

@@ -1,4 +1,4 @@
-Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coarse, NNbl, NNbl_bl, &
+subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coarse, NNbl, NNbl_bl, &
                   NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, NBK, nb_i, &
                   nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
@@ -7,22 +7,21 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    use MPI
 
    Implicit None
-   integer, intent(in)            :: ibctyp, neqs, neqf, nc, ireturn, iyntree, ilevmax, npmsize
-   integer, intent(in)            :: ND, BLOCKS, NNbl(3, BLOCKS), NNBl_bl(6, BLOCKS)
-   integer, intent(in)            :: NN_coarse(3), NN_bl_coarse(6), nb_i, nb_j, nb_k, NBI, NBJ, NBK
+   integer, intent(in)              :: ibctyp, neqs, neqf, nc, ireturn, iyntree, ilevmax, npmsize
+   integer, intent(in)              :: ND, BLOCKS, NNbl(3, BLOCKS), NNBl_bl(6, BLOCKS)
+   integer, intent(in)              :: NN_coarse(3), NN_bl_coarse(6), nb_i, nb_j, nb_k, NBI, NBJ, NBK
 
-   real(dp), intent(in)            :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
-   real(dp), intent(in)            :: Dpm_fine(3), Dpm_coarse(3)
-   real(dp), intent(inout), target   :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
-   real(dp), target                :: DQP(1, 1), DXP(1, 1)
+   real(dp), intent(in)             :: Xbound_bl(6, BLOCKS), Xbound_coarse(6)
+   real(dp), intent(in)             :: Dpm_fine(3), Dpm_coarse(3)
+   real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
+   real(dp), target                 :: DQP(1, 1), DXP(1, 1)
 
-   real(dp), allocatable :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
-   real(dp)             :: Xbound_tmp(6)
-   integer                      :: NN_tmp(3), NN_bl_tmp(6), iynbc, iface12, iface34, iface56, ibound, itree, lmax
+   real(dp), allocatable            :: SOL_pm_tmp(:, :, :, :), RHS_pm_tmp(:, :, :, :)
+   real(dp)                         :: Xbound_tmp(6)
+   integer                          :: NN_tmp(3), NN_bl_tmp(6), iynbc, iface12, iface34, iface56, ibound, itree, lmax
 
-   integer                      :: ibctyp_c
-   integer                      :: origsize(5), isize1, isize2, isize3, NN_tmpc(6), rank !, start(5)
-   ! integer                      :: sendsize(5)
+   integer                          :: ibctyp_c
+   integer                          :: origsize(5), isize1, isize2, isize3, NN_tmpc(6), rank 
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -190,7 +189,7 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
    !!          NN_map(:)=NN_coarse_map(:,nb)
    !!          !calculate the RHS of the poisson problem using the sampled values
 
-   !!     !End Subroutine calc_laplacian_coarse_3d
+   !!     !End subroutine calc_laplacian_coarse_3d
    !!          call calc_laplacian_coarse_3d(SOL_pm_tmp,RHS_pm_tmp,NN_coarse,NN_bl_coarse,Dpm_coarse,NN_map,neqs,neqf,npmsize)
    !!          RHS_pm_coarse=0
    !!          RHS_pm_coarse=RHS_pm_coarse + RHS_pm_tmp
@@ -529,7 +528,7 @@ Subroutine yaps3d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
 contains
 
-   Subroutine mapnodes_bl
+   subroutine mapnodes_bl
 
       integer :: i_nb, j_nb, icnb, jcnb, inode1, jnode1, nbc, nb_plus, nb_minus, i_check, j_check, ik, jk, kk
       integer :: nod, ibound, isizex, isizey, isizez, i_plus, j_plus, k_plus, i_minus, j_minus, k_minus
@@ -1976,10 +1975,10 @@ contains
 
       end do
       call MPI_TYPE_FREE(mat2, ierr)
-   End Subroutine mapnodes_bl
+   End subroutine mapnodes_bl
 
    !-----
-   Subroutine interp_stencil
+   subroutine interp_stencil
       use projlib, only: projection_fun
       real(dp) :: addlocal, add(neq), add_sample(neq)
       integer          :: i_nb, j_nb, k_nb
@@ -2048,9 +2047,9 @@ contains
          end do
       end do
 
-   End Subroutine interp_stencil
+   End subroutine interp_stencil
 
-   Subroutine calc_laplacian_coarse_3d(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
+   subroutine calc_laplacian_coarse_3d(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
       Implicit none
 
       integer, intent(in) :: NN(3), NN_bl(6), NN_map(6), neqs, neqf, npmsize
@@ -2073,6 +2072,6 @@ contains
       end do
       end do
 
-   End Subroutine calc_laplacian_coarse_3d
+   End subroutine calc_laplacian_coarse_3d
 
-End Subroutine yaps3d
+End subroutine yaps3d

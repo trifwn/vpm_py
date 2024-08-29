@@ -2,9 +2,6 @@ import numpy as np
 import os
 
 from ctypes import c_int,  byref, POINTER, cdll, c_double, cast
-from shutil import copy2
-from tempfile import NamedTemporaryFile
-from mpi4py import MPI
 
 # Local imports
 from . import ParticleMesh
@@ -12,7 +9,7 @@ from . import Particles
 from .vpm_io import  print_IMPORTANT, print_green, print_blue, print_red
 from .vpm_lib import VPM_Lib
 from .utils import divide_processors
-from .arrays import F_Array
+from .arrays import F_Array, F_Array_Struct
 from .vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 
 class VPM(object):
@@ -41,7 +38,7 @@ class VPM(object):
             print(f"Number of processors: {self.num_processors}")
             print(f"NBI: {NBI}, NBJ: {NBJ}, NBK: {NBK}")
         
-        self.dpm = np.array([4.0, 4.0, 4.0])
+        self.dpm = np.array([0.2, 0.2, 0.2])
         self.NBI = NBI
         self.NBJ = NBJ
         self.NBK = NBK
@@ -64,7 +61,7 @@ class VPM(object):
         projection_type: int = 4, 
         boundary_condition: int =2, 
         variable_volume: bool = True, 
-        EPSVOL: float = 1e-6, 
+        EPSVOL: float = 0., 
         remesh: bool = True, 
         ncell_rem: int = 1, 
         use_tree: bool = True, 
@@ -162,24 +159,23 @@ class VPM(object):
             viscosity (float): Viscosity term for the diffusion equation
             max_particle_num (float): Maximum number of particles allowed
         """
-        # Ensure numpy arrays are contiguous
-        XP_ptr = dp_array_to_pointer(particle_positions   , copy = True)
-        QP_ptr = dp_array_to_pointer(particle_strengths   , copy = True)
-        UP_ptr = dp_array_to_pointer(particle_velocities  , copy = True)
+        # Get the pointers to arrays for the particles
+        XP_ptr = dp_array_to_pointer(particle_positions, copy = True)
+        UP_ptr = dp_array_to_pointer(particle_velocities, copy = True)
+        QP_ptr = dp_array_to_pointer(particle_strengths, copy = True)
         GP_ptr = dp_array_to_pointer(particle_deformations, copy = True)
-        RHS_pm_ptr = dp_array_to_pointer(RHS_PM)
 
-        # Get the pointers to the numpy arrays
+        # Get the pointers to arrays for the grid values
+        RHS_pm_ptr = dp_array_to_pointer(self.particle_mesh.RHS)
         Velx_ptr = dp_array_to_pointer(self.particle_mesh.Ux)
         Vely_ptr = dp_array_to_pointer(self.particle_mesh.Uy)
         Velz_ptr = dp_array_to_pointer(self.particle_mesh.Uz)
         
         self._lib.vpm(
             XP_ptr, QP_ptr, UP_ptr, GP_ptr,
-            byref(c_int(num_particles)), byref(c_int(num_equations)),
-            byref(c_int(mode)), RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr,
-            byref(c_int(timestep)), byref(c_double(viscosity)), 
-            byref(c_int(self.max_particle_num))
+            byref(c_int(num_particles)), byref(c_int(num_equations)),byref(c_int(mode)), 
+            RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr,
+            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(self.max_particle_num))
         )
 
         # store the results
@@ -187,8 +183,12 @@ class VPM(object):
         self.particles.particle_strengths = pointer_to_dp_array(QP_ptr, particle_strengths.shape)
         self.particles.particle_velocities = pointer_to_dp_array(UP_ptr, particle_velocities.shape)
         self.particles.particle_deformations = pointer_to_dp_array(GP_ptr, particle_deformations.shape)
-        # self._store5 = RHS_pm_ptr
-        
+        self.particle_mesh.RHS = pointer_to_dp_array(RHS_pm_ptr, self.particle_mesh.RHS.shape)
+        self.particle_mesh.Ux = pointer_to_dp_array(Velx_ptr, self.particle_mesh.Ux.shape)
+        self.particle_mesh.Uy = pointer_to_dp_array(Vely_ptr, self.particle_mesh.Uy.shape)
+        self.particle_mesh.Uz = pointer_to_dp_array(Velz_ptr, self.particle_mesh.Uz.shape)
+
+
     def remesh_particles_3d(self, iflag: int):
         """Remesh particles in 3D
 
@@ -196,25 +196,26 @@ class VPM(object):
             iflag (int): Flag to remesh particles
         """
         NVR = self.particles.NVR
-        print_green(f"\tNumber of particles before remeshing: {NVR}", self.rank)
-        XP_arr = F_Array((3, NVR))
-        QP_arr = F_Array((self.num_equations + 1, NVR))
-        UP_arr = F_Array((3, NVR))
-        GP_arr = F_Array((3, NVR))
-
+        neq = self.num_equations
+        XP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
+        UP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
+        QP_struct = F_Array_Struct.null(ndims=2, total_size=(neq + 1)*NVR)
+        GP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
         NVR = c_int(NVR)
-        XP_struct = XP_arr.to_ctype()
-        QP_struct = QP_arr.to_ctype()
-        UP_struct = UP_arr.to_ctype()
-        GP_struct = GP_arr.to_ctype()
         self._lib.remesh_particles_3d(
             byref(c_int(iflag)), byref(XP_struct), byref(QP_struct),
             byref(UP_struct), byref(GP_struct), byref(NVR)
         )
-        XP_arr = F_Array.from_ctype(XP_struct)
-        QP_arr = F_Array.from_ctype(QP_struct)
-        UP_arr = F_Array.from_ctype(UP_struct)
-        GP_arr = F_Array.from_ctype(GP_struct)
+        XP_arr = F_Array.from_ctype(XP_struct, ownership=True, name = "XP_remesh")
+        QP_arr = F_Array.from_ctype(QP_struct, ownership=True, name = "QP_remesh")
+        UP_arr = F_Array.from_ctype(UP_struct, ownership=True, name = "UP_remesh")
+        GP_arr = F_Array.from_ctype(GP_struct, ownership=True, name = "GP_remesh")
+
+        # store the results
+        self.particles.particle_positions = XP_arr.transfer_data_ownership()
+        self.particles.particle_velocities = UP_arr.transfer_data_ownership()
+        self.particles.particle_strengths = QP_arr.transfer_data_ownership()
+        self.particles.particle_deformations = GP_arr.transfer_data_ownership()
         return XP_arr, QP_arr, UP_arr, GP_arr
 
     def print_pmesh_parameters(self):

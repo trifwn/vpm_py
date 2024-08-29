@@ -1,4 +1,4 @@
-Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coarse, NNbl, NNbl_bl, &
+subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coarse, NNbl, NNbl_bl, &
                   NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, nb_i, nb_j, ireturn, &
                   iyntree, ilevmax, npmsize)
 
@@ -284,7 +284,7 @@ Subroutine yaps2d(DSOL_pm, DRHS_pm, Xbound_bl, Xbound_coarse, Dpm_fine, Dpm_coar
 
 contains
 
-   Subroutine mapnodes_bl
+   subroutine mapnodes_bl
 
       integer :: i_nb, j_nb, icnb, jcnb, inode1, jnode1, nbc, nb_plus, nb_minus, i_check, j_check, ik, jk
       integer :: nod, ibound, isizex, isizey, i_plus, j_plus, i_minus, j_minus
@@ -560,9 +560,9 @@ contains
       ! BBound(2*isizey,1:neq,1:BLOCKS) = BBound(2*isizey,1:neq,1:BLOCKS) + &
       !                                   BBound(2*isizey + 2*isizex,1:neq,1:BLOCKS)
 
-   End Subroutine mapnodes_bl
+   End subroutine mapnodes_bl
 
-   Subroutine interp_stencil
+   subroutine interp_stencil
       use projlib, only: projection_fun
       real(dp) :: addlocal, X1(2), add(neq), add_sample(neq)
       integer          :: inode1, jnode1, i_nb, j_nb
@@ -621,9 +621,9 @@ contains
          end do
       end do
 
-   End Subroutine interp_stencil
+   End subroutine interp_stencil
 
-   Subroutine calc_laplacian_coarse(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
+   subroutine calc_laplacian_coarse(SOL_pm, RHS_pm, NN, NN_bl, Dpm, NN_map, neqs, neqf, npmsize)
       Implicit none
 
       integer, intent(in) :: NN(3), NN_bl(6), NN_map(6), neqs, neqf, npmsize
@@ -642,6 +642,6 @@ contains
          end do
       end do
 
-   End Subroutine calc_laplacian_coarse
+   End subroutine calc_laplacian_coarse
 
-End Subroutine yaps2d
+End subroutine yaps2d

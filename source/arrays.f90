@@ -222,7 +222,7 @@ contains
     end function get_shape
 
     subroutine assign_array(arr1, arr2)
-        ! Subroutine to assign the array1 to array2. It does not create a new array.
+        ! subroutine to assign the array1 to array2. It does not create a new array.
         ! It justs changes the pointers of array2 to the pointers of array1.
         type(ND_Array), intent(inout) :: arr1
         type(ND_Array), intent(in) :: arr2

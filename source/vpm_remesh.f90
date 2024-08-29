@@ -1,12 +1,12 @@
-!Subroutine remesh_particles
-!This Subroutine remeshes particles  on the pm grid (4 particles per cell)
+!subroutine remesh_particles
+!This subroutine remeshes particles  on the pm grid (4 particles per cell)
 !---------------------------------------------------------------------------------------------------
 
-Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
+subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, &
-                     DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm, &
-                     NYpm, NZpm, NXs_bl, NYs_bl, NZs_bl, NXf_bl, &
-                     NYf_bl, NZf_bl, DVpm, EPSVOL
+                     DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm_coarse, &
+                     NYpm_coarse, NZpm_coarse, NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, NXf_coarse_bl, &
+                     NYf_coarse_bl, NZf_coarse_bl, DVpm, EPSVOL
    use projlib, only: projlibinit, project_particles_3D, project_vol3d
    use vpm_vars, only: mrem, NEQPM, NVR_p, XP_scatt, QP_scatt, NVR_projscatt, INTERF_IPROJ, V_REF, NCELL_REM, NVR_SIZE
    use pmeshpar, only: NPAR_CELL, IDVPM, ND
@@ -36,16 +36,6 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    integer    :: NVR_OLD 
    integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
 
-   ! DEPRECATED
-   ! real(dp),intent(inout):: XP_in(:,:),QP_in(:,:)
-   ! real(dp) :: Vol, ANG, dens1, dens2, Mach,
-   ! integer   :: nv, inode, jnode, knode, itype
-   ! integer   :: iis, jjs, kks, iif, jjf, kkf
-   ! integer   :: iis2, jjs2, kks2, iif2, jjf2, kkf2
-   ! real(dp)    :: fx, fy, f
-   ! real(dp)    :: w1, w2, r1, r2, core, radi, th, xx, yy
-   ! real(dp), allocatable :: rhsper(:, :, :, :)
-
    NVR_OLD = NVR
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -73,9 +63,9 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    !-->The loops starts from 2 because we need cells that DO NOT contain particles  !
    !-->Total Number of Cells                                                        !
    !--------------------------------------------------------------------------------!
-   NN(1) = NXpm; NN(2) = NYpm; NN(3) = NZpm
-   NN_bl(1) = NXs_bl(1); NN_bl(2) = NYs_bl(1); NN_bl(3) = NZs_bl(1)
-   NN_bl(4) = NXf_bl(1); NN_bl(5) = NYf_bl(1); NN_bl(6) = NZf_bl(1)
+   NN(1) = NXpm_coarse; NN(2) = NYpm_coarse; NN(3) = NZpm_coarse
+   NN_bl(1) = NXs_coarse_bl; NN_bl(2) = NYs_coarse_bl; NN_bl(3) = NZs_coarse_bl
+   NN_bl(4) = NXf_coarse_bl; NN_bl(5) = NYf_coarse_bl; NN_bl(6) = NZf_coarse_bl
 
    NN = NN*mrem
    NN_bl = NN_bl*mrem
@@ -259,7 +249,7 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
       write (*, *) achar(9), achar(9), 'Number of particles before', NVR_OLD
       write (*, *) achar(9), achar(9), 'Number of particles after', NVR
       write (*, *) achar(9), achar(9), 'Volume of a cell', DVpm
-      write (*, *) achar(9), achar(9), 'Number of cells', NXpm, NYpm, NZpm
+      write (*, *) achar(9), achar(9), 'Number of cells', NXpm_coarse, NYpm_coarse, NZpm_coarse
       write (*, *) achar(9), achar(9), 'Size of XP', size(XP,1) , size(XP,2)
       write (*, *) achar(9), achar(9), 'Size of QP', size(QP,1) , size(QP,2)
       write (*, *) achar(9), achar(9), 'Maximal value of QPR', maxval(QP(neqpm, :))
@@ -267,16 +257,16 @@ Subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
 
 
    if (allocated(RHS_pm)) deallocate (RHS_pm)
-End Subroutine remesh_particles_3d
+end subroutine remesh_particles_3d
 
 !---------------------------------------------------------------------------!
-!-> Subroutine back_to_particles                                            !
+!-> subroutine back_to_particles                                            !
 !   This subroutine interpolates PM grid values back to particles at the    !
 !   positions they ARE.Convections takes place afterwards.                  !
 !   Input :                                                                 !
 !          itype (1,2) defines what value to interpolate to the particles   !
 !---------------------------------------------------------------------------!
-Subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
+subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
    use openmpth
    use projlib, only: projection_fun
    use base_types, only: dp
@@ -331,16 +321,16 @@ Subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
       QP(1:3, nv) = QP(1:3, nv)*QP(4, nv)
    end do
 
-End Subroutine back_to_particles_3D_rem
+end subroutine back_to_particles_3D_rem
 
 !--------------------------------------------------------------------------------
 !>@function
-! Subroutine    cell3d_interp_euler
+! subroutine    cell3d_interp_euler
 !>
 !>@author Papis
 !>
 !>@brief
-!>Subroutine cell3d_interp_euler creates 4 or more particles per cell using ksi ita
+!>subroutine cell3d_interp_euler creates 4 or more particles per cell using ksi ita
 !>coordinates
 !REVISION HISTORY
 !> 17/7/2013 - Initial Version
@@ -391,12 +381,12 @@ end function cell3d_interp_euler
 
 !--------------------------------------------------------------------------------
 !>@function
-! Subroutine    get_ksi_ita_pos
+! subroutine    get_ksi_ita_pos
 !>
 !>@author Papis
 !>
 !>@brief
-!>Subroutine get_ksi_ita_pos  depending on the defined number of particles(must be perfect square)
+!>subroutine get_ksi_ita_pos  depending on the defined number of particles(must be perfect square)
 !REVISION HISTORY
 !> 22/7/2013 - Initial Version
 !> TODO_dd
@@ -405,7 +395,7 @@ end function cell3d_interp_euler
 !>@param [in]  KSIC(4),HTAC(4) is the corner coordinates in the KSI,HTA
 !>@param [out] KSI(2*N),HTA(2*N) local position
 !--------------------------------------------------------------------------------
-Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
+subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
    use base_types, only: dp
    Implicit None
 
@@ -438,4 +428,4 @@ Subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
       end do
    end do
 
-End Subroutine get_ksi_ita_pos_3d
+end subroutine get_ksi_ita_pos_3d

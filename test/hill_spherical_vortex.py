@@ -1,6 +1,17 @@
 import numpy as np
 
 def fUi_HillsVortex_1(CP, a, us, z0):    
+    """
+
+    Args:
+        CP (_type_): Control Point
+        a (_type_): 
+        us (_type_):
+        z0 (_type_):
+
+    Returns:
+        _type_: _description_
+    """
     # Unpacking control point
     x, y, z = CP
     
@@ -58,7 +69,7 @@ def fUi_HillsVortex_1(CP, a, us, z0):
     
     return Uind, Grad, Defm, Vort
 
-def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, a=12.0, us=-1.0, z0=0.0):
+def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, a=1.0, us=-1.0, z0=0.0):
     # Initialize RHS array
     RHS_pm_bl = np.zeros((neqpm, NN_bl[3] - NN_bl[0] + 1, NN_bl[4] - NN_bl[1] + 1, NN_bl[5] - NN_bl[2] + 1), dtype=float) 
     # Allocate analytic_sol

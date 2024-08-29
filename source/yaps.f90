@@ -18,7 +18,7 @@ Module yapslib
    real(dp)             :: XMIN_pm_c, YMIN_pm_c, ZMIN_pm_c, XMAX_pm_c, YMAX_pm_c, ZMAX_pm_c
    real(dp)             :: MACH
    real(dp), allocatable :: Xbound_bl(:, :)
-   integer                      :: BLOCKS, NXB, NYB, NBI, NBJ, NBK, NB, i, j, k, NXbl, NYbl, NN(3), NN_bl(6)
+   integer                      :: BLOCKS, NXB, NYB, NBI, NBJ, NBK, NB, i, j, k, NN(3), NN_bl(6)
    integer, allocatable          :: NNbl(:, :), NNbl_bl(:, :), NN_coarse_map(:, :), map_nodes(:, :, :, :), nnb(:)
    real(dp)             :: projection_fun, fx, fy, fz, f, xc, yc, zc, X(3), addsol, starttime, endtime
    integer                      :: ic, jc, kc, inode, jnode, knode

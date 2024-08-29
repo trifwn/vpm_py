@@ -5,7 +5,7 @@ contains
    !>@file
    !>@brief Find the boundary conditions for the poisson solver using infinite domain assumption
    !------------------------------------------------------------------------!
-   !->Subroutine infdomain                                                  !
+   !->subroutine infdomain                                                  !
    !  This subroutine calculates Boundary conditions using the infinite     !
    !  Domain Poisson Poblem.                                                !
    ! - First grad^2(phi) = 0 is solved(no boundary conditions)              !
@@ -38,9 +38,9 @@ contains
       !sources will reside 2 dummy cells away from the original domain
       source_bound = 0
       !We will solve a poisson problem with zero bc's at the point of calculation of the sources
-      NXs = 1     !NXs_bl(1) - ndum
-      NXf = NXpm  !NXf_bl(1) + ndum
-      NYs = 1     !NYs_bl(1) - ndum
+      NXs = 1     !NXs_bl - ndum
+      NXf = NXpm  !NXf_bl + ndum
+      NYs = 1     !NYs_bl - ndum
       NYf = NYpm
       !-->Solve for zero boundary conditions
       do neq = neqs, neqf
@@ -61,10 +61,10 @@ contains
       !-->SOL_pm_0 not needed for anything else
 
       !-->Using the sources calculated above define the correct bc's to the extended domain(BS law)
-      NXs = 1        !NXs_bl(nb)
-      NXf = NXpm     !NXf_bl(nb)
-      NYs = 1        !NYs_bl(nb)
-      NYf = NYpm     !NYf_bl(nb)
+      NXs = 1        
+      NXf = NXpm     
+      NYs = 1        
+      NYf = NYpm     
       if (my_rank .eq. 0) st = MPI_WTIME()
       if (itree .eq. 1) then
          call Bounds2d_lev(ibctyp, NXs, NXf, NYs, NYf, neqs, neqf)
@@ -77,10 +77,10 @@ contains
       if (my_rank .eq. 0) et = MPI_WTIME()
       if (my_rank .eq. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
 
-   End Subroutine infdomain
+   end subroutine infdomain
 
    !------------------------------------------------------------------------!
-   !->Subroutine infdomain                                                  !
+   !->subroutine infdomain                                                  !
    !  This subroutine calculates Boundary conditions using the infinite     !
    !  Domain Poisson Poblem.                                                !
    ! - First grad^2(phi) = 0 is solved(no boundary conditions)              !
@@ -142,12 +142,12 @@ contains
       !-->SOL_pm_0 not needed for anything else
 
       !-->Using the sources calculated above define the correct bc's to the extended domain(BS law)
-      NXs = 1     !NXs_bl(1)
-      NXf = NXpm  !NXf_bl(1)
-      NYs = 1     !NYs_bl(1)
-      NYf = NYpm  !NYf_bl(1)
-      NZs = 1     !NZs_bl(1)
-      NZf = NZpm  !NZf_bl(1)
+      NXs = 1     !NXs_bl
+      NXf = NXpm  !NXf_bl
+      NYs = 1     !NYs_bl
+      NYf = NYpm  !NYf_bl
+      NZs = 1     !NZs_bl
+      NZf = NZpm  !NZf_bl
       if (my_rank .eq. 0) st = MPI_WTIME()
       if (itree .eq. 1) then
          call Bounds3d_lev(ibctyp, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
@@ -162,10 +162,10 @@ contains
          write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
 
-   End Subroutine infdomain_3d
+   end subroutine infdomain_3d
    !-------------------------------------------------------------------------!
-   !-> Subroutine calc_normalderiv                                           !
-   !   This Subroutine calculated normal derivate at the boundary of the     !
+   !-> subroutine calc_normalderiv                                           !
+   !   This subroutine calculated normal derivate at the boundary of the     !
    !   domain.This together with the appropriate Green function calculate    !
    !   the boundary conditions at the domain boundaries.                     !
    !   For the calculation of the derivative  a fourth order one sided       !
@@ -277,11 +277,11 @@ contains
 
       end do
 
-   End Subroutine calc_normalderiv
+   end subroutine calc_normalderiv
 
    !-------------------------------------------------------------------------!
-   !-> Subroutine calc_normalderiv                                           !
-   !   This Subroutine calculated normal derivate at the boundary of the     !
+   !-> subroutine calc_normalderiv                                           !
+   !   This subroutine calculated normal derivate at the boundary of the     !
    !   domain.This together with the appropriate Green function calculate    !
    !   the boundary conditions at the domain boundaries.                     !
    !   For the calculation of the derivative  a fourth order one sided       !
@@ -545,9 +545,9 @@ contains
 
          end do
       end do
-   End Subroutine calc_normalderiv_3d
+   end subroutine calc_normalderiv_3d
 
-   !This Subroutine builds the nbounds_lev matrrix using the values calulated at the finer level.
+   !This subroutine builds the nbounds_lev matrrix using the values calulated at the finer level.
 
    module subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
       Implicit None
@@ -854,11 +854,11 @@ contains
       !      enddo
       !   enddo
       !stop
-   End Subroutine build_level_nbound
+   end subroutine build_level_nbound
 
    !-------------------------------------------------------------------------!
-   !-> Subroutine calc_normalderiv                                           !
-   !   This Subroutine calculated normal derivate at the boundary of the     !
+   !-> subroutine calc_normalderiv                                           !
+   !   This subroutine calculated normal derivate at the boundary of the     !
    !   domain.This together with the appropriate Green function calculate    !
    !   the boundary conditions at the domain boundaries.                     !
    !   For the calculation of the derivative  a fourth order one sided       !
@@ -1510,6 +1510,6 @@ contains
       !enddo
 
       deallocate (xs_tmp, ds_tmp, s_tmp)
-   End Subroutine build_level_nbound_3d
+   end subroutine build_level_nbound_3d
 
 end submodule pinfdomain

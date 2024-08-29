@@ -18,7 +18,7 @@ Module projlib
    public :: print_projlib_info
 
 contains
-   Subroutine projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL_in, IDVPM_in, ND_in)
+   subroutine projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL_in, IDVPM_in, ND_in)
       implicit none
       real(dp), intent(in) :: Xbound(6), Dpm(3), EPSVOL_in
       integer, intent(in) :: NN(3), IDVPM_in, ND_in, NN_bl(6)
@@ -27,37 +27,35 @@ contains
       IDVPM = IDVPM_in
       ND = ND_in
 
-      XMIN_pm = Xbound(1); YMIN_pm = Xbound(2); ZMIN_pm = Xbound(3)
-      XMAX_pm = Xbound(4); YMAX_pm = Xbound(5); ZMAX_pm = Xbound(6)
-      DXpm = Dpm(1); DYpm = Dpm(2); DZpm = Dpm(3)
+      XMIN_pm = Xbound(1) 
+      YMIN_pm = Xbound(2)
+      ZMIN_pm = Xbound(3)
+      XMAX_pm = Xbound(4) 
+      YMAX_pm = Xbound(5)
+      ZMAX_pm = Xbound(6)
 
-      NXpm = NN(1); NYpm = NN(2); NZpm = NN(3)
-      NXs = NN_bl(1); NYs = NN_bl(2); NZs = NN_bl(3)
-      NXf = NN_bl(4); NYf = NN_bl(5); NZf = NN_bl(6)
-      if (ND .eq. 2) then
-         DVpm = DXpm*DYpm
-      else
-         DVpm = DXpm*DYpm*DZPm
+      DXpm = Dpm(1)
+      DYpm = Dpm(2)
+      DZpm = Dpm(3)
+
+      NXpm = NN(1)
+      NYpm = NN(2)
+      NZpm = NN(3)
+
+      NXs = NN_bl(1)
+      NYs = NN_bl(2)
+      NZs = NN_bl(3)
+      NXf = NN_bl(4)
+      NYf = NN_bl(5)
+      NZf = NN_bl(6)
+
+      DVpm = DXpm*DYpm
+      if (ND .eq. 3) then
+         DVpm = DVpm*DZpm
       end if
-
-      ! if (my_rank.eq.0) then
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, "initiated projlib"
-      !    call print_projlib_info
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      !    print *, '-----------------------------------'
-      ! end if
-   End Subroutine projlibinit
+   End subroutine projlibinit
    ! --------------------------------------------------------------------------!
-   !-->Subroutine project_particles_3D                                          !
+   !-->subroutine project_particles_3D                                          !
    !   This subroutine projects particle values on the PM grid                !
    !   The values projected are :                                             !
    !      - Mass  -> becomes Density on the grid                              !
@@ -66,7 +64,7 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   Subroutine project_particles_3D( &
+   subroutine project_particles_3D( &
       Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize &
    )
       ! Qproj -> RHS of the PM grid
@@ -137,8 +135,52 @@ contains
 
          !--We search the 4 nodes close to the particles
          do k = knode - ips, knode + ipf
+            ! Check if the particle is within the PM grid
+            if (my_rank.eq.0) then
+            if (k .lt. 1 .or. k .gt. NZpm) then
+               write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT k: ",k," on particle: ", nv
+               write (*, "(A)") achar(9)//"Settings used:"
+               write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+               write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
+               write (*, "(A,F5.2)") achar(9)//"knode: ", knode
+               write (*, "(A,F5.2)") achar(9)//"ZMIN: ", ZMIN_pm
+               write (*, "(A,F5.2)") achar(9)//"DZ: ", DZpm
+               write (*, "(A,F5.2)") achar(9)//"NZpm: ", NZpm
+               write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(3, nv)
+            end if 
+            end if
+
             do j = jnode - ips, jnode + ipf
+               ! Check if the particle is within the PM grid
+               if (my_rank.eq.0) then
+               if (j .lt. 1 .or. j .gt. NYpm) then
+                  write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT j: ",j," on particle: ", nv
+                  write (*, "(A)") achar(9)//"Settings used:"
+                  write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+                  write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
+                  write (*, "(A,F5.2)") achar(9)//"jnode: ", jnode
+                  write (*, "(A,F5.2)") achar(9)//"YMIN: ", YMIN_pm
+                  write (*, "(A,F5.2)") achar(9)//"DY: ", DYpm
+                  write (*, "(A,F5.2)") achar(9)//"NYpm: ", NYpm
+                  write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(2, nv)
+               end if
+               end if
+
                do i = inode - ips, inode + ipf
+                  ! Check if the particle is within the PM grid
+                  if (my_rank.eq.0) then
+                  if (i .lt. 1 .or. i .gt. NXpm) then
+                     write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT i: ",i," on particle: ", nv
+                     write (*, "(A)") achar(9)//"Settings used:"
+                     write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+                     write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
+                     write (*, "(A,F5.2)") achar(9)//"inode: ", inode
+                     write (*, "(A,F5.2)") achar(9)//"XMIN: ", XMIN_pm
+                     write (*, "(A,F5.2)") achar(9)//"DX: ", DXpm
+                     write (*, "(A,F5.2)") achar(9)//"NXpm: ", NXpm
+                     write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(1, nv)
+                  end if
+                  end if
 
                   x = (QpX(1, nv) - XMIN_pm - (i - 1)*DXpm)/DXpm
                   fx = projection_fun(itype, x)
@@ -150,37 +192,26 @@ contains
                   fz = projection_fun(itype, z)
 
                   f = fx*fy*fz
-                  if (my_rank .eq. 0) then
-                     if (k .lt. 1) then
-                        write (*, *) achar(9), "PROJECT PARTICLES 3D GOT k<1: "
-                        write (*, *) achar(9), "NXpm", NXpm
-                        write (*, *) achar(9), "NYpm", NYpm
-                        write (*, *) achar(9), "NZpm", NZpm
-                        write (*, *) achar(9), "QPX", QPX(1:3, nv)
-                        write (*, *) achar(9), "XMIN" , XMIN_pm
-                        write (*, *) achar(9), "YMIN" , YMIN_pm
-                        write (*, *) achar(9), "ZMIN" , ZMIN_pm
-                        write (*, *) achar(9), "DX", DXpm
-                        write (*, *) achar(9), "DY", DYpm
-                        write (*, *) achar(9), "DZ", DZpm
-                        write (*, *) achar(9), "NV", nv
-                        write (*, *) achar(9), "IPA", ipar
-                        write (*, *) achar(9), "I", i
-                        write (*, *) achar(9), "ips, ipf", ips, ipf
-                        write (*, *) achar(9), "knode", knode
-                        write (*, *) achar(9), "J", j
-                        write (*, *) achar(9), "jnode", jnode
-                        write (*, *) achar(9), "K", k
-                        write (*, *) achar(9), "inode", inode
-                     end if
-                  end if
-
                   Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k) &
                                                    + f*QPar(ieq(1:neq - 1), nv)
                   !-QINF(1:neq-1)*QPar(ieq(neq),nv))
                   Qproj(ieq(neq), i, j, k) = Qproj(neq, i, j, k) &
                                              + f*QPar(ieq(neq), nv) &
                                              - f*QINF(neq)
+                  
+                  ! Check if the Qproj is NaN
+                  ! if (any(isnan(Qproj(:,i,j,k)))) then
+                  !    print *, "Qproj is NaN"
+                  !    print *,achar(9)//"Particle: ", nv
+                  !    print *,achar(9)//"Particle location: ", QPX(:, nv)
+                  !    print *,achar(9)//"Projection function: ", itype
+                  !    print *,achar(9)//"x,y,z: ", x, y, z
+                  !    print *,achar(9)//"fx, fy, fx: ", fx, fy, fz
+                  !    print *,achar(9)//"Projection function values f: ", f
+                  !    print *,achar(9)//"Qpar(:,nv): ", QPar(:, nv)
+                  !    print *,achar(9)//"QINF: ", QINF(:)
+                  !    stop 
+                  ! end if 
                end do
             end do
          end do
@@ -188,10 +219,10 @@ contains
       !--After the projection all the values will be divided by Vol_pm to take into account the volume
       !  effect in the interpolation.We extend volume and density values to no-particle regions
 
-   End Subroutine project_particles_3D
+   End subroutine project_particles_3D
 
    !--------------------------------------------------------------------------!
-   !-->Subroutine project_vol2d                                               !
+   !-->subroutine project_vol2d                                               !
    !   This subroutine projects particle values on the PM grid                !
    !   The values projected are :                                             !
    !      - Mass  -> becomes Density on the grid                              !
@@ -200,7 +231,7 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   Subroutine project_vol3d(Qproj, isize, ieq, neq, iflag)
+   subroutine project_vol3d(Qproj, isize, ieq, neq, iflag)
       !use pmgrid
 
       Implicit None
@@ -247,9 +278,9 @@ contains
          write (*, *) 'WRONG IDVPM'
          STOP
       end if
-   End Subroutine project_vol3d
+   End subroutine project_vol3d
    !--------------------------------------------------------------------------!
-   !-->Subroutine project_particles                                           !
+   !-->subroutine project_particles                                           !
    !   This subroutine projects particle values on the PM grid                !
    !   The values projected are :                                             !
    !      - Mass  -> becomes Density on the grid                              !
@@ -258,7 +289,7 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   Subroutine project_particles_2D(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF)
+   subroutine project_particles_2D(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF)
       !use pmgrid
 
       Implicit None
@@ -329,9 +360,9 @@ contains
       !--After the projection all the values will be divided by Vol_pm to take into account the volume
       !  effect in the interpolation.We extend volume and density values to no-particle regions
 
-   End Subroutine project_particles_2D
+   End subroutine project_particles_2D
 
-   Subroutine project_particles_2D_vol(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq)
+   subroutine project_particles_2D_vol(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq)
       !use pmgrid
 
       Implicit None
@@ -400,9 +431,9 @@ contains
       !--After the projection all the values will be divided by Vol_pm to take into account the volume
       !  effect in the interpolation.We extend volume and density values to no-particle regions
 
-   End Subroutine project_particles_2D_vol
+   End subroutine project_particles_2D_vol
    !--------------------------------------------------------------------------!
-   !-->Subroutine project_vol2d                                               !
+   !-->subroutine project_vol2d                                               !
    !   This subroutine projects particle values on the PM grid                !
    !   The values projected are :                                             !
    !      - Mass  -> becomes Density on the grid                              !
@@ -411,7 +442,7 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   Subroutine project_vol2d(Qproj, isize, ieq, neq, iflag)
+   subroutine project_vol2d(Qproj, isize, ieq, neq, iflag)
       !use pmgrid
 
       Implicit None
@@ -470,7 +501,7 @@ contains
          write (*, *) 'WRONG IDVPM'
          STOP
       end if
-   End Subroutine project_vol2d
+   End subroutine project_vol2d
 
    !-----------------------------------------------------------------------------!
    !-->Function projection_fun                                                   !
@@ -526,7 +557,7 @@ contains
    ! Printers
    !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-   Subroutine print_projlib_info()
+   subroutine print_projlib_info()
       print *, "PROJLIB INFO"
       print *, "============"
       print *, ""
@@ -552,5 +583,5 @@ contains
       print *, achar(9), 'NZf', NZf
       print *, achar(9), 'IDVPM', IDVPM
       print *, achar(9), 'ND', ND
-   End Subroutine print_projlib_info
+   End subroutine print_projlib_info
 End module projlib

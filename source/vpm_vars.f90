@@ -18,7 +18,7 @@ Module vpm_vars
 
 contains
 
-   Subroutine print_vpm_vars_info
+   subroutine print_vpm_vars_info
       print *, "VPM_VARS INFO"
       print *, "============"
       print *, ""
@@ -83,6 +83,6 @@ contains
       print '(A)', ""
 
 
-   End Subroutine print_vpm_vars_info
+   End subroutine print_vpm_vars_info
 
 End Module vpm_vars

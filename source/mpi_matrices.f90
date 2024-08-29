@@ -5,7 +5,7 @@ module mpi_matrices
    public :: mpimat2, mpimat2_pm, mpimat3_pm, mpimat4, mpimat4int, mpimat5, mpimat5d
 
 contains
-   Subroutine mpimat2(mat2, nsize1, nsize2)
+   subroutine mpimat2(mat2, nsize1, nsize2)
       use MPI
 
       integer ierr
@@ -29,7 +29,7 @@ contains
       call MPI_TYPE_COMMIT(mat2, ierr)
    end subroutine mpimat2
 
-   Subroutine mpimat2_pm(mat2, orig1, orig2, nsize1, nsize2, istart)
+   subroutine mpimat2_pm(mat2, orig1, orig2, nsize1, nsize2, istart)
       use MPI
 
       Implicit None
@@ -54,9 +54,9 @@ contains
       !write (*,*) nsize
       call MPI_TYPE_CREATE_SUBARRAY(2, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat2, ierr)
       call MPI_TYPE_COMMIT(mat2, ierr)
-   End Subroutine mpimat2_pm
+   End subroutine mpimat2_pm
 
-   Subroutine mpimat3_pm(mat3, nsize1, nsize2, nsize3)
+   subroutine mpimat3_pm(mat3, nsize1, nsize2, nsize3)
       use MPI
 
       Implicit None
@@ -79,7 +79,7 @@ contains
       call MPI_TYPE_COMMIT(mat3, ierr)
    End subroutine mpimat3_pm
 
-   Subroutine mpimat4(mat4, nsize1, nsize2, nsize3, nsize4)
+   subroutine mpimat4(mat4, nsize1, nsize2, nsize3, nsize4)
       use MPI
 
       Implicit None
@@ -106,7 +106,7 @@ contains
       call MPI_TYPE_COMMIT(mat4, ierr)
    End subroutine mpimat4
 
-   Subroutine mpimat4int(mat4int, nsize1, nsize2, nsize3, nsize4)
+   subroutine mpimat4int(mat4int, nsize1, nsize2, nsize3, nsize4)
       use MPI
 
       Implicit None
@@ -132,7 +132,7 @@ contains
       call MPI_TYPE_COMMIT(mat4int, ierr)
    End subroutine mpimat4int
 
-   Subroutine mpimat5_old(mat5, nsize1, nsize2, nsize3, nsize4, nsize5)
+   subroutine mpimat5_old(mat5, nsize1, nsize2, nsize3, nsize4, nsize5)
       use MPI
 
       Implicit None
@@ -162,7 +162,7 @@ contains
       call MPI_TYPE_COMMIT(mat5, ierr)
    End subroutine mpimat5_old
 
-   Subroutine mpimat5(mat5, nsize1, nsize2, nsize3, nsize4, nsize5, isize5, nbstart)
+   subroutine mpimat5(mat5, nsize1, nsize2, nsize3, nsize4, nsize5, isize5, nbstart)
       use MPI
 
       Implicit None
@@ -194,7 +194,7 @@ contains
       call MPI_TYPE_COMMIT(mat5, ierr)
    End subroutine mpimat5
 
-   Subroutine mpimat5d(mat5, original_size, send_size, start_size)
+   subroutine mpimat5d(mat5, original_size, send_size, start_size)
       use MPI
 
       integer, intent(in)::original_size(5), send_size(5), start_size(5)

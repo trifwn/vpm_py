@@ -1,6 +1,6 @@
 import numpy as np
 import ctypes
-from ctypes import c_int,  byref, POINTER, c_double, cast, cdll, Structure
+from ctypes import c_int,  byref, POINTER, c_double, cast, cdll, Array
 from ctypes.util import find_library
 from ctypes import CDLL
 from tempfile import NamedTemporaryFile
@@ -10,6 +10,7 @@ from shutil import copy2
 from typing import Any
 
 from vpm_py.vpm_io import print_red, print_green, print_IMPORTANT
+from vpm_py.vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
@@ -40,30 +41,62 @@ class F_Array_Struct(ctypes.Structure):
         _str += f"Data pointer: {self.data_ptr}\n"
         return _str
 
+    @classmethod
+    def null(cls, ndims, total_size):
+        return cls(
+            ndims= ndims,
+            total_size= total_size,
+            data_ptr= cast(0, POINTER(c_double)),
+            shape_ptr= cast(0, POINTER(c_int))
+        )
+
 class F_Array(object):
     _lib_array: CDLL = None  
     _lib_array_path = None
     libc = None
 
-    def __init__(self, shape, data_container=None):
+    def __init__(
+            self, 
+            shape: tuple[int,...] | np.ndarray[Any, np.dtype[np.int32]], 
+            data_container : np.ndarray | None =None, 
+            name: str | None = None
+        ):
+        """
+        An F_Array is a data container that can easily interoperate with fortran.
+
+        Args:
+            shape (tuple[int,...] | np.ndarray[Any, np.dtype[np.int32]]): The array shape
+            data_container (np.ndarray | None, optional): The actual data. If provided will be used otherwise will be initialized to 0.
+            name (str | None, optional): Debugging parameter to track arrays. Will be removed.
+        """
+        self.name = name
         if not F_Array._lib_array:
             F_Array._load_library()
         self.ndims = len(shape)
         self.total_size = int(np.prod(shape)) # Total size of the data array
         self.shape_container = np.array(shape, dtype=np.int32, order='F')
+
         if data_container is not None:
-            self.data_container = data_container
+            self.data_container = None
+            self.owns_data = False
         else:
-            self.data_container = np.zeros(shape, dtype=np.float64, order='F')
-        data_dtype = (c_double)
+            data_container = np.zeros(shape, dtype=np.float64, order='F')
+            self.data_container = data_container
+            self.owns_data = True
+        data_dtype: type[c_double] | type[Array[Any]] = (c_double)
         for dim in shape:
             data_dtype = data_dtype * dim
         self.data_ptr_type = data_dtype
         self.shape_ptr = self.shape_container.ctypes.data_as(POINTER(c_int * self.ndims))
-        self.data_ptr =  self.data_container.ctypes.data_as(POINTER(data_dtype))
+        self.data_ptr =  data_container.ctypes.data_as(POINTER(data_dtype))
         _ = self._lib_array.create_dtype(
             c_int(self.ndims), c_int(self.total_size), self.shape_ptr[0], self.data_ptr[0][0]
         )
+
+        # print_red(f"Created array {self.name}")
+        # print_green(f"\tThe array owns the data: {self.owns_data}")
+        # print_green(f"\tThe array has shape {self.shape}")
+        # print_green(f"\tThe array data are in {data_container.__array_interface__["data"]} ")
 
     @classmethod
     def _load_library(cls):
@@ -91,7 +124,7 @@ class F_Array(object):
         cls._lib_array.free_array.argtypes = [POINTER(F_Array_Struct)]
 
     @classmethod
-    def from_ctype(self, array_struct):
+    def from_ctype(self, array_struct, ownership= False, name=None):
         # Get the shape from the shape pointer
         ndims = array_struct.ndims
         shape_ptr = array_struct.shape_ptr
@@ -105,7 +138,7 @@ class F_Array(object):
         data_ptr = cast(data_ptr, POINTER(c_double*array_struct.total_size))
         data = np.asarray(data_ptr.contents, dtype=np.float64).reshape(shape, order='F')
         
-        arr = F_Array(shape, data_container=data)
+        arr = F_Array(shape, data_container=data, name=name)
         return arr
     
     @classmethod
@@ -119,6 +152,24 @@ class F_Array(object):
     def to_numpy(self):
         return self.data
     
+    def transfer_data_ownership(self):
+        """
+        This function transfers the ownership of the data to the caller so that 
+        the data are not deleted when the object is deleted. If the data are not
+        owned by the object, the data view is returned to the caller.
+
+        Returns:
+            ndarray: The data array
+        """
+        if self.owns_data:
+            # Ensure the data are not deleted and just returned to the caller
+            self.owns_data = False
+            ret = self.data_container
+            self.data_container = None
+        else:
+            ret = self.data
+        return ret
+
     def to_ctype(self):
         return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr[0][0])
 
@@ -128,7 +179,7 @@ class F_Array(object):
 
     def _call_fortran_op(self, other: "F_Array", op: str):
         # Call Fortran operation
-        result_array = F_Array(np.array(self.shape, copy=True, dtype=np.float64))
+        result_array = F_Array(np.array(self.shape, copy=True, dtype=np.float64), name=f"{self.name}_{op}_{other.name}")
 
         if op == 'add':
             self._lib_array.add(byref(self.to_ctype()), byref(other.to_ctype()), byref(result_array.to_ctype()))
@@ -190,9 +241,12 @@ class F_Array(object):
 
     def __del__(self):
         try:
+            # print_red(f"Deleting array {self.name}")
+            # print_green(f"\tThe array owns the data: {self.owns_data}")
+            # print_green(f"\tThe array has shape {self.shape}")
+            # print_green(f"\tThe array data are in {self.data.__array_interface__["data"]} ")
             # Ensure to call free_array correctly
             # Free the memory allocated by the Fortran code
-            self._lib_array.free_array(byref(self.to_ctype()))
             # self.libc.free(self.data_ptr)
             del self.data_container
             del self.shape_container
@@ -205,7 +259,7 @@ class F_Array(object):
             del self
         except Exception as e:
             print(f"Error during deletion: {e}")
-    
+
     def __getitem__(self, index):
         "Return the data array with the given index"
         return np.asfortranarray(self.data)[index]
