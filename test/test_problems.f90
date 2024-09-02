@@ -140,8 +140,8 @@ contains
 
         allocate(error(7,NN(1),NN(2),NN(3)))
         open(1,file='hillerror.dat')
-        WRITE(1,'(a190)')'VARIABLES = "X" "Y" "Z" "Err-u" "Err-v "Err-w" "Err-defmx" &
-                        "Err-defmy" "Err-defmz" "Err-Vmag"'
+        WRITE(1,'(a190)') &
+            'VARIABLES = "X" "Y" "Z" "Err-u" "Err-v "Err-w" "Err-defmx" "Err-defmy" "Err-defmz" "Err-Vmag"'
         WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)-1,' J=',NN_bl(5)-NN_bl(2)-1,&
         ' K=',NN_bl(6)-NN_bl(3) - 1 ,' F=POINT'
         

@@ -6,6 +6,7 @@ build/
 *.i90
 bin/
 *vpm_debug*
+*vpm_release*
 *.so
 vpm_py.egg-info/
 *__pycache__*
@@ -13,3 +14,4 @@ vpm_py.egg-info/
 fort*
 **/sol/** 
 vpm_py/shared_libs
+3d_party

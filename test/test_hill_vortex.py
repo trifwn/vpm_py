@@ -11,6 +11,7 @@ from hill_spherical_vortex import hill_assign
 def main():
     # Initialize MPI
     comm = MPI.COMM_WORLD
+    start_time = MPI.Wtime()
     rank = comm.Get_rank()
     np_procs = comm.Get_size()
     
@@ -20,7 +21,9 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        # d_particle_mesh= [0.2, 0.2, 0.2],
+        dx_particle_mesh= 0.1,
+        dy_particle_mesh= 0.1,
+        dz_particle_mesh= 0.1
     )
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
@@ -29,10 +32,10 @@ def main():
     print_blue(f"Rank: {rank}")
     comm.Barrier()
      
-    DT = 0.5
+    DT = 1 * 0.1
     NI = -0.1
     neq = 3 
-    UINF = np.array([1., 0., 0.])
+    UINF = np.array([0., 0., 0.])
 
     # Create particles
     NVR = 100
@@ -51,7 +54,6 @@ def main():
         particle_strengths= QPR, 
         particle_velocities= UPR, 
         particle_deformations= GPR,
-        RHS_PM= np.zeros((neq, vpm.nn[0], vpm.nn[1], vpm.nn[2]), dtype=np.float64),
         timestep=0,
         viscosity=NI,
     )
@@ -68,8 +70,12 @@ def main():
         NN_bl= vpm.nn_bl,
         Xbound= vpm.xbound,
         neqpm= vpm.num_equations,
+        a = 2.0,
+        us = 1.0,
+        z0 = 0.0,
     )
     vpm.set_rhs_pm(RHS_pm_hill)
+    print_red(f"Setting RHS_PM as computed from the hill vortex", rank)
     
     if rank == 0:
         st = MPI.Wtime()
@@ -108,11 +114,10 @@ def main():
         num_particles= vpm.particles.NVR,
         num_equations= vpm.num_equations,
         mode = 0,
-        particle_positions    =  XPR.data,
-        particle_strengths    =  QPR.data,
-        particle_velocities   =  UPR.data,
-        particle_deformations =  GPR.data,
-        RHS_PM=RHS_pm_hill,
+        particle_positions    =  XPR,
+        particle_strengths    =  QPR,
+        particle_velocities   =  UPR,
+        particle_deformations =  GPR,
         timestep=0,
         viscosity=NI,
     )
@@ -133,11 +138,10 @@ def main():
             num_particles=NVR,
             num_equations=neq,
             mode = 2,
-            particle_positions    =  XPR.data,
-            particle_strengths    =  QPR.data,
-            particle_velocities   =  UPR.data,
-            particle_deformations =  GPR.data,
-            RHS_PM=RHS_pm_hill,
+            particle_positions    =  XPR,
+            particle_strengths    =  QPR,
+            particle_velocities   =  UPR,
+            particle_deformations =  GPR,
             timestep=i,
             viscosity=NI,
         )
@@ -149,49 +153,58 @@ def main():
             UPR = vpm.particles.UP
             GPR = vpm.particles.GP
             # Print the size of the particles
-            print(f"Number of particles: {NVR}")
-            print(f"Number of equations: {neq}")
-            print('\n')
+            # print(f"Number of particles: {NVR}")
+            # print(f"Number of equations: {neq}")
+            # print('\n')
 
-            print(f"XPR:")
-            print(f"Mean: {np.mean(XPR.data, axis=1)}")
-            print(f"Max: {np.max(XPR.data, axis=1)}")
-            print(f"Min: {np.min(XPR.data, axis=1)}")
-            print('\n')
+            # print_green(f"XPR:")
+            # print(f"Mean: {np.mean(XPR.data, axis=1)}")
+            # print(f"Max: {np.max(XPR.data, axis=1)}")
+            # print(f"Min: {np.min(XPR.data, axis=1)}")
+            # print('\n')
 
-            print(f"UPR:")
-            print(f"Mean: {np.mean(UPR.data, axis=1)}")
-            print(f"Max: {np.max(UPR.data, axis=1)}")
-            print(f"Min: {np.min(UPR.data, axis=1)}")
-            print('\n')
+            # print_green(f"UPR:")
+            # print(f"Mean: {np.mean(UPR.data, axis=1)}")
+            # print(f"Max: {np.max(UPR.data, axis=1)}")
+            # print(f"Min: {np.min(UPR.data, axis=1)}")
+            # print('\n')
             
-            print(f"QPR:")
-            print(f"Mean: {np.mean(QPR.data, axis=1)}")
-            print(f"Max: {np.max(QPR.data, axis=1)}")
-            print(f"Min: {np.min(QPR.data, axis=1)}")
+            # print_green(f"QPR:")
+            # print(f"Mean: {np.mean(QPR.data, axis=1)}")
+            # print(f"Max: {np.max(QPR.data, axis=1)}")
+            # print(f"Min: {np.min(QPR.data, axis=1)}")
+            # print('\n')
 
-            print(f"GPR:")
-            print(f"Mean: {np.mean(GPR.data, axis=1)}")
-            print(f"Max: {np.max(GPR.data, axis=1)}")
-            print(f"Min: {np.min(GPR.data, axis=1)}")
-            print('\n')
+            # print_green(f"GPR:")
+            # print(f"Mean: {np.mean(GPR.data, axis=1)}")
+            # print(f"Max: {np.max(GPR.data, axis=1)}")
+            # print(f"Min: {np.min(GPR.data, axis=1)}")
+            # print('\n')
 
-            print(f"RHS:")
-            RHS = vpm.particle_mesh.RHS.flatten()
-            print(f"Mean: {np.mean(RHS)}")
-            print(f"Max: {np.max(RHS)}")
-            print(f"Min: {np.min(RHS)}")
-            print('\n')
+            # print(f"Particle Mesh Values:")
+            # print_green(f"RHS:")
+            # RHS = vpm.particle_mesh.RHS
+            # print(f"Mean: {np.mean(RHS)}")
+            # print(f"Max: {np.max(RHS)}")
+            # print(f"Min: {np.min(RHS)}")
+            # print('\n')
 
-            print(f"U_PM:")
-            ux = vpm.particle_mesh.Ux
-            uy = vpm.particle_mesh.Uy
-            uz = vpm.particle_mesh.Uz
-            V_mag = np.sqrt(ux**2 + uy**2 + uz**2).flatten()
-            print(f"Mean: {np.mean(V_mag)}")
-            print(f"Max: {np.max(V_mag)}")
-            print(f"Min: {np.min(V_mag)}")
-            print('\n')
+            # ux = vpm.particle_mesh.Ux
+            # uy = vpm.particle_mesh.Uy
+            # uz = vpm.particle_mesh.Uz
+            # for u, name in zip([ux, uy, uz], ["Ux", "Uy", "Uz"]):
+            #     print_green(f"{name}:")
+            #     print(f"Mean: {np.mean(u)}")
+            #     print(f"Max: {np.max(u)}")
+            #     print(f"Min: {np.min(u)}")
+            #     print('\n')
+            
+            # V_mag = np.sqrt(ux**2 + uy**2 + uz**2)
+            # print_green(f"Velocity Magnitude:")
+            # print(f"Mean: {np.mean(V_mag)}")
+            # print(f"Max: {np.max(V_mag)}")
+            # print(f"Min: {np.min(V_mag)}")
+            # print('\n')
 
             print_IMPORTANT(f"Convecting Particles", rank)
             # # Move the particles
@@ -216,17 +229,16 @@ def main():
             num_particles=NVR,
             num_equations=neq,
             mode = 0,
-            particle_positions    =  XPR.data,
-            particle_strengths    =  QPR.data,
-            particle_velocities   =  UPR.data,
-            particle_deformations =  GPR.data,
-            RHS_PM=RHS_pm_hill,
+            particle_positions    =  XPR,
+            particle_strengths    =  QPR,
+            particle_velocities   =  UPR,
+            particle_deformations =  GPR,
             timestep=i,
             viscosity=NI,
         )
         comm.Barrier()
 
-        if i%20000 == 0:
+        if i<5:
             print_IMPORTANT(f"Remeshing", rank)
             # Remeshing
             if rank == 0:
@@ -236,13 +248,10 @@ def main():
             if rank == 0:
                 et = MPI.Wtime()
                 print(f"\tRemeshing took {int((et - st) / 60)}m {int(et - st) % 60}s")
-        # XPR = vpm.particles.XP
-        # UPR = vpm.particles.UP
-        # GPR = vpm.particles.GP
-        # QPR = vpm.particles.QP
-
 
     MPI.Finalize()
+    end_time = MPI.Wtime()
+    print(f"Time taken: {end_time - start_time}")
 
 if __name__ == "__main__":
     main()

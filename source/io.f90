@@ -1,7 +1,19 @@
 
 module IO
     use base_types, only: dp
-    integer, save :: VERBOCITY = 0
+    integer, save :: VERBOCITY = 1
+    ! Verbose level
+    ! 0: No output
+    ! 1: Basic output
+    ! 2: Detailed output
+    ! 3: Debug output
+    character (len=100), save :: particle_output_file_suffix = "particles"
+    character (len=100), save :: pm_output_file_suffix = "pm_output"
+    character (len=100), save :: vpm_write_folder = "results"
+    character (len=100), save :: vpm_speed_output_file = "profile_speed.dat"
+    integer, save :: tab_level = 0
+    character (len=400), save :: dummy_string = " "
+
     ! Print allocatable integer arrays
     public:: i_1d_alloc_info, i_2d_alloc_info
     ! Print fixed-size integer arrays
@@ -14,15 +26,62 @@ module IO
     ! Print fixed-size double precision arrays
     public:: dp_1d_array_info, dp_2d_array_info
 
-    character (len= 4) :: red = achar(27)//'[1;31m'
-    character (len= 4):: green = achar(27)//'[1;32m'
-    character (len= 4):: yellow = achar(27)//'[1;33m'
-    character (len= 4):: blue = achar(27)//'[1;34m'
-    character (len= 4):: magenta = achar(27)//'[1;35m'
-    character (len= 4):: reset = achar(27)//'[0m'
-
-
+    integer, parameter :: RED = 31
+    integer, parameter :: GREEN = 32
+    integer, parameter :: YELLOW = 33
+    integer, parameter :: BLUE = 34
+    integer, parameter :: MAGENTA = 35
+    integer, parameter :: CYAN = 36
+    integer, parameter :: NOCOLOR = -1
 contains
+    subroutine vpm_print(msg, color, importance)
+        character(len=*), intent(in) :: msg
+        integer, intent(in) :: color
+        integer, intent(in) :: importance
+        character(len=256) :: formatted_msg
+        character(len=256) :: tabbed_msg
+        integer :: i
+
+        ! Prepend tabs based on tab_level
+        if (importance > VERBOCITY) then
+            print *, "Importance: ", importance, " Verbocity: ", VERBOCITY
+            return
+        endif
+        tabbed_msg = ''
+        do i = 1, tab_level
+            tabbed_msg = tabbed_msg//achar(9)
+        end do
+        tabbed_msg = tabbed_msg//msg
+
+        tabbed_msg = trim(tabbed_msg)
+        print *, "PRINTING"
+        print *, "Color: ", color
+        print *, "Message: ", tabbed_msg
+        ! Print the message with the specified color
+        if (color == 31) then
+            write (*, "(A)") achar(27)//'[1;31m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == 32) then
+            write (*, "(A)") achar(27)//'[1;32m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == 33) then
+            write (*, "(A)") achar(27)//'[1;33m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == 34) then
+            write (*, "(A)") achar(27)//'[1;34m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == 35) then
+            write (*, "(A)") achar(27)//'[1;35m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == 36) then
+            write (*, "(A)") achar(27)//'[1;36m'//tabbed_msg//achar(27)//'[0m'
+        else if (color == -1) then
+            write (*, "(A)") tabbed_msg
+        else
+            write (*, "(A)") tabbed_msg
+        end if
+        print *, "PRINTED"
+    end subroutine vpm_print
+
+    subroutine set_verbose_level(level)
+        integer, intent(in) :: level
+        VERBOCITY = level
+    end subroutine set_verbose_level
 
     !!! INTEGER ARRAYS !!!
     subroutine i_1d_alloc_info(name_in, arr)
@@ -230,7 +289,6 @@ contains
         print '(A)', ""
     end subroutine dp_2d_array_info
 
-
     subroutine dp_3d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         character(len=100) :: name
@@ -273,8 +331,8 @@ contains
         name = achar(27)//'[1;33m'//name_in//achar(27)//'[0m'
         if (allocated(arr)) then
             write(*, "(A)") achar(9)//trim(name)//" (4D):"
-            write(*, '(A,I3,A,I3,A,I3,A,I3,A)'), achar(9)//achar(9)//"Size = (", &
-                            size(arr,1), ",", size(arr,2), ",", size(arr,3), ",", size(arr,4), ")"
+            write(*, '(A,I3,A,I3,A,I3,A,I3,A)') achar(9)//achar(9)//"Size = (", size(arr,1),&
+                     ",", size(arr,2), ",", size(arr,3), ",", size(arr,4), ")"
             sample_value(1:min(4,size(arr,4))) = arr(1,1,1,1:min(4,size(arr,4)))
             print '(A,4F12.6)', achar(9)//achar(9)//"Sample values: ", sample_value(1: min(4, size(arr, 4)))
             ! Print the number of non-zero elements
@@ -291,6 +349,4 @@ contains
         end if
         print '(A)', ""
     end subroutine dp_4d_alloc_info
-
-
 end module IO

@@ -1,17 +1,17 @@
 
 Module vpm_vars
    use base_types, only: dp
-   real(dp), allocatable       :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
-   real(dp)                    :: DT_c, V_ref, NI
-   integer, allocatable                :: NVR_projscatt(:)
-   integer                             :: interf_iproj, ncell_rem
+   real(dp), allocatable      :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
+   real(dp)                   :: DT_c, V_ref, NI
+   integer, allocatable       :: NVR_projscatt(:)
+   integer                    :: interf_iproj, ncell_rem
 
-   integer                             :: ncoarse, nparcell1d
-   integer                             :: neqpm, NVR_p, NVR_size, NTIME_pm
+   integer                    :: ncoarse, nparcell1d
+   integer                    :: neqpm, NVR_p, NVR_size, NTIME_pm
 
-   integer, save                       :: IPMWRITE, idefine, iynslice
-   integer, save                       :: mrem = 1
-   integer, save                       :: IPMWSTART(10), IPMWSTEPS(10)
+   integer, save              :: IPMWRITE, idefine, iynslice
+   integer, save              :: mrem = 1
+   integer, save              :: IPMWSTART(10), IPMWSTEPS(10)
 
    ! Printer
    public :: print_vpm_vars_info

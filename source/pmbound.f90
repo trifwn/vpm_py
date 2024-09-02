@@ -84,7 +84,7 @@ contains
       Implicit None
       integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
       integer           :: iconst, jconst, kconst, iplane
-      !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
+      !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX, ZMIN,ZMAX)
       !-->iplane is the plane of calculation of the bc's (i.e. for X=const a Y plane is defined)
       !-->iconst defines the poisition of the plane to be calculated
       !-->N*s,N*f is the nodes on the plane to be calculated
@@ -198,7 +198,6 @@ contains
                Y = YMIN_pm + (j - 1)*DYpm
                YR = XP(2, nv) - Y
                r = sqrt(XR**2 + YR**2)
-               !  write(*,*) r,pi2
                !-->Remember Bio Savart :  logr/2pi
                SOL_pm(neqs:neqf, iconst, j, 1) = SOL_pm(neqs:neqf, iconst, j, 1) + QP(neqs:neqf, nv)*log(r)/pi2
             end do
@@ -210,7 +209,7 @@ contains
 
    !-----------------------------------------------------------------------------!
    !->subroutine calc_bound3d                                                    !
-   !  This subroutine calculates Biot-Savart Law for 2D applications             !
+   !  This subroutine calculates Biot-Savart Law for 3D applications             !
    !  Input:                                                                     !
    !        iplane : axis of plane                                               !
    !        iconst : Calculation side in nodal value                             !
@@ -244,7 +243,7 @@ contains
                end do
             end do
          end do
-         !-->X=constant plane
+      !-->X=constant plane
       else if (iplane .eq. 2) then
          X = XMIN_pm + (iconst - 1)*DXpm
 
@@ -264,7 +263,7 @@ contains
                end do
             end do
          end do
-
+      !-->Z=constant plane
       else if (iplane .eq. 3) then
          Z = ZMIN_pm + (iconst - 1)*DZpm
 
@@ -286,12 +285,12 @@ contains
       end if
 
    end subroutine calc_bound3d
+
    !-------------------------------------------------------------------------------!
    !-> subroutine calc_boundinf                                                    !
    !   This subroutine calculates boundary conditions for the sources              !
    !   Same as particles
    !-------------------------------------------------------------------------------!
-
    subroutine calc_boundinf_2d(iplane, iconst, Ns, Nf, neqs, neqf)
       Implicit None
 
@@ -302,7 +301,6 @@ contains
 
       !calculate bc's of all sources on the specified plane defined at iconst
       !-->Y=constant plane
-
       if (abs(iplane) .eq. 1) then
          Y = YMIN_pm + (iconst - 1)*DYpm
          do nv = 1, nbound
@@ -321,7 +319,7 @@ contains
 
             end do
          end do
-         !-->X=constant plane
+      !-->X=constant plane
       else if (abs(iplane) .eq. 2) then
          X = XMIN_pm + (iconst - 1)*DXpm
 
@@ -344,12 +342,12 @@ contains
       end if
 
    end subroutine calc_boundinf_2d
+
    !-------------------------------------------------------------------------------!
    !-> subroutine calc_boundinf                                                    !
    !   This subroutine calculates boundary conditions for the sources              !
    !   Same as particles
    !-------------------------------------------------------------------------------!
-
    subroutine calc_boundinf_2d_s(iplane, iconst, Ns, Nf, neqs, neqf)
       Implicit None
 
@@ -434,11 +432,12 @@ contains
                   !Green function -1/(4PIR)
                   if (r .gt. 1d-05) then
                      SOL_pm(neqs:neqf, i, iconst, k) = SOL_pm(neqs:neqf, i, iconst, k) - &
-                                                      source_bound(neqs:neqf, nv)*DS/(PI4*r)
+                           source_bound(neqs:neqf, nv)*DS/(PI4*r)
                   else
 
                      SOL_pm(neqs:neqf, i, iconst, k) = SOL_pm(neqs:neqf, i, iconst, k) + &
-                                                   source_bound(neqs:neqf, nv)*(DXpm + DZpm)*log((sqrt(2.d0) - 1)/(sqrt(2.d0) + 1))/PI4
+                              source_bound(neqs:neqf, nv)*(DXpm + DZpm)*log((sqrt(2.d0) - 1)/&
+                                 (sqrt(2.d0) + 1))/PI4
                   end if
 
                end do
@@ -466,10 +465,11 @@ contains
 
                   if (r .gt. 1d-05) then
                      SOL_pm(neqs:neqf, iconst, j, k) = SOL_pm(neqs:neqf, iconst, j, k) - &
-                                                      source_bound(neqs:neqf, nv)*DS/(PI4*r)
+                           source_bound(neqs:neqf, nv)*DS/(PI4*r)
                   else
                      SOL_pm(neqs:neqf, iconst, j, k) = SOL_pm(neqs:neqf, iconst, j, k) + &
-                                                   source_bound(neqs:neqf, nv)*(DYpm + DZpm)*log((sqrt(2.d0) - 1)/(sqrt(2.d0) + 1))/PI4
+                           source_bound(neqs:neqf, nv)*(DYpm + DZpm)*log((sqrt(2.d0) - 1)/ &
+                              (sqrt(2.d0) + 1))/PI4
                   end if
 
                end do
@@ -493,10 +493,11 @@ contains
 
                   if (r .gt. 1d-05) then
                      SOL_pm(neqs:neqf, i, j, iconst) = SOL_pm(neqs:neqf, i, j, iconst) - &
-                                                      source_bound(neqs:neqf, nv)*DS/(PI4*r)
+                           source_bound(neqs:neqf, nv)*DS/(PI4*r)
                   else
                      SOL_pm(neqs:neqf, i, j, iconst) = SOL_pm(neqs:neqf, i, j, iconst) + &
-                                                   source_bound(neqs:neqf, nv)*(DXpm + DYpm)*log((sqrt(2.d0) - 1)/(sqrt(2.d0) + 1))/PI4
+                           source_bound(neqs:neqf, nv)*(DXpm + DYpm)*log((sqrt(2.d0) - 1)/&
+                           (sqrt(2.d0) + 1))/PI4
                   end if
 
                end do
@@ -521,10 +522,10 @@ contains
       integer             :: i, j, k, nv
       integer             :: ISING, NSIDE, si
 
-      !-->Y=constant plane
       ISING = 0
       NSIDE = 0
       EPSS = 1d-14
+      !-->Y=constant plane
       if (abs(iplane) .eq. 1) then
          Y = YMIN_pm + (iconst - 1)*DYpm
          si = sign(1, iplane)
@@ -558,7 +559,7 @@ contains
                end do
             end do
          end do
-         !-->X=constant plane
+      !-->X=constant plane
       else if (abs(iplane) .eq. 2) then
          X = XMIN_pm + (iconst - 1)*DXpm
          si = sign(1, iplane)
@@ -593,7 +594,7 @@ contains
                end do
             end do
          end do
-
+      !-->Z=constant plane
       else if (abs(iplane) .eq. 3) then
          Z = ZMIN_pm + (iconst - 1)*DZpm
          si = sign(1, iplane)
@@ -1061,7 +1062,7 @@ contains
             end do
          end do
          !  enddo
-         !-->X=constant plane
+      !-->X=constant plane
       else if (abs(iplane) .eq. 2) then
          X = XMIN_pm + (iconst - 1)*DXpm
 
@@ -1082,7 +1083,7 @@ contains
             end do
          end do
          !  enddo
-
+      !-->Z=constant plane
       else if (abs(iplane) .eq. 3) then
          Z = ZMIN_pm + (iconst - 1)*DZpm
 
@@ -1499,13 +1500,8 @@ contains
    end subroutine PHIELS
 
 !-----------------------------------------------------------------------
-!
-!
 !     Chapter 1. FLAT CONSTANT SOURCE ELEMENT
-!     ---------------------------------------
-!
 !-----------------------------------------------------------------------
-!
 !  Subr      :FSOUR_A4
 subroutine FSOUR_A4(XO, RG, E1, E2, E3, &
                   S, T, D, SINB, COSB, &

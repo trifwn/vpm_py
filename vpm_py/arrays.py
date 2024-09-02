@@ -35,11 +35,28 @@ class F_Array_Struct(ctypes.Structure):
     def __str__(self) -> str:
         _str = f"ND_Array with {self.ndims} dimensions and total size {self.total_size}\n"
         # Print the memory address of the shape and data pointers
-        _str += f"Shape pointer address: {ctypes.addressof(self.shape_ptr.contents)}\n"
-        _str += f"Data pointer address: {ctypes.addressof(self.data_ptr.contents)}\n"
+        # Check for null pointers
+        if not self.shape_ptr:
+            _str += f"Shape pointer is null\n"
+        else:
+            _str += f"Shape pointer address: {ctypes.addressof(self.shape_ptr.contents)}\n"
+        if not self.data_ptr:
+            _str += f"Data pointer is null\n"
+        else:
+            _str += f"Data pointer address: {ctypes.addressof(self.data_ptr.contents)}\n"
         _str += f"Shape pointer: {self.shape_ptr}\n"
         _str += f"Data pointer: {self.data_ptr}\n"
         return _str
+    
+    def is_null(self):
+        """
+        Should return True if the shape or data pointers are null
+        """
+        if not self.shape_ptr:
+            return True
+        if not self.data_ptr:
+            return True
+        return False
 
     @classmethod
     def null(cls, ndims, total_size):
@@ -89,8 +106,11 @@ class F_Array(object):
         self.data_ptr_type = data_dtype
         self.shape_ptr = self.shape_container.ctypes.data_as(POINTER(c_int * self.ndims))
         self.data_ptr =  data_container.ctypes.data_as(POINTER(data_dtype))
+
+        data_ptr_zero = cast(self.data_ptr, POINTER(c_double))
+        shape_ptr_zero = cast(self.shape_ptr, POINTER(c_int))
         _ = self._lib_array.create_dtype(
-            c_int(self.ndims), c_int(self.total_size), self.shape_ptr[0], self.data_ptr[0][0]
+            c_int(self.ndims), c_int(self.total_size), shape_ptr_zero, data_ptr_zero
         )
 
         # print_red(f"Created array {self.name}")
@@ -124,7 +144,12 @@ class F_Array(object):
         cls._lib_array.free_array.argtypes = [POINTER(F_Array_Struct)]
 
     @classmethod
-    def from_ctype(self, array_struct, ownership= False, name=None):
+    def from_ctype(
+        self, 
+        array_struct: F_Array_Struct, 
+        ownership= False, 
+        name=None
+    ):
         # Get the shape from the shape pointer
         ndims = array_struct.ndims
         shape_ptr = array_struct.shape_ptr

@@ -45,8 +45,8 @@ class VPM_Lib:
         # API.vpm
         cls._lib_vpm.vpm.argtypes = [
             POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_double),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_double),
-            POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_int),
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(F_Array_Struct),
+            POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(c_int),
             POINTER(c_double), POINTER(c_int)
         ]
         cls._lib_vpm.vpm.restype = None

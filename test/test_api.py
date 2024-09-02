@@ -82,7 +82,6 @@ def main():
         if rank == 0:
             print_IMPORTANT(f"Calling the vpm subroutine. WhatToDo = {WhatToDo}")
             print_green(f"Number of particles: {NVR}")
-            print_green(f"Size of RHS_pm: {RHS_pm_in.shape}")
         vpm.vpm(
             num_particles= NVR,
             num_equations= neqpm,
@@ -91,7 +90,6 @@ def main():
             particle_strengths= par_strenghts,
             particle_velocities= par_velocities,
             particle_deformations= par_deformations,
-            RHS_PM= RHS_pm_in,
             timestep= NTIME,
             viscosity= NI,
         )

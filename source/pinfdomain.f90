@@ -27,7 +27,9 @@ contains
       !--Solve PM with zero boundary conditions
       neq_siz = neqf
       allocate (SOL_0_pm(neq_siz, NXpm, NYpm, NZpm))
-      allocate (source_bound(neq_siz, Nblocks*(NXpm*2 + NYpm*2)), x_s(2, Nblocks*(NXpm*2 + NYpm*2)), y_s(2, Nblocks*(NXpm*2 + NYpm*2)))
+      allocate (source_bound(neq_siz, Nblocks*(NXpm*2 + NYpm*2)))
+      allocate (x_s(2, Nblocks*(NXpm*2 + NYpm*2)))
+      allocate (y_s(2, Nblocks*(NXpm*2 + NYpm*2)))
       allocate (d_s((Nblocks*(NXpm*2 + NYpm*2))))
 
       !these variables are used in case we want a higher order source definition(linear for example)
@@ -100,7 +102,9 @@ contains
       nworkb = 2*NXpm*NYpm + 2*NXpm*NZpm + 2*NZPm*Nypm
       neq_siz = neqf
       allocate (SOL_0_pm(neq_siz, NXpm, NYpm, NZpm))
-      allocate (source_bound(neq_siz, Nblocks*(nworkb)), x_s(4, Nblocks*(nworkb)), y_s(4, Nblocks*(nworkb)))
+      allocate (source_bound(neq_siz, Nblocks*(nworkb)))
+      allocate(x_s(4, Nblocks*(nworkb)))
+      allocate(y_s(4, Nblocks*(nworkb)))
       allocate (z_s(4, Nblocks*(nworkb)))
 
       allocate (d_s((Nblocks*(nworkb))))
@@ -128,8 +132,6 @@ contains
       nbound = 0
       call calc_normalderiv_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
 
-      ! write (*,*) achar(9), achar(9), "DEBUG: nbound = ", nbound
-      ! write (*,*) achar(9), achar(9), "Should be equal to ", Nblocks*(nworkb)
       deallocate (SOL_0_pm)
       if (my_rank .eq. 0) st = MPI_WTIME()
       if (itree .eq. 1) then
@@ -159,6 +161,11 @@ contains
       end if
       if (my_rank .eq. 0) then
          et = MPI_WTIME()
+         write (*, *) achar(9), "Calculated boundary conditions with:"
+         write (*, *) achar(9)//achar(9), "itree = ", itree
+         write (*, *) achar(9)//achar(9), "ibctyp = ", ibctyp
+         write (*, *) achar(9)//achar(9), "For a domain:", NXpm, "x", NYpm, "x", NZpm
+         write (* , *) achar(9), "Bounds", int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
 
@@ -433,13 +440,17 @@ contains
             k1 = k + 1
 
             do neq = neqs, neqf
-               psi1 = 1./DYpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j - 1, k) + a3*SOL_0_pm(neq, i, j - 2, k) + &
+               psi1 = 1./DYpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j - 1, k) +  &
+                              a3*SOL_0_pm(neq, i, j - 2, k) + &
                               a4*SOL_0_pm(neq, i, j - 3, k) + a5*SOL_0_pm(neq, i, j - 4, k))
-               psi2 = 1./DYpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j - 1, k) + a3*SOL_0_pm(neq, i1, j - 2, k) + &
+               psi2 = 1./DYpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j - 1, k) +  &
+                              a3*SOL_0_pm(neq, i1, j - 2, k) + &
                               a4*SOL_0_pm(neq, i1, j - 3, k) + a5*SOL_0_pm(neq, i1, j - 4, k))
-               psi3 = 1./DYpm*(a1*SOL_0_pm(neq, i1, j, k1) + a2*SOL_0_pm(neq, i1, j - 1, k1) + a3*SOL_0_pm(neq, i1, j - 2, k1) + &
+               psi3 = 1./DYpm*(a1*SOL_0_pm(neq, i1, j, k1) + a2*SOL_0_pm(neq, i1, j - 1, k1) + &
+                              a3*SOL_0_pm(neq, i1, j - 2, k1) + &
                               a4*SOL_0_pm(neq, i1, j - 3, k1) + a5*SOL_0_pm(neq, i1, j - 4, k1))
-               psi4 = 1./DYpm*(a1*SOL_0_pm(neq, i, j, k1) + a2*SOL_0_pm(neq, i, j - 1, k1) + a3*SOL_0_pm(neq, i, j - 2, k1) + &
+               psi4 = 1./DYpm*(a1*SOL_0_pm(neq, i, j, k1) + a2*SOL_0_pm(neq, i, j - 1, k1) + &
+                              a3*SOL_0_pm(neq, i, j - 2, k1) + &
                               a4*SOL_0_pm(neq, i, j - 3, k1) + a5*SOL_0_pm(neq, i, j - 4, k1))
                source_bound(neq, nbound) = 0.25d0*(psi1 + psi2 + psi3 + psi4)
             end do
@@ -473,13 +484,17 @@ contains
             j1 = j + 1
 
             do neq = neqs, neqf
-               psi1 = 1./DZpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j, k + 1) + a3*SOL_0_pm(neq, i, j, k + 2) + &
+               psi1 = 1./DZpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j, k + 1) + &
+                              a3*SOL_0_pm(neq, i, j, k + 2) + &
                               a4*SOL_0_pm(neq, i, j, k + 3) + a5*SOL_0_pm(neq, i, j, k + 4))
-               psi2 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j, k + 1) + a3*SOL_0_pm(neq, i1, j, k + 2) + &
+               psi2 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j, k + 1) + &
+                              a3*SOL_0_pm(neq, i1, j, k + 2) + &
                               a4*SOL_0_pm(neq, i1, j, k + 3) + a5*SOL_0_pm(neq, i1, j, k + 4))
-               psi3 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j1, k) + a2*SOL_0_pm(neq, i1, j1, k + 1) + a3*SOL_0_pm(neq, i1, j1, k + 2) + &
+               psi3 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j1, k) + a2*SOL_0_pm(neq, i1, j1, k + 1) + &
+                              a3*SOL_0_pm(neq, i1, j1, k + 2) + &
                               a4*SOL_0_pm(neq, i1, j1, k + 3) + a5*SOL_0_pm(neq, i1, j1, k + 4))
-               psi4 = 1./DZpm*(a1*SOL_0_pm(neq, i, j1, k) + a2*SOL_0_pm(neq, i, j1, k + 1) + a3*SOL_0_pm(neq, i, j1, k + 2) + &
+               psi4 = 1./DZpm*(a1*SOL_0_pm(neq, i, j1, k) + a2*SOL_0_pm(neq, i, j1, k + 1) + &
+                              a3*SOL_0_pm(neq, i, j1, k + 2) + &
                               a4*SOL_0_pm(neq, i, j1, k + 3) + a5*SOL_0_pm(neq, i, j1, k + 4))
                source_bound(neq, nbound) = 0.25d0*(psi1 + psi2 + psi3 + psi4)
             end do
@@ -515,13 +530,17 @@ contains
             j1 = j + 1
 
             do neq = neqs, neqf
-               psi1 = 1./DZpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j, k - 1) + a3*SOL_0_pm(neq, i, j, k - 2) + &
+               psi1 = 1./DZpm*(a1*SOL_0_pm(neq, i, j, k) + a2*SOL_0_pm(neq, i, j, k - 1) + &
+                              a3*SOL_0_pm(neq, i, j, k - 2) + &
                               a4*SOL_0_pm(neq, i, j, k - 3) + a5*SOL_0_pm(neq, i, j, k - 4))
-               psi2 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j, k - 1) + a3*SOL_0_pm(neq, i1, j, k - 2) + &
+               psi2 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j, k) + a2*SOL_0_pm(neq, i1, j, k - 1) + &
+                              a3*SOL_0_pm(neq, i1, j, k - 2) + &
                               a4*SOL_0_pm(neq, i1, j, k - 3) + a5*SOL_0_pm(neq, i1, j, k - 4))
-               psi3 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j1, k) + a2*SOL_0_pm(neq, i1, j1, k - 1) + a3*SOL_0_pm(neq, i1, j1, k - 2) + &
+               psi3 = 1./DZpm*(a1*SOL_0_pm(neq, i1, j1, k) + a2*SOL_0_pm(neq, i1, j1, k - 1) + &
+                              a3*SOL_0_pm(neq, i1, j1, k - 2) + &
                               a4*SOL_0_pm(neq, i1, j1, k - 3) + a5*SOL_0_pm(neq, i1, j1, k - 4))
-               psi4 = 1./DZpm*(a1*SOL_0_pm(neq, i, j1, k) + a2*SOL_0_pm(neq, i, j1, k - 1) + a3*SOL_0_pm(neq, i, j1, k - 2) + &
+               psi4 = 1./DZpm*(a1*SOL_0_pm(neq, i, j1, k) + a2*SOL_0_pm(neq, i, j1, k - 1) + &
+                              a3*SOL_0_pm(neq, i, j1, k - 2) + &
                               a4*SOL_0_pm(neq, i, j1, k - 3) + a5*SOL_0_pm(neq, i, j1, k - 4))
                source_bound(neq, nbound) = 0.25d0*(psi1 + psi2 + psi3 + psi4)
             end do
@@ -552,7 +571,8 @@ contains
    module subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
       Implicit None
       integer, intent(in)     :: NXs, NXf, NYs, NYf, neqs, neqf
-      integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
+      integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin,&
+                                 ires, leafacc, lf
       integer                 :: ncountlev(0:levmax), nj, nn, npre
       integer, allocatable    :: nn_lev(:, :)
       real(dp)                :: x, y, s, source(neqf), xc, yc, sc, sourcec(neqf)
@@ -668,9 +688,6 @@ contains
          ncountlev(lev) = icount
       end do
       nbound_lev = ncountlev
-      !do lev=0,levmax
-      !    write(*,*) ds_lev(1,lev,2)
-      !enddo
 
       i = Nxf
       do lev = 0, levmax

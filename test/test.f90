@@ -136,8 +136,9 @@ Program test_pm
       QPR(1:3, :) = -QPR(1:3, :)*Vref
       QPR(4, :) = QPR(4, :)*Vref
       QPR(neq + 1, :) = Vref
+      XPR = 0
+      QPR = 0
    end if
-   XPR = 0; QPR = 0
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM
@@ -148,9 +149,9 @@ Program test_pm
    if (my_rank .eq. 0) then
       write (*, *) achar(27)//'[1;31mHill Vortex Intialization '//achar(27)//'[0m'
    end if
-   allocate(RHS_pm_in(neq, NN(1), NN(2), NN(3)))
+   allocate (RHS_pm_in(neq, NN(1), NN(2), NN(3)))
    call hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_in, neq)
-   call set_RHS_pm(RHS_pm_in)
+   call set_RHS_pm(RHS_pm_in,size(RHS_PM_in,1), size(RHS_PM_in,2), size(RHS_PM_in,3), size(RHS_PM_in,4))
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
    if (my_rank .eq. 0) then
@@ -172,7 +173,8 @@ Program test_pm
       allocate (GPR(3, NVR_EXT))
       UPR = 0; GPR = 0
    end if
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 2, RHS_pm_in, velx, vely, velz, 1, NI_in, NVR_MAX)
+   ! Reinitalize the domain
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 1, NI_in, NVR_MAX)
    if (my_rank .eq. 0) then
       write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
       st = MPI_WTIME()
@@ -180,8 +182,6 @@ Program test_pm
       et = MPI_WTIME()
       write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
    end if
-   call MPI_FINALIZE(ierr)
-   call exit(0)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -210,9 +210,6 @@ Program test_pm
    end if
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! ------- End Allocate memory for all particles
-
-   ! Initialize VPM to call define_size and definepm
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
 
    !--- MAIN LOOP
    T = 0
@@ -326,6 +323,7 @@ Program test_pm
       !    enddo
       !endif
       !get velocities and deformation
+      print *, 'Getting Velocities and Deformation'
    end do
    !--- END MAIN LOOP
    

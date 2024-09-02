@@ -1,7 +1,6 @@
 !subroutine remesh_particles
 !This subroutine remeshes particles  on the pm grid (4 particles per cell)
 !---------------------------------------------------------------------------------------------------
-
 subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, &
                      DZpm, YMAX_pm, XMAX_pm, ZMAX_pm, RHS_pm, NXpm_coarse, &
@@ -9,11 +8,10 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
                      NYf_coarse_bl, NZf_coarse_bl, DVpm, EPSVOL
    use projlib, only: projlibinit, project_particles_3D, project_vol3d
    use vpm_vars, only: mrem, NEQPM, NVR_p, XP_scatt, QP_scatt, NVR_projscatt, INTERF_IPROJ, V_REF, NCELL_REM, NVR_SIZE
-   use pmeshpar, only: NPAR_CELL, IDVPM, ND
+   use pmeshpar, only: IDVPM, ND
 
    use parvar, only: NVR, XP, QP, GP, UP
    use base_types, only: dp
-   ! use openmpth, only: OMPTHREADS
    use MPI
 
    Implicit None
@@ -24,38 +22,39 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    integer, intent(out) :: NVR_out
 
    ! LOCAL VARIABLES
-   real(dp), dimension(8)   :: X, Y, Z
-   real(dp)    :: XMIN_vr, YMIN_vr, DXvr, DYvr, DZvr, ZMIN_vr
-   real(dp), allocatable:: XC(:), YC(:), ZC(:)
-   real(dp), allocatable, target::XP_tmp(:, :), QP_tmp(:, :)
-   integer             :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar, ndumc
-   integer             :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin, ndum_rem, nnod, nc
-   integer, allocatable :: ieq(:)
-   real(dp)    :: Xbound(6), Dpm(3), wmag
-   real(dp), allocatable :: QINF(:)
-   integer    :: NVR_OLD 
-   integer             :: my_rank, ierr, np, NN(3), NN_bl(6)
-
-   NVR_OLD = NVR
+   real(dp), dimension(8)           :: X, Y, Z
+   real(dp)                         :: XMIN_vr, YMIN_vr, DXvr, DYvr, DZvr, ZMIN_vr
+   real(dp), allocatable            :: XC(:), YC(:), ZC(:)
+   real(dp), allocatable, target    ::XP_tmp(:, :), QP_tmp(:, :)
+   integer                          :: i, j, k, NXpm1, NYpm1, NZpm1, ncell, npar
+   integer                          :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin, ndum_rem, nnod, nc
+   integer, allocatable             :: ieq(:)
+   real(dp)                         :: Xbound(6), Dpm(3), wmag
+   real(dp), allocatable            :: QINF(:)
+   integer                          :: NVR_OLD 
+   integer                          :: my_rank, ierr, np, NN(3), NN_bl(6)
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+   
+   NVR_OLD = NVR
    XMIN_vr = XMIN_pm
    YMIN_vr = YMIN_pm
    ZMIN_vr = ZMIN_pm
    DXvr = DXpm
    DYvr = DYpm
    DZvr = DZpm
-   Ndumc = 1
-   npar_cell = 1
 
-   Dpm(1) = DXpm; Dpm(2) = DYpm; Dpm(3) = DZpm
-   Xbound(1) = XMIN_pm;
-   Xbound(2) = YMIN_pm; 
+   Dpm(1) = DXpm
+   Dpm(2) = DYpm
+   Dpm(3) = DZpm
+
+   Xbound(1) = XMIN_pm
+   Xbound(2) = YMIN_pm
    Xbound(3) = ZMIN_pm
 
    Xbound(4) = XMAX_pm;
-   Xbound(5) = YMAX_pm; 
+   Xbound(5) = YMAX_pm;
    Xbound(6) = ZMAX_pm
    !->PM grid is orthogonal (Volume of PM cell
 
@@ -63,9 +62,15 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    !-->The loops starts from 2 because we need cells that DO NOT contain particles  !
    !-->Total Number of Cells                                                        !
    !--------------------------------------------------------------------------------!
-   NN(1) = NXpm_coarse; NN(2) = NYpm_coarse; NN(3) = NZpm_coarse
-   NN_bl(1) = NXs_coarse_bl; NN_bl(2) = NYs_coarse_bl; NN_bl(3) = NZs_coarse_bl
-   NN_bl(4) = NXf_coarse_bl; NN_bl(5) = NYf_coarse_bl; NN_bl(6) = NZf_coarse_bl
+   NN(1) = NXpm_coarse
+   NN(2) = NYpm_coarse
+   NN(3) = NZpm_coarse
+   NN_bl(1) = NXs_coarse_bl
+   NN_bl(2) = NYs_coarse_bl
+   NN_bl(3) = NZs_coarse_bl
+   NN_bl(4) = NXf_coarse_bl
+   NN_bl(5) = NYf_coarse_bl
+   NN_bl(6) = NZf_coarse_bl
 
    NN = NN*mrem
    NN_bl = NN_bl*mrem
@@ -76,12 +81,9 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
    DVpm = Dpm(1)*Dpm(2)*Dpm(3)
    ! Here we project the particles on the PM grid
    if (iflag .eq. 1) then
-      if (allocated(RHS_pm)) then
-         deallocate (RHS_pm)
-         allocate (RHS_pm(neqpm + 1, NN(1), NN(2), NN(3)))
-      else
-         allocate (RHS_pm(neqpm + 1, NN(1), NN(2), NN(3)))
-      end if
+      if (allocated(RHS_pm)) deallocate (RHS_pm)
+      allocate (RHS_pm(neqpm + 1, NN(1), NN(2), NN(3)))
+
       call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
       NVR_p = NVR/np
       if (my_rank .eq. 0) NVR_p = NVR_p + mod(NVR, np)
@@ -141,7 +143,7 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
       NZpm1 = nzfin - nzstart + 1
       NVR = NXpm1*NYpm1*NZpm1*ncell
       
-      print *, achar(9), achar(9), 'Allocating XP_tmp and QP_tmp with NVR:', NVR
+      write (*,*) achar(9), achar(9), 'Allocating XP_tmp and QP_tmp with NVR:', NVR
       allocate (XP_tmp(3, NVR), QP_tmp(neqpm + 1, NVR))
       XP => XP_tmp
       QP => QP_tmp
@@ -219,7 +221,10 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
 
    ! BCAST NEW NVR
    call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+   
+   if (allocated(XP_out)) deallocate (XP_out)
    allocate (XP_out(3,NVR), QP_out(neqpm + 1, NVR))
+   if (allocated(GP_OUT)) deallocate (GP_OUT)
    allocate (GP_OUT(3,NVR), UP_OUT(3, NVR))
    if (associated(XP) .and. associated(QP))then
       XP_out = XP(:, 1:NVR)
@@ -258,70 +263,6 @@ subroutine remesh_particles_3d(iflag, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
 
    if (allocated(RHS_pm)) deallocate (RHS_pm)
 end subroutine remesh_particles_3d
-
-!---------------------------------------------------------------------------!
-!-> subroutine back_to_particles                                            !
-!   This subroutine interpolates PM grid values back to particles at the    !
-!   positions they ARE.Convections takes place afterwards.                  !
-!   Input :                                                                 !
-!          itype (1,2) defines what value to interpolate to the particles   !
-!---------------------------------------------------------------------------!
-subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
-   use openmpth
-   use projlib, only: projection_fun
-   use base_types, only: dp
-   Implicit None
-   integer, intent(in)             :: NN(3), NVR, iproj
-   ! real(dp), intent(in), dimension(:, :, :, :) :: RHS_pm
-   real(dp), intent(in)    :: RHS_pm(4, NN(1), NN(2), NN(3))
-   ! f2py depend(NN) :: RHS_pm(4, NN(1), NN(2), NN(3))
-   real(dp), intent(inout) :: QP(4, NVR), XP(3, NVR)
-
-   real(dp), intent(in)    :: Xbound(6), Dpm(3)
-
-   real(dp) :: fx, fy, fz, f, x, y, z
-   integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf
-
-   if (iproj .eq. 2) then
-      ips = 0
-      ipf = 1
-   else if (iproj .eq. 3) then
-      ips = 1
-      ipf = 2
-   else if (iproj .eq. 4) then
-      ips = 1
-      ipf = 2
-   end if
-   QP(:, 1:3) = 0
-   do nv = 1, NVR
-      !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
-      inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
-      jnode = int((XP(2, nv) - XBound(2))/Dpm(2)) + 1
-      knode = int((XP(3, nv) - XBound(3))/Dpm(3)) + 1
-
-      !--We search the 4 nodes close to the particles
-      do k = knode - ips, knode + ipf
-         do j = jnode - ips, jnode + ipf
-            do i = inode - ips, inode + ipf
-               x = (XP(1, nv) - XBound(1) - (i - 1)*Dpm(1))/Dpm(1)
-               fx = projection_fun(iproj, x)
-
-               y = (XP(2, nv) - XBound(2) - (j - 1)*Dpm(2))/Dpm(2)
-               fy = projection_fun(iproj, y)
-
-               z = (XP(3, nv) - XBound(3) - (k - 1)*Dpm(3))/Dpm(3)
-               fz = projection_fun(iproj, z)
-
-               f = fx*fy*fz
-               QP(1:3, nv) = QP(1:3, nv) + f*RHS_pm(1:3, i, j, k)
-
-            end do
-         end do
-      end do
-      QP(1:3, nv) = QP(1:3, nv)*QP(4, nv)
-   end do
-
-end subroutine back_to_particles_3D_rem
 
 !--------------------------------------------------------------------------------
 !>@function

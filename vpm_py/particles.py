@@ -7,13 +7,7 @@ import numpy as np
 
 from vpm_py.arrays import F_Array, F_Array_Struct
 from vpm_py.vpm_io import print_IMPORTANT
-
-here = os.path.abspath(os.path.dirname(__file__))
-lib_locations = os.path.join(here, 'shared_libs')
-
-lib_vpm_path = glob.glob(os.path.join(lib_locations, 'libvpm_*.so'))[0]
-lib_vpm_ext = lib_vpm_path[lib_vpm_path.rfind('.'):]
-
+from vpm_py.vpm_lib import VPM_Lib
 
 class Particles:
     def __init__(self, number_equations: int) -> None:
@@ -25,11 +19,9 @@ class Particles:
         self.particle_velocities = np.array([])
         self.particle_deformations = np.array([])
     
-    def load_lib(self):
-        tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_vpm_ext)
-        tmp.close()
-        self._lib_particles: CDLL = cdll.LoadLibrary(copy2(lib_vpm_path, tmp.name))
-        self._lib_particles_path = tmp.name
+    def load_lib(self)-> None:
+        lib = VPM_Lib()
+        self._lib_particles = lib._lib_vpm
         self.setup_function_signatures()
 
     def setup_function_signatures(self):
@@ -145,6 +137,6 @@ class Particles:
         print(f"\tUP data owner: {self.particle_velocities.__array_interface__['data']}")
         print(f"\tGP data owner: {self.particle_deformations.__array_interface__['data']}")
 
-    def __del__(self):
-        self._lib_particles.finalize()
-        os.remove(self._lib_particles_path)
+    # def __del__(self):
+    #     self._lib_particles.finalize()
+    #     os.remove(self._lib_particles_path)

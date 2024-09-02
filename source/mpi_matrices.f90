@@ -3,7 +3,6 @@ module mpi_matrices
    implicit none
 
    public :: mpimat2, mpimat2_pm, mpimat3_pm, mpimat4, mpimat4int, mpimat5, mpimat5d
-
 contains
    subroutine mpimat2(mat2, nsize1, nsize2)
       use MPI
@@ -24,7 +23,6 @@ contains
       typelist(1) = MPI_DOUBLE_PRECISION
       typelist(2) = MPI_DOUBLE_PRECISION
 
-      !write (*,*) nsize
       call MPI_TYPE_CREATE_SUBARRAY(2, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat2, ierr)
       call MPI_TYPE_COMMIT(mat2, ierr)
    end subroutine mpimat2
@@ -51,7 +49,6 @@ contains
       typelist(1) = MPI_DOUBLE_PRECISION
       typelist(2) = MPI_DOUBLE_PRECISION
 
-      !write (*,*) nsize
       call MPI_TYPE_CREATE_SUBARRAY(2, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat2, ierr)
       call MPI_TYPE_COMMIT(mat2, ierr)
    End subroutine mpimat2_pm
@@ -101,7 +98,6 @@ contains
       start(3) = 0
       start(4) = 0
 
-      !write (*,*) nsize
       call MPI_TYPE_CREATE_SUBARRAY(4, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat4, ierr)
       call MPI_TYPE_COMMIT(mat4, ierr)
    End subroutine mpimat4
@@ -157,7 +153,6 @@ contains
       start(4) = 0
       start(5) = 0
 
-      !write (*,*) nsize
       call MPI_TYPE_CREATE_SUBARRAY(5, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat5, ierr)
       call MPI_TYPE_COMMIT(mat5, ierr)
    End subroutine mpimat5_old
@@ -186,10 +181,7 @@ contains
       start(3) = 0
       start(4) = 0
       start(5) = nbstart
-      !print *, imat
-      !print *,mat
-      !print *,start
-      !write (*,*) nsize
+      
       call MPI_TYPE_CREATE_SUBARRAY(5, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat5, ierr)
       call MPI_TYPE_COMMIT(mat5, ierr)
    End subroutine mpimat5
@@ -205,10 +197,7 @@ contains
       imat = original_size
       mat = send_size
       start = start_size
-      !print *, imat
-      !print *,mat
-      !print *,start
-      !write (*,*) nsize
+      
       call MPI_TYPE_CREATE_SUBARRAY(5, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat5, ierr)
       call MPI_TYPE_COMMIT(mat5, ierr)
    End subroutine mpimat5d

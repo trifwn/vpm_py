@@ -97,24 +97,6 @@ contains
       call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
       ! call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
-      ! tot_par_num = 0
-      ! do i = 1,np
-      !    if (my_rank.eq.i) then
-      !       ! PRINT QPX, Qpar
-      !       write (*, *) "RANK ", my_rank
-      !       do nv = 1, iparsize
-      !          tot_par_num = tot_par_num + 1
-      !          temp = QPar(ieq(1:neq), nv)
-      !          write (*, '(A,I4)') achar(9)//"Particle ", tot_par_num
-      !          write (*, '(A,3E12.4)') achar(9)//"XP", QpX(1:3, nv)
-      !          ! write (*, *) achar(9)//"QPar", temp
-      !       end do
-      !    end if 
-      !    call MPI_BCAST(tot_par_num, 1, MPI_INTEGER, i, MPI_COMM_WORLD, ierr)
-      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-      ! enddo
-      ! print *, ""
-
       !-->Projection function (TSC)
       Qproj = 0.d0
       do nv = 1, ipar
@@ -138,15 +120,16 @@ contains
             ! Check if the particle is within the PM grid
             if (my_rank.eq.0) then
             if (k .lt. 1 .or. k .gt. NZpm) then
-               write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT k: ",k," on particle: ", nv
+               write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT k: ",k," on particle: ", nv
                write (*, "(A)") achar(9)//"Settings used:"
-               write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-               write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
-               write (*, "(A,F5.2)") achar(9)//"knode: ", knode
+               write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+               write (*, "(A,I5)") achar(9)//achar(9)//"Number of particles: ", ipar
+               write (*, "(A,I5)") achar(9)//"knode: ", knode
                write (*, "(A,F5.2)") achar(9)//"ZMIN: ", ZMIN_pm
                write (*, "(A,F5.2)") achar(9)//"DZ: ", DZpm
-               write (*, "(A,F5.2)") achar(9)//"NZpm: ", NZpm
+               write (*, "(A,I5)") achar(9)//"NZpm: ", NZpm
                write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(3, nv)
+               STOP
             end if 
             end if
 
@@ -154,15 +137,16 @@ contains
                ! Check if the particle is within the PM grid
                if (my_rank.eq.0) then
                if (j .lt. 1 .or. j .gt. NYpm) then
-                  write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT j: ",j," on particle: ", nv
+                  write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT j: ",j," on particle: ", nv
                   write (*, "(A)") achar(9)//"Settings used:"
-                  write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-                  write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
-                  write (*, "(A,F5.2)") achar(9)//"jnode: ", jnode
+                  write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+                  write (*, "(A,I5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
+                  write (*, "(A,I5)") achar(9)//"jnode: ", jnode
                   write (*, "(A,F5.2)") achar(9)//"YMIN: ", YMIN_pm
                   write (*, "(A,F5.2)") achar(9)//"DY: ", DYpm
-                  write (*, "(A,F5.2)") achar(9)//"NYpm: ", NYpm
+                  write (*, "(A,I5)") achar(9)//"NYpm: ", NYpm
                   write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(2, nv)
+                  STOP
                end if
                end if
 
@@ -170,15 +154,16 @@ contains
                   ! Check if the particle is within the PM grid
                   if (my_rank.eq.0) then
                   if (i .lt. 1 .or. i .gt. NXpm) then
-                     write (*, "(A,F5.2,A,F5.2)") achar(9)//"PROJECT PARTICLES 3D GOT i: ",i," on particle: ", nv
+                     write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT i: ",i," on particle: ", nv
                      write (*, "(A)") achar(9)//"Settings used:"
-                     write (*, "(A,F5.2,A,F5.2)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-                     write (*, "(A,F5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
-                     write (*, "(A,F5.2)") achar(9)//"inode: ", inode
+                     write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
+                     write (*, "(A,I5)") achar(9)//achar(9)//"Number of particles: ", ipar
+                     write (*, "(A,I5)") achar(9)//"inode: ", inode
                      write (*, "(A,F5.2)") achar(9)//"XMIN: ", XMIN_pm
                      write (*, "(A,F5.2)") achar(9)//"DX: ", DXpm
-                     write (*, "(A,F5.2)") achar(9)//"NXpm: ", NXpm
+                     write (*, "(A,I5)") achar(9)//"NXpm: ", NXpm
                      write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(1, nv)
+                     STOP
                   end if
                   end if
 
@@ -525,7 +510,7 @@ contains
          else if (xabs .le. 1) then
             projection_fun = 1.d0 - xabs
          else
-            write (*, *) xabs
+            write (*, *) 'Got xabs: ', xabs
          end if
       else if (itype .eq. 3) then
          !--Triangular-Shaped Cloud function

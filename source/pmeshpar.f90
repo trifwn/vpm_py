@@ -12,11 +12,8 @@ module pmeshpar
     real(dp), allocatable, save      :: x_s(:, :), y_s(:, :), z_s(:, :), d_s(:), cos_s(:), sin_s(:)
     real(dp),allocatable,save        :: xs_lev(:,:,:),ys_lev(:,:,:),zs_lev(:,:,:),ds_lev(:,:,:)
     integer, allocatable, save       :: nbound_lev(:)
-    integer                          :: levmax, npar_cell, ND
+    integer                          :: levmax, ND
     integer, save                    :: nbound, ndumcell, NVR_CFD_sa, IDVPM
-    ! real(dp), allocatable, save    :: Psiz_pm_0(:, :, :), Psiz_pm_f(:, :, :)
-    ! real(dp), allocatable, save    :: Cont_pm(:, :)
-
 
     ! Printers
     public :: print_pmeshpar_info
@@ -38,7 +35,6 @@ contains
         print '(A,F12.6)', achar(9)//"PI4 =", PI4
         print '(A,F12.6)', achar(9)//"DT  =", DT
         print '(A,I6)',    achar(9)//"levmax    =", levmax
-        print '(A,I6)',    achar(9)//"npar_cell =", npar_cell
         print '(A,I6)',    achar(9)//"ND        =", ND
         print '(A,I6)',    achar(9)//"nbound    =", nbound
         print '(A,I6)',    achar(9)//"ndumcell  =", ndumcell

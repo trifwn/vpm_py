@@ -22,17 +22,23 @@ module pmlib
    !Here pointers are defined which will be assigned in the external data to save up space
    real(dp), pointer             :: SOL_pm(:, :, :, :), RHS_pm(:, :, :, :), QP(:, :), XP(:, :)
 
-   real(dp), allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:),x_s(:,:),y_s(:,:),z_s(:,:),d_s(:)
-   real(dp), allocatable, save   :: source_bound_lev(:, :, :), xs_lev(:, :), ys_lev(:, :), zs_lev(:, :), ds_lev(:, :)
+   real(dp), allocatable         :: SOL_0_pm(:,:,:,:), source_bound(:,:), x_s(:,:), y_s(:,:),  &
+                                    z_s(:,:), d_s(:)
+   real(dp), allocatable, save   :: source_bound_lev(:, :, :), xs_lev(:, :), ys_lev(:, :), &
+                                    zs_lev(:, :), ds_lev(:, :)
    integer,  allocatable, save   :: nbound_lev(:), ilev_t(:, :, :)
 
-   private ::XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm
-   private ::NVR, NXpm, NYpm, NZPm, ND
-   private ::NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
-   private ::nbound, ilev_t
-   private ::SOL_pm, RHS_pm,QP, XP,SOL_0_pm
-   private ::source_bound, x_s, y_s, z_s, d_s
-   private ::source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
+   private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm
+   
+   private :: NVR, NXpm, NYpm, NZPm, ND
+   private :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
+
+   private :: itree, ibctyp
+   
+   private :: SOL_pm, RHS_pm, QP, XP
+   private :: SOL_0_pm, source_bound, x_s, y_s, z_s, d_s
+   private :: source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
+   private :: nbound, ilev_t
 
 ! pinfdomain.f90
    interface infdomain
@@ -181,27 +187,32 @@ contains
       ! real(dp)                       :: R, DX, DY, GreenF, nv
 
       !-->Pass the external data to the namespace of the library
-      XMIN_pm = Xbound(1); YMIN_pm = Xbound(2); ZMIN_pm = Xbound(3)
-      XMAX_pm = Xbound(4); YMAX_pm = Xbound(5); ZMAX_pm = Xbound(6)
-      DXpm = Dpm(1); DYpm = Dpm(2); DZpm = Dpm(3)
+      XMIN_pm = Xbound(1)
+      YMIN_pm = Xbound(2)
+      ZMIN_pm = Xbound(3)
+      XMAX_pm = Xbound(4)
+      YMAX_pm = Xbound(5)
+      ZMAX_pm = Xbound(6)
+
+      DXpm = Dpm(1) 
+      DYpm = Dpm(2) 
+      DZpm = Dpm(3)
       !NXs_bl,NXf_bl refer to the starting ending node of the domain we want to solve
-      NXpm = NN(1); NYpm = NN(2); NZpm = NN(3)
-      NXs_bl = NN_bl(1); NYs_bl = NN_bl(2); NZs_bl = NN_bl(3)
-      NXf_bl = NN_bl(4); NYf_bl = NN_bl(5); NZf_bl = NN_bl(6)
+      NXpm = NN(1)
+      NYpm = NN(2)
+      NZpm = NN(3)
+
+      NXs_bl = NN_bl(1)
+      NYs_bl = NN_bl(2)
+      NZs_bl = NN_bl(3)
+      NXf_bl = NN_bl(4)
+      NYf_bl = NN_bl(5)
+      NZf_bl = NN_bl(6)
       !Assign the pointers to the external data
-      SOL_pm => DSOL_pm; RHS_pm => DRHS_pm; !QP => DQP; XP => DXP
-      !-->
-      ! call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
-      ! call MPI_COMM_SIZE(MPI_COMM_WORLD, np, ierr)
-      ! do rank = 0, np - 1
-      !    if (rank.eq.my_rank) then
-      !       write (*,*) 'Rank:', rank
-      !       write (*,*) '------------------------'
-      !       write (*,*) maxval(abs(RHS_pm))
-      !       write (*,*) '------------------------'
-      !    end if
-      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-      ! enddo
+      SOL_pm => DSOL_pm
+      RHS_pm => DRHS_pm
+      !QP => DQP;
+      !XP => DXP
 
       !iynbc 1 normal poisson solve.(Calculation of bc's is done here)
       if (iynbc .eq. 1) then
@@ -258,12 +269,12 @@ contains
                call solve_eq_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq)
             end do
          end if
+      !In case iynbc = 0 then the boundary calculations are asummed ok from the external data and thus
+      !going fo the final poisson solve.
+      !IMPORTANT:: because the original idea was to have a solution at the smaller domain (extension of
+      !the domain used for solving the small).The poisson solver is now solved for the small domain,since
+      !boundary conditions are assumed ok.
       else
-         !In case iynbc = 0 then the boundary calculations are asummed ok from the external data and thus
-         !going fo the final poisson solve.
-         !IMPORTANT:: because the original idea was to have a solution at the smaller domain (extension of
-         !the domain used for solving the small).The poisson solver is now solved for the small domain,since
-         !boundary conditions are assumed ok.
          if (ND .eq. 2) then
             nb = 1
             NXs = NXs_bl
@@ -289,50 +300,34 @@ contains
          end if
       end if
 
-      ! do rank = 0, np - 1
-      !    if (rank.eq.my_rank) then
-      !       write (*,*) 'Rank:', rank
-      !       write (*,*) '------------------------'
-      !       write (*,*) maxval(abs(SOL_pm))
-      !       write (*,*) '------------------------'
-      !    end if
-      !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-      ! enddo
-
       nullify (SOL_pm, RHS_pm, QP, XP)
-   
-      
    end subroutine pmesh
-   ! contains
-   !    include 'pmsolve.f90'
-   !    include 'pmbound.f90'
-   !    include 'pinfdomain.f90'
 
-!--------------------------------------------------------------------------------
-!>@function
-! subroutine  definepm
-!>
-!>@author Papis
-!>
-!>@brief
-!>definepm  defines the characteristics of the poisson solver grid
-!> the Input  is Dpm(3) (DX,DY,DZ)
-!>               ndum   (the number of Dpm's which the domain will be extended see above)
-!>               Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the original domain
-!> the Output is Xbound(6) but of the extended domain
-!>               NN(3) (NX,NY,NZ) the nodes of the extended domain (1-->NXpm)
-!>               NN_bl(6) the starting and ending nodes of the original domain(defined by xbound at input)
-!>               (NXs,NYs,NZs,NXf,NYf,NZf)
-!>
-!REVISION HISTORY
-!> TODO_dd
-!>
-!>@param [in]
-!>@param [out]
-!--------------------------------------------------------------------------------
-   subroutine definepm(itype, Xbound, Dpm, ND, ndum, nsize, NN, NN_bl)
+   !--------------------------------------------------------------------------------
+   !>@function
+   ! subroutine  definepm
+   !>
+   !>@author Papis
+   !>
+   !>@brief
+   !>definepm  defines the characteristics of the poisson solver grid
+   !> the Input  is Dpm(3) (DX,DY,DZ)
+   !>               ndum   (the number of Dpm's which the domain will be extended see above)
+   !>               Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the original domain
+   !> the Output is Xbound(6) but of the extended domain
+   !>               NN(3) (NX,NY,NZ) the nodes of the extended domain (1-->NXpm)
+   !>               NN_bl(6) the starting and ending nodes of the original domain(defined by xbound at input)
+   !>               (NXs,NYs,NZs,NXf,NYf,NZf)
+   !>
+   !REVISION HISTORY
+   !> TODO_dd
+   !>
+   !>@param [in]
+   !>@param [out]
+   !--------------------------------------------------------------------------------
+   subroutine definepm(itype, Xbound, Dpm, num_dimensions, ndum, nsize, NN, NN_bl)
       Implicit None
-      integer, intent(in)     :: itype, ND, nsize(3)
+      integer, intent(in)     :: itype, num_dimensions, nsize(3)
       integer, intent(in)     :: ndum
       real(dp), intent(inout) :: Xbound(6)
       real(dp), intent(inout) :: Dpm(3)
@@ -341,7 +336,7 @@ contains
       ! real(dp)              :: Xbound_old(6)
 
       !-> Define Pmesh X,Y,Z min/max boundaries
-      if (ND .eq. 2) then
+      if (num_dimensions .eq. 2) then
          Xbound(6) = 0
          Xbound(3) = 0
       end if
@@ -363,7 +358,7 @@ contains
          NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
 
          ! Do the same for the 3d direction
-         if (ND .eq. 3) then
+         if (num_dimensions .eq. 3) then
             Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
             Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
             NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
@@ -378,7 +373,7 @@ contains
          Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
          Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
 
-         if (ND .eq. 3) then
+         if (num_dimensions .eq. 3) then
             Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
             Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
          end if
@@ -386,16 +381,13 @@ contains
          !Find number of nodes with the Dpm given from input
          NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
          NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         if (ND .eq. 3) NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
+         if (num_dimensions .eq. 3) NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
          NN(1) = NN(1) + nsize(1) - mod(NN(1) - 1, nsize(1))
          NN(2) = NN(2) + nsize(2) - mod(NN(2) - 1, nsize(2))
-         if (ND .eq. 3) NN(3) = NN(3) + nsize(3) - mod(NN(3) - 1, nsize(3))
+         if (num_dimensions .eq. 3) NN(3) = NN(3) + nsize(3) - mod(NN(3) - 1, nsize(3))
          Dpm(1) = (abs(Xbound(4) - Xbound(1))/(NN(1) - 1))
          Dpm(2) = (abs(Xbound(5) - Xbound(2))/(NN(2) - 1))
-         if (ND .eq. 3) Dpm(3) = (abs(Xbound(6) - Xbound(3))/(NN(3) - 1))
-         ! write(*,*) 'New Dpm(1),Dpm(2),Dpm(3)'
-         ! write(*,*) Dpm(1),Dpm(2),Dpm(3)
-         ! write(*,*) NN
+         if (num_dimensions .eq. 3) Dpm(3) = (abs(Xbound(6) - Xbound(3))/(NN(3) - 1))
       case(4)
          !Itype 4:
          ! extends the domain by ndum_new cells 
@@ -413,7 +405,7 @@ contains
          !   write(*,*) 'error sizes',ndum_new,nsize(2),NN(2)
          ! !   stop
          !endif
-         !if (mod(ndum_new(3),2).ne.0.and.ND.eq.3) then
+         !if (mod(ndum_new(3),2).ne.0.and.num_dimensions.eq.3) then
          !   write(*,*) 'error sizes',ndum_new,nsize(3),NN(3)
          ! !   stop
          !endif
@@ -432,7 +424,7 @@ contains
          NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
          NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
 
-         if (ND .eq. 3) then
+         if (num_dimensions .eq. 3) then
             Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
             Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
             NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
@@ -470,7 +462,7 @@ contains
             NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
          end if
 
-         if (ND .eq. 3) then
+         if (num_dimensions .eq. 3) then
             if (mod(ndum_new(3), 2) .eq. 0) then
                ndum_new(3) = ndum_new(3)/2
                Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
@@ -488,7 +480,7 @@ contains
       end select
       
       !2d do not have Z nodes
-      if (ND .eq. 2) NN(3) = 1
+      if (num_dimensions .eq. 2) NN(3) = 1
       
       !Define the nodes which the original domain starts (corresponding to Xbound_in)
       !NN_bl(1) = ndum_new(1)+ ndum + 1
@@ -502,11 +494,11 @@ contains
       NN_bl(5) = NN(2) - ndum
       
       !2d do not have Z nodes
-      if (ND .eq. 2) then
+      if (num_dimensions .eq. 2) then
          NN(3) = 1
          NN_bl(3) = 1
          NN_bl(6) = 1
-      else if (ND .eq. 3) then
+      else if (num_dimensions .eq. 3) then
          !NN_bl(3) = ndum_new(3) + ndum + 1
          !NN_bl(6) = NN(3) - ndum
          NN_bl(3) = ndum + 1

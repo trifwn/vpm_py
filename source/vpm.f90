@@ -4,14 +4,18 @@ Module openmpth
 end Module openmpth
 
 Module vpm_lib
-   use base_types, only: dp
    use vpm_vars
    use vpm_size
+   ! Constants
+   use constants, only: pi, pi2, pi4
+   use base_types, only: dp
    ! SPEED 
    use openmpth
    use MPI
-   use mkl_service
-   use base_types, only: dp
+
+   ! #ifdef HAS_INTEL
+   !    use mkl_service
+   ! #endif
    !  WhatToDo flags
    integer, parameter :: DEFINE_PROBLEM = 0,                                        &
                          SOLVE_VELOCITY = 1,                                        &
@@ -20,16 +24,18 @@ Module vpm_lib
                          INTERPOLATE = 4,                                           &
                          DIFFUSE = 5
 
+   integer, parameter :: SOLVER_SERIAL_PMESH = 0, SOLVER_YAPS = 1
+   integer            :: SOLVER = SOLVER_YAPS
    ! vpm_mpi.f90 contains
 
 contains
    include "vpm_mpi.f90"
    include "vpm_remesh.f90"
-   include "vpm_time.f90"
+   include "vpm_interpolate.f90"
    include "vpm_gcalc.f90"
 
    subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-                  RHS_pm_in, Velx, Vely, Velz, NTIME_in, NI_in, NVRM_in)
+                  RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr, NTIME_in, NI_in, NVRM_in)
       ! XP                 : particle positions (3 * NVR)
       ! QP                 : particle quantities (neqpm + 1 ) * NVR)
       ! UP                 : particle velocities
@@ -43,28 +49,28 @@ contains
       ! NI_in              : viscocity -> DIFFUSION OF VORTICITY
       ! NVRM               : MAX number of particles
 
-      use constants, only: pi, pi2, pi4
       use pmeshpar, only: ND, SOL_PM, IDVPM
       use parvar, only: QP, XP, UP, GP, NVR, print_particle_info, print_particle_positions
-      use pmgrid, only: VELVRX_PM, VELVRY_PM, VELVRZ_PM, RHS_PM, NXpm_coarse, NYpm_coarse, NZpm_coarse, EPSVOL, Nblocks, print_RHS_pm
+      use pmgrid, only: VELVRX_PM, VELVRY_PM, VELVRZ_PM, RHS_PM, NXpm_coarse, NYpm_coarse, NZpm_coarse,&
+                         EPSVOL, Nblocks, print_RHS_pm
       use pmlib, only: pmesh
       use projlib, only: projlibinit, project_particles_3D, project_vol3d
-      use yapslib, only: yaps3d
-      ! use openmpth, only: OMPTHREADS
+      use yaps, only: yaps3d
+      use openmpth, only: OMPTHREADS
 
       Implicit None
 
       ! ARGUEMENTS
       real(dp), intent(inout), target   :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-      real(dp), intent(inout), pointer  :: RHS_pm_in(:, :, :, :)
-      real(dp), intent(inout), pointer  :: velx(:, :, :), vely(:, :, :), velz(:, :, :)
       integer, intent(inout)            :: NVR_in
       integer, intent(in)               :: neqpm_in, WhatToDo, NVRM_in, NTIME_in
       real(dp), intent(in)              :: NI_in
+      real(dp), intent(out), pointer  :: RHS_pm_ptr(:, :, :, :)
+      real(dp), intent(out), pointer  :: velx_ptr(:, :, :), vely_ptr(:, :, :), velz_ptr(:, :, :)
 
       ! LOCAL VARIABLES
       integer                           :: n_block
-      integer                           :: SOLVER, itypeb
+      integer                           :: itypeb
       integer, allocatable              :: ieq(:)
       real(dp), allocatable             :: QINF(:)
       real(dp), allocatable             :: SOL_pm_bl(:, :, :, :), RHS_pm_bl(:, :, :, :)
@@ -75,28 +81,29 @@ contains
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
       call print_arguements
-      if (SOLVER .eq. 1) then
-         ! call mkl_set_num_threads(1)
-         ! call mkl_domain_set_num_threads(1)
-      end if
 
-      ! II = 1; ! 0: Serial Pmesh 1: Yaps
-      ! SHOULD BE GLOBAL SETTINGS
-      SOLVER = 1
-      ND = 3
+      ! #ifdef HAS_INTEL
+      !    if (SOLVER .eq. 1) then
+      !       call mkl_set_num_threads(OMPTHREADS)
+      !    end if
+      ! #endif
       
       ! INP
+      ND = 3
       NVR_size = NVRM_in
       NTIME_pm = NTIME_in
-      neqpm = neqpm_in
-      NI = NI_in
-      
+      neqpm    = neqpm_in
+      NI       = NI_in
       n_block = my_rank + 1
+      
       nullify (XP)
       nullify (QP)
       nullify (UP)
       nullify (GP)
-      nullify (RHS_pm_in)
+      if (associated(RHS_pm_ptr)) nullify (RHS_pm_ptr)
+      if (associated(velx_ptr)) nullify (velx_ptr)
+      if (associated(vely_ptr)) nullify (vely_ptr)
+      if (associated(velz_ptr)) nullify (velz_ptr) 
       if (my_rank .eq. 0) then
          NVR = NVR_in
          XP => XP_in
@@ -104,6 +111,9 @@ contains
          UP => UP_in; 
          GP => GP_in
       end if
+      velx_ptr => velvrx_pm
+      vely_ptr => velvry_pm
+      velz_ptr => velvrz_pm
 
       ! BCAST NVR
       call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
@@ -114,8 +124,6 @@ contains
       if (WhatToDo .eq. 0) then
          call define_sizes
          call set_pm_velocities_zero
-         ! nullify (velx); nullify (vely); nullify (velz)
-         ! velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
          return
       end if
 
@@ -159,40 +167,31 @@ contains
          ! DEALLOCATE THE MEMORY
          !  RHS_pm_in=>RHS_pm
          !  velx=>velvrx_pm; vely=>velvry_pm;velz=>velvrz_pm
-         deallocate (SOL_pm, RHS_pm)
-         deallocate (SOL_pm_bl, RHS_pm_bl)
+         ! deallocate (SOL_pm, RHS_pm)
+         ! deallocate (SOL_pm_bl, RHS_pm_bl)
          return
       end if
 
       !  -> WhatToDo : 5 - diffuse
       if (WhatToDo .eq. 5) then
          call set_pm_velocities_zero
-         nullify (velx); nullify (vely); nullify (velz)
-         velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
 
          if (my_rank .eq. 0) then
             !diffusion stores -NI*grad^2 w * Vol in GP(1,:)
-
-            call diffuse_vort_3d ! DIFFUSION OF VORTICITY
             ! SOL_pm = -VIS \nabla \cdot RHS_pm
-
-            ! itypeb=2!back to particles the diffused vorticity
-            ! call back_to_particles_3D(SOL_pm,XP,QP,UP,GP,&
-            !                           velvrx_pm,velvry_pm,velvrz_pm,&
-            !                           Xbound,Dpm,NN,NVR,neqpm,interf_iproj,itypeb,NVR_size)
+            call diffuse_vort_3d ! DIFFUSION OF VORTICITY
          end if
          ! WHEN ITYPEB = 2 WE GET THE GP FROM THE SOL_PM (DEFORMATION) and from QP
          itypeb = 2
          call interpolate_particles_parallel
-         deallocate (SOL_pm, RHS_pm)
-         deallocate (SOL_pm_bl, RHS_pm_bl)
+         ! deallocate (SOL_pm, RHS_pm)
+         ! deallocate (SOL_pm_bl, RHS_pm_bl)
          return
       end if
 
       !------------------------------ FOR WHATTODO = 1, 2, 3 --------------------------------
       call solve_problem
       velvrx_pm = 0.d0; velvry_pm = 0.d0; velvrz_pm = 0.d0
-      velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
       
       !  -> WhatToDo :  1 - GET VELOCITIES ON PM FROM PM SOLUTION
       if (WhatToDo .eq. 1) then
@@ -218,7 +217,6 @@ contains
             write (*, *) achar(9), 'VPM: Velocity Calculation using FD', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
 
             call print_velocity_stats
-            call print_velocity_stats_ptr
             ! call calc_antidiffusion
             ! itypeb=1
             ! call back_to_particles_3D(SOL_pm,XP,QP,UP,GP,&
@@ -244,16 +242,9 @@ contains
             end do
          end if
       end if
-
-      ! RHS_pm_in=>RHS_pm
-      ! deallocate (velvrx_pm, velvry_pm, velvrz_pm)
-      deallocate (SOL_pm, RHS_pm)
-      deallocate (SOL_pm_bl, RHS_pm_bl)
       return      
 
    contains
-      ! CONTAINS
-
       subroutine solve_problem
          if (my_rank .eq. 0) then
             st = MPI_WTIME()
@@ -270,7 +261,7 @@ contains
          END IF
          if (my_rank .eq. 0) then
             et = MPI_WTIME()
-            write (*, *) achar(9), 'VPM:Broadcasting/Scattering RHS:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+            write (*, *) achar(9), 'VPM: Broadcasting/Scattering RHS:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          end if
 
          ! SOLVE THE PROBLEM
@@ -281,27 +272,25 @@ contains
             write (*, *) achar(9), '---> max RHSL_PM', maxval(abs(RHS_pm))
             write (*, *) ""
             et = MPI_WTIME()
-            write (*, *) achar(9), 'VPM:Solving Particle Mesh', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+            write (*, *) achar(9), 'VPM: Solving Particle Mesh', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          end if
 
          ! CLEAR VELOCITIES
          call set_pm_velocities_zero
-         nullify (velx); nullify (vely); nullify (velz)
-         velx => velvrx_pm; vely => velvry_pm; velz => velvrz_pm
       end subroutine solve_problem
 
       subroutine pmesh_solve !
          integer :: rank
          !Yaps or Serial Pmesh
 
-         IF (SOLVER .eq. 0) then
+         IF ((SOLVER .eq. 0).or.(np .eq. 1)) THEN
             if (my_rank .eq. 0) write (*, *) achar(9), achar(9), 'Solving PM with Serial Pmesh'
 
             IF (my_rank .eq. 0) then
                write (*, *) 'Solving_pm'
                SOL_pm(1:neqpm, :, :, :) = 0.0
                itree = iyntree
-               iynbc = 1!for infinite domain bc's
+               iynbc = 1   !for infinite domain bc
                Nblocks = 1
                call pmesh(SOL_pm, RHS_pm, QP, XP, Xbound, DPm, NN, NN_bl, ND, Nblocks, ibctyp, 1, neqpm, &
                           iynbc, NVR, itree, ilevmax)
@@ -373,28 +362,13 @@ contains
          ! RHS IS NOW FILLED
 
          if (my_rank .eq. 0) then
-            !allocate(ieq(neqpm+1),QINF(neqpm+1))
-            !QINF=0.d0
-            !do i=1,neqpm+1
-            !   ieq(i)=i
-            !enddo
-            !allocate (NVR_projscatt(NVR_size))
-            !NVR_projscatt=interf_iproj
-            !call  projlibinit(Xbound,Dpm,NN,NN_bl,EPSVOL,IDVPM,ND)
-            !call project_particles_3D(RHS_pm,QP,XP,NVR_projscatt,NVR,neqpm+1,ieq,neqpm+1,QINF,NVR_size)
-
-            if (my_rank.eq.0) write (*, *) achar(9)//achar(9)//"Normalizing RHS by volume"
-            call project_vol3d(RHS_pm, neqpm + 1, ieq, neqpm + 1, IDVPM)
-            ! RHS_PM IS NOW NORMALIZED BY VOLUME (DENSITY)
-
+            write (*, *) achar(9)//achar(9)//"Normalizing RHS by volume"
+            call project_vol3d(RHS_pm, neqpm + 1, ieq, neqpm + 1, IDVPM) ! RHS_PM IS NOW NORMALIZED BY VOLUME (DENSITY)
             et = MPI_WTIME()
             write (*, *) achar(9), 'VPM: Projecting Particles to PM', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-            ! deallocate(ieq,QINF)
-            ! deallocate(NVR_projscatt)
          end if
          deallocate (ieq, QINF)
          deallocate (XP_scatt, QP_scatt, NVR_projscatt)
-
       end subroutine project_particles_parallel
 
       subroutine interpolate_particles_parallel
@@ -438,8 +412,9 @@ contains
       end subroutine interpolate_particles_parallel
 
       subroutine print_arguements
+         use io, only: VERBOCITY
          ! WRITE ARGUEMENTS
-         if (my_rank .eq. 0) then
+         if ((my_rank .eq. 0).and.(VERBOCITY>=1)) then
             write (*, *) achar(27)//'[1;31m'
             if (WhatToDo .eq. 0) then
                write (*, *) 'VPM: Initialize '
@@ -454,6 +429,11 @@ contains
             else if (WhatToDo .eq. 5) then
                write (*, *) 'VPM: Project Particles- Diffuse Particle vorticity ', achar(27)//'[0m'
             end if
+
+            if (VERBOCITY < 1) then
+               return
+            end if
+      
             write (*, *) achar(9), 'Input Arguments:', achar(27)//'[1;34m'
             write (*, *) achar(9), achar(9), 'NTIME_in = ', NTIME_in
             write (*, *) achar(9), achar(9), 'WhatToDo = ', WhatToDo
@@ -466,9 +446,9 @@ contains
 
       subroutine print_velocity_stats
          write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:'
-         write (*, *) achar(9), achar(9), maxval(velvrx_pm)
-         write (*, *) achar(9), achar(9), maxval(velvry_pm)
-         write (*, *) achar(9), achar(9), maxval(velvrz_pm)
+         write (*, *) achar(9), achar(9),"X:", maxval(velvrx_pm)
+         write (*, *) achar(9), achar(9),"Y:", maxval(velvry_pm)
+         write (*, *) achar(9), achar(9),"Z:", maxval(velvrz_pm)
          ! CHeck for nan values
          if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
             ! Print Velx
@@ -490,33 +470,6 @@ contains
          end if
       end subroutine print_velocity_stats
    
-      subroutine print_velocity_stats_ptr
-
-         write (*, *) achar(9), 'MAX VELOCITY INSIDE PM:'
-         write (*, *) achar(9), achar(9), maxval(velx)
-         write (*, *) achar(9), achar(9), maxval(vely)
-         write (*, *) achar(9), achar(9), maxval(velz)
-         ! CHeck for nan values
-         if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
-            ! Print Velx
-            do i = 1, NXpm_coarse
-               do j = 1, NYpm_coarse
-                  do k = 1, NZpm_coarse
-                     if (isnan(velvrx_pm(i, j, k)) .or. isnan(velvry_pm(i, j, k)) .or. isnan(velvrz_pm(i, j, k))) then
-                        write (*, "(A, I3, A, I3, A, I3)") &
-                              achar(9)//"I:", i, achar(9)//"J:", j, achar(9)//"K:", k, achar(9)
-                        ! write (*, "(A, 3F15.8)") &
-                              ! achar(9)//achar(9)//"Velx:" , velvrx_pm(i, j, k), achar(9)//"Vely", velvry_pm(i, j, k), achar(9)//"Velz", velvrz_pm(i, j, k)
-                        stop
-                     end if
-                  end do
-               end do
-            end do
-            write (*, *) achar(9), 'VPM: NAN VALUES IN VELOCITY'
-            stop
-         end if
-      end subroutine print_velocity_stats_ptr 
-
       subroutine allocate_sol_and_rhs
          ! NN_tmp       : is the number of cells in each direction
          ! NN_bl_tmp    : is the start and finish of the cells in each direction
@@ -543,44 +496,31 @@ contains
          end if
          allocate (RHS_pm(neqpm + 1, NXpm_coarse, NYpm_coarse, NZpm_coarse))
          RHS_pm = 0.d0
+         RHS_pm_ptr => RHS_pm
          
          ! SOL_PM
          if (allocated(SOL_pm)) then
             deallocate (SOL_pm)
-            SOL_pm = 0.d0
          end if
          allocate (SOL_pm(neqpm, NXpm_coarse, NYpm_coarse, NZpm_coarse))
          SOL_pm = 0.d0
       end subroutine allocate_sol_and_rhs
-
-      subroutine finalize
-         ! DEALLOCATE MEMORY
-         if (allocated(SOL_pm)) then
-            deallocate (SOL_pm)
-         end if
-         if (allocated(RHS_pm)) then
-            deallocate (RHS_pm)
-         end if
-         if (allocated(SOL_pm_bl)) then
-            deallocate (SOL_pm_bl)
-         end if
-         if (allocated(RHS_pm_bl)) then
-            deallocate (RHS_pm_bl)
-         end if
-      end subroutine finalize
-
    end subroutine vpm
 
    subroutine set_pm_velocities_zero
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, NXpm_coarse, NYpm_coarse, NZpm_coarse
       if (allocated(velvrx_pm)) then
          deallocate (velvrx_pm, velvry_pm, velvrz_pm)
-         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse), velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse), velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate(velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate(velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
          velvrx_pm = 0.d0; 
          velvry_pm = 0.d0; 
          velvrz_pm = 0.d0
       else
-         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse), velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse), velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate(velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate(velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
          velvrx_pm = 0.d0; 
          velvry_pm = 0.d0; 
          velvrz_pm = 0.d0
@@ -597,6 +537,7 @@ contains
                         YMAX_pm, ZMAX_pm, NXs_coarse_bl, NXf_coarse_bl, NYs_coarse_bl, NYf_coarse_bl, &
                         NZs_coarse_bl, NZf_coarse_bl, NXpm_coarse, NYpm_coarse, NZpm_coarse, DVPM 
       use pmlib, only: definepm
+      use io, only: dummy_string, vpm_print, nocolor, blue
       use MPI
 
       Implicit None
@@ -613,7 +554,7 @@ contains
       BLOCKS = np
       !-------First Change Dpm so that the numbers of cells divides
       !-------by nsize i.e with NBI,NBJ,ncoarse,levmax depending on the criterion
-      !------ that's why ndumcell=0
+      !------ thats why ndumcell=0
       if (my_rank .eq. 0) then
          if ((NTIME_pm .eq. 0) .or. idefine .eq. 0) then
             XMIN_pm = minval(XP(1, 1:NVR)) - interf_iproj*DXpm
@@ -623,6 +564,15 @@ contains
             XMAX_pm = maxval(XP(1, 1:NVR)) + interf_iproj*DXpm
             YMAX_pm = maxval(XP(2, 1:NVR)) + interf_iproj*DYpm
             ZMAX_pm = maxval(XP(3, 1:NVR)) + interf_iproj*DZpm
+            write (dummy_string, '(A)') achar(9) // 'The computational domain is first defined'
+            print *, dummy_string
+            print *, "HELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL"
+            call vpm_print(dummy_string,nocolor, 2 )
+            write (dummy_string, *) achar(9)//&
+                     achar(9)//'XMIN='//achar(9), XMIN_pm, &
+                     achar(9)//'YMIN='//achar(9), YMIN_pm, &
+                     achar(9)//'ZMIN='//achar(9), ZMIN_pm
+            call vpm_print(dummy_string,nocolor, 2 )
          end if
       end if
 
@@ -654,16 +604,19 @@ contains
 
       ndumcell = 0
       if(my_rank.eq.0) then
-         write (*, '(A)') achar(9) // 'The extended coarse domain is first defined'
+         write (dummy_string, '(A)') achar(9) // 'The extended coarse domain is first defined'
+         call vpm_print(dummy_string,nocolor, 2)
          
       endif
       
       if ((NTIME_pm .eq. 0) .or. idefine .eq. 0) then
          !  ndum_new(1)  = nsize(1) - mod(NN(1)-1,nsize(1))
          if (my_rank .eq. 0) then
-            write (*, '(A)') achar(9) // 'We are defining the extended domain by calling definepm'
-            write (*, '(A, I5, A, I1)') achar(9) // achar(9) // 'NTIME_PM=', NTIME_pm,&
+            write (dummy_string, '(A)') achar(9) // 'We are defining the extended domain by calling definepm'
+            call vpm_print(dummy_string,nocolor, 2)
+            write (dummy_string, '(A, I5, A, I1)') achar(9) // achar(9) // 'NTIME_PM=', NTIME_pm,&
                                                     '  Redefine=', idefine
+            call vpm_print(dummy_string,nocolor, 2)
          end if
          !> Dpm(3)               (DX,DY,DZ)
          !> Xbound(6)(INPUT)     Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the original domain 
@@ -673,7 +626,7 @@ contains
          !>                      (defined by xbound at input) (NXs,NYs,NZs,NXf,NYf,NZf)
          !> nsiz(3)              the number of cells in each direction for the fine grid
          !> ndumcell             the number of dummy cells in each direction
-         !>                      (the number of Dpm's which the domain will be extended see above)
+         !>                      (the number of Dpm which the domain will be extended see above)
          !> ND                   the number of dimensions
          call definepm(3, Xbound, Dpm, ND, ndumcell, nsiz, NN, NN_bl)
       end if
@@ -707,25 +660,31 @@ contains
       end if
 
       if (my_rank .eq. 0) then
-         write (*, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//&
+         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//&
                   achar(9)//'XMIN='//achar(9), XMIN_pm, &
                   achar(9)//'YMIN='//achar(9), YMIN_pm, &
                   achar(9)//'ZMIN='//achar(9), ZMIN_pm
-         write (*, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)// &
+         call vpm_print(dummy_string,nocolor,2)
+         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)// &
                   achar(9)//'XMAX='//achar(9), XMAX_pm, &
                   achar(9)//'YMAX='//achar(9), YMAX_pm, &
                   achar(9)//'ZMAX='//achar(9), ZMAX_pm
-         write (*, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)// &
+         call vpm_print(dummy_string,nocolor,2)
+         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)// &
                   achar(9)//'DX='//achar(9), DXpm, &
                   achar(9)//'DY='//achar(9), DYpm, &
                   achar(9)//'DZ='//achar(9), DZpm
-         write (*, '(A, I5, A, I5, A, I5)') achar(9)// &
+         call vpm_print(dummy_string,nocolor,2)
+         write (dummy_string, '(A, I5, A, I5, A, I5)') achar(9)// &
                   achar(9)//'NX='//achar(9), NXpm_coarse, &
                   achar(9)//achar(9)//'NY='//achar(9), NYpm_coarse, &
                   achar(9)//achar(9)//'NZ='//achar(9), NZpm_coarse
+         call vpm_print(dummy_string,nocolor,2)
 
-         write (*, '(A, F8.5)') achar(9)//achar(9) // 'DV=', DVpm
-         write (*, '(A)') achar(9)//'The extended coarse domain is defined everytime'
+         write (dummy_string, '(A, F8.5)') achar(9)//achar(9) // 'DV=', DVpm
+         call vpm_print(dummy_string,nocolor,2)
+         write (dummy_string, '(A)') achar(9)//'The extended coarse domain is defined everytime'
+         call vpm_print(dummy_string,nocolor,2)
       end if
       ! define block grid
       ! so they are divided by ncoarse and ilevmax
@@ -746,16 +705,20 @@ contains
       nsiz_bl = ncoarse!ndumcell_coarse!*2*2**ilevmax
 
       if (my_rank.eq.0) then
-         write(*, '(A)') achar(9) // achar(9) // 'The number of cells in each direction for the block grid'
-         write(*, '(A, I5, A, I5, A, I5)') achar(9)//achar(9) //  &
+         write(dummy_string, '(A)') achar(9) // achar(9) // 'The number of cells in each direction for the block grid'
+         call vpm_print(dummy_string,nocolor,2)
+         write(dummy_string, '(A, I5, A, I5, A, I5)') achar(9)//achar(9) //  &
                   achar(9)//'NXB='//achar(9)//achar(9), NXB,      &
                   achar(9)//'NYB='//achar(9)//achar(9), NYB,      &
-                  achar(9)//'NZB='//achar(9)//achar(9), NZB                                 
-         write(*, '(A, I5, A, I5, A, I5)') achar(9)//achar(9) //  &
+                  achar(9)//'NZB='//achar(9)//achar(9), NZB       
+         call vpm_print(dummy_string,nocolor,2)                          
+         write(dummy_string, '(A, I5, A, I5, A, I5)') achar(9)//achar(9) //  &
                   achar(9)//'NXbl='//achar(9)//achar(9), NXbl,    &
                   achar(9)//'NYbl='//achar(9)//achar(9), NYbl,    &
                   achar(9)//'NZbl='//achar(9)//achar(9), NZbl
-         write(*, '(A)') achar(9)//achar(9)//'After calling definepm on each block '
+         call vpm_print(dummy_string,nocolor,2)
+         write(dummy_string, '(A)') achar(9)//achar(9)//'After calling definepm on each block '
+         call vpm_print(dummy_string,nocolor,2)
       end if
 
       nb_i = -1
@@ -781,18 +744,27 @@ contains
                NNbl_bl(1:6, nb) = NN_bl_tmp(1:6)   ! KOMVOI START STOP in the local system that do not include the dummy cells
                
                if (my_rank .eq. 0) then
-                  write (*, '(A,I3,A)') achar(27)//'[1;33m'//achar(9)//achar(9)//'Block ', nb, achar(27)//'[0m'
-                  write (*, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//achar(9)//&
+                  write (dummy_string, '(A,I3,A)') achar(27)//'[1;33m'//achar(9)//achar(9)//'Block ', nb, achar(27)//'[0m'
+                  call vpm_print(dummy_string,nocolor,2)
+                  write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//achar(9)//&
                            achar(9)//'XMIN= '//achar(9), Xbound_bl(1, nb), &
                            achar(9)//'YMIN= '//achar(9), Xbound_bl(2, nb), &
                            achar(9)//'ZMIN= '//achar(9), Xbound_bl(3, nb)
-                  write (*, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//achar(9)// &
+                  call vpm_print(dummy_string,nocolor,2)
+                  write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//achar(9)// &
                            achar(9)//'XMAX= '//achar(9), Xbound_bl(4, nb), &
                            achar(9)//'YMAX= '//achar(9), Xbound_bl(5, nb), &
                            achar(9)//'ZMAX= '//achar(9), Xbound_bl(6, nb)
-                  write(*, '(A, I5)') achar(9) // achar(9) // achar(9)//'X cells in block= '//achar(9)//achar(9), NNbl(1, nb)
-                  write(*, '(A, I5)') achar(9) // achar(9) // achar(9)//'Y cells in block= '//achar(9)//achar(9), NNbl(2, nb)
-                  write(*, '(A, I5)') achar(9) // achar(9) // achar(9)//'Z cells in block= '//achar(9)//achar(9), NNbl(3, nb)
+                  call vpm_print(dummy_string,nocolor,2)
+                  write(dummy_string, '(A, I5)') achar(9) // achar(9) // achar(9)//&
+                                       'X cells in block= '//achar(9)//achar(9), NNbl(1, nb)
+                  call vpm_print(dummy_string,nocolor,2)
+                  write(dummy_string, '(A, I5)') achar(9) // achar(9) // achar(9)//&
+                                       'Y cells in block= '//achar(9)//achar(9), NNbl(2, nb)
+                  call vpm_print(dummy_string,nocolor,2)
+                  write(dummy_string, '(A, I5)') achar(9) // achar(9) // achar(9)//&
+                                       'Z cells in block= '//achar(9)//achar(9), NNbl(3, nb)
+                  call vpm_print(dummy_string,nocolor,2)
                end if
 
                if (nb .eq. my_rank + 1) then
@@ -865,9 +837,25 @@ contains
 
       if (my_rank .eq. 0) then
          et = MPI_WTIME()
-         write (*, *) achar(9), 'VPM: Defining Sizes:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         write (dummy_string, *) achar(9), 'VPM: Defining Sizes:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         call vpm_print(dummy_string, blue, 2)
       end if      
    end subroutine define_sizes
+
+   subroutine convect_first_order
+      use vpm_vars, only: DT_c
+      use parvar, only: NVR, XP, UP, GP, QP
+      ! real(dp), intent(in)  :: Xbound(6), Dpm(3)
+      ! integer, intent(in)           :: NN(3), NN_bl(6)
+      ! real(dp), allocatable :: QINF(:)
+      ! integer, allocatable          :: ieq(:)
+      integer                      :: i
+
+      do i = 1, NVR
+         XP(1:3, i) = XP(1:3, i) + UP(1:3, i)*DT_c
+         QP(1:3, i) = QP(1:3, i) + GP(1:3, i)*DT_c
+      end do
+   end subroutine convect_first_order
 
    subroutine write_pm_solution
       use pmgrid, only: NXf_coarse_bl , NXs_coarse_bl, NYf_coarse_bl, NYs_coarse_bl, NZf_coarse_bl, NZs_coarse_bl, &

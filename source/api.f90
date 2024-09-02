@@ -81,17 +81,6 @@ contains
    end subroutine initialize
 
    subroutine finalize() bind(C, name='finalize')
-      use vpm_vars
-      use vpm_size
-      use pmeshpar
-      use parvar
-      use pmgrid
-      use MPI
-      use pmlib
-      use projlib
-      use yapslib
-      use openmpth
-
       implicit none
       
       ! integer :: ierr
@@ -114,7 +103,7 @@ contains
    End subroutine finalize
 
    subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-                       RHS_pm_in, Velx, Vely, Velz, NTIME_in, NI_in, NVRM_in) bind(C, name='vpm')
+                       RHS_PM_out, Velx_out, Vely_out, Velz_out, NTIME_in, NI_in, NVRM_in) bind(C, name='vpm')
       !  -> XP : particle positions (3 * NVR)
       !  -> QP : particle quantities (neqpm + 1 ) * NVR)
       !  -> UP : particle velocities
@@ -127,17 +116,9 @@ contains
       !  -> NTIME_IN : current time
       !  -> NI_in: viscocity -> DIFFUSION OF VORTICITY
       !  -> NVRM : NVR MAX
-
-      use vpm_vars
-      use vpm_size
-      use pmeshpar
-      use parvar
-      use pmgrid
-      use MPI
-      use pmlib
-      use projlib
-      use yapslib
-      use openmpth
+      use vpm_lib, only: vpm
+      use ND_Arrays
+      use, intrinsic :: ieee_arithmetic
 
       ! Fortran to C bindings
       implicit none
@@ -145,12 +126,12 @@ contains
       integer(c_int), intent(inout) :: NVR_in
       integer(c_int), intent(in)    :: neqpm_in, WhatToDo, NVRM_in, NTIME_in
       real(c_double), intent(in)    :: NI_in
-
-      ! real(c_double), intent(inout), target :: XP_in(:,:), QP_in(:,:), UP_in(:,:), GP_in(:,:)
       real(c_double), intent(inout), target :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
       real(c_double), intent(inout), target :: UP_in(3, NVR_in), GP_in(3, NVR_in)
-      real(c_double), intent(inout), pointer :: RHS_pm_in(:, :, :, :), Velx(:, :, :), Vely(:, :, :), Velz(:, :, :)
-      integer :: ierr, my_rank 
+      type(ND_Array), intent(out) :: RHS_PM_out, Velx_out, Vely_out, Velz_out
+
+      real(c_double),  pointer :: RHS_pm_ptr(:, :, :, :), Velx_ptr(:, :, :), Vely_ptr(:, :, :), Velz_ptr(:, :, :)
+      integer :: ierr, my_rank
 
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
       if (ierr .ne. 0) then
@@ -158,7 +139,25 @@ contains
          stop
       end if
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_in, Velx, Vely, Velz, NTIME_in, NI_in, NVRM_in)
+               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVRM_in)
+      
+      ! Copy the data back to the arrays
+      ! Assign the pointers to the arrays
+      if (associated(RHS_pm_ptr)) then 
+         RHS_PM_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+      end if
+
+      if (associated(Velx_ptr)) then
+         Velx_out = from_intrinsic(Velx_ptr, shape(Velx_ptr))
+      end if
+
+      if (associated(Vely_ptr)) then
+         Vely_out = from_intrinsic(Vely_ptr, shape(Vely_ptr))
+      end if
+
+      if (associated(Velz_ptr)) then
+         Velz_out = from_intrinsic(Velz_ptr, shape(Velz_ptr))
+      end if
    End subroutine call_vpm
 
    subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
@@ -172,7 +171,7 @@ contains
       integer(c_int), intent(out) :: NVR_out
 
       ! Local variables
-      real(dp), allocatable, target :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
+      real(dp), allocatable, target, save :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
 
       call remesh_particles_3d(iflag, XP_out, QP_out, GP_out, UP_out, NVR_out)
       XP_arr = from_intrinsic(XP_out, shape(XP_out))
@@ -181,16 +180,6 @@ contains
       UP_arr = from_intrinsic(UP_out, shape(UP_out))
 
    End subroutine call_remesh_particles_3d
-
-   subroutine pmgrid_set_RHS_pm(RHS_pm_in,size1, size2, size3, size4) bind(C, name='set_RHS_pm')
-      use pmgrid, only: set_RHS_pm
-      implicit none
-      integer(c_int), intent(in) :: size1, size2, size3, size4
-      real(c_double), dimension(size1, size2, size3, size4), intent(in) :: RHS_pm_in
-      
-      call set_RHS_pm(RHS_pm_in)
-      ! print *, 'RHS_PM SET'
-   end subroutine pmgrid_set_RHS_pm
 
    subroutine get_neqpm(neqpm_out) bind(C, name='get_neqpm')
       use vpm_vars, only: neqpm
@@ -235,37 +224,12 @@ contains
       
    End subroutine pmgrid_get_NN_bl
 
-   subroutine pmgrid_get_NX_pm(NX_pm_out) bind(C, name='get_NX_pm') 
-      use pmgrid, only: get_NXpm
-      implicit none
-      integer(c_int) :: NX_pm_out
-
-      call get_NXpm(NX_pm_out)
-   End subroutine pmgrid_get_NX_pm
-
-   subroutine pmgrid_get_NY_pm(NY_pm_out) bind(C, name='get_NY_pm') 
-      use pmgrid, only: get_NYpm
-      implicit none
-      integer(c_int) :: NY_pm_out
-
-      call get_NYpm(NY_pm_out)
-   End subroutine pmgrid_get_NY_pm
-
-   subroutine pmgrid_get_NZ_pm(NZ_pm_out) bind(C, name='get_NZ_pm') 
-      use pmgrid, only: get_NZpm
-      implicit none
-      integer(c_int) :: NZ_pm_out
-
-      call get_NZpm(NZ_pm_out)
-   End subroutine pmgrid_get_NZ_pm
-
    subroutine pmgrid_get_Xbound(Xbound_out) bind(C, name='get_Xbound') 
       use vpm_size, only: get_Xbound
       implicit none
       real(c_double), dimension(6) :: Xbound_out
       call get_Xbound(Xbound_out)
    End subroutine pmgrid_get_Xbound
-
 
    !! LIBRARY PRINTS
    subroutine print_pmeshpar() bind(C, name='print_pmeshpar')

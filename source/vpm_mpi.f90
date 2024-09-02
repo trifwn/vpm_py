@@ -67,10 +67,6 @@ subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
    nb = my_rank + 1
-   !NN(1:3)=NN_tmp(1:3)
-   !do nbs=1,BLOCKS
-   !  write(*,*) my_rank,NN_tmp
-   !enddo
    if (my_rank .eq. 0) then
       j = 1
       i = 1
@@ -167,6 +163,7 @@ subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
    use vpm_vars, only: neqpm
    use pmeshpar, only: SOL_pm
    use mpi_matrices, only: mpimat4
+   use io, only: vpm_print, blue
    use MPI
    Implicit None
    integer, intent(in)           :: BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NBK, NN_bl(6), NN_tmp(3)
@@ -179,13 +176,12 @@ subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
-   if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'Assembling Solution', achar(27)//'[0m'
+   if (my_rank .eq. 0) call vpm_print( 'Assembling Solution',blue, 1)
+   ! (*, *) achar(9), achar(27)//'[1;34m', 'Assembling Solution', achar(27)//'[0m'
+   
 
    nb = my_rank + 1
-   !NN(1:3)=NN_tmp(1:3)
-   !do nbs=1,BLOCKS
-   !  write(*,*) my_rank,NN_tmp
-   !enddo
+
    if (my_rank .eq. 0) then
       j = 1
       i = 1
@@ -208,7 +204,6 @@ subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
       kxf = kxs + (NZf - NZs + 1) - 1
 
       SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf) = SOL_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf)
-      !write(*,*) maxval(SOL_pm_bl),minval(SOL_pm_bl)
       !-->Assign
       do k = 1, NBK
          do j = 1, NBJ
@@ -241,8 +236,6 @@ subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm
                call mpimat4(mat4, neqpm, NN_block(1), NN_block(2), NN_block(3))
                source = nbs - 1
                call MPI_RECV(SOL_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
-               ! write (*, *) achar(9), achar(9), 'RECEIVED TEMPORARY SOLUTION OF SOL_PM_TMP from ', source
-               ! write (*, *) achar(9), achar(9), 'max = ', maxval(SOL_pm_tmp), 'min = ', minval(SOL_pm_tmp)
                SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf) = SOL_pm_tmp(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf)
                call MPI_TYPE_FREE(mat4, ierr)
                deallocate (SOL_pm_tmp)
@@ -282,6 +275,7 @@ subroutine particles_scat
    use parvar, only: XP, QP, NVR
    use mpi_matrices, only: mpimat2_pm
    use MPI
+   use io, only: vpm_print, blue, tab_level, dummy_string, nocolor
 
    Implicit None
    integer :: my_rank, np, ierr, i
@@ -290,15 +284,20 @@ subroutine particles_scat
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
-   if (my_rank .eq. 0) write (*, *) achar(9)//achar(9)//achar(27)//'[1;34m', 'Scattering Particles to all Processes'//achar(27)//'[0m'
+   
+   if (my_rank .eq. 0) call vpm_print( 'Scattering Particles to all Processes',blue, 1)
+   ! write (*, *) achar(9)//achar(9)//achar(27)//&
 
    !---------------------------------------------
+   tab_level = tab_level + 1
    if (my_rank .eq. 0) then
       XP_scatt(1:3, 1:NVR_p) = XP(1:3, 1:NVR_p)
       QP_scatt(1:neqpm + 1, 1:NVR_p) = QP(1:neqpm + 1, 1:NVR_p)
       NVR_pr = NVR_p
       NVR_r = NVR/np
-      write (*, *) achar(9)//achar(9)//achar(9)//"Processor 0: NVR_p = ", NVR_p
+
+      write (dummy_string, *) "Processor 0: NVR_p = ", NVR_p
+      call vpm_print( dummy_string, blue, 1)
       if (NVR_r .gt. 0) then
          do i = 2, np
             dest = i - 1
@@ -321,17 +320,23 @@ subroutine particles_scat
          call mpimat2_pm(mat2, neqpm + 1, NVR_p, neqpm + 1, NVR_p, 0)
          call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
          call MPI_TYPE_FREE(mat2, ierr)
-         write (*, *) achar(9)//achar(9)//achar(9)//"Processor ", my_rank, " got : NVR_p = ", NVR_p
+         write (dummy_string, *) achar(9)//achar(9)//achar(9)//"Processor ", my_rank, " got : NVR_p = ", NVR_p
+         call vpm_print( dummy_string, nocolor, 1)
       else 
-         write (*, *) achar(9)//achar(9)//achar(9)//"Got 0 particles on processor ", my_rank
+         write (dummy_string, *) achar(9)//achar(9)//achar(9)//"Got 0 particles on processor ", my_rank
+         call vpm_print( dummy_string, nocolor, 1)
       end if
    end if
+   tab_level = tab_level - 1 
    
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
    if (my_rank .eq. 0) then
-      write (*, *) achar(9)//achar(9)//achar(9)//"Total number of particles distributed = ", NVR_pr
-      write (*, *) achar(9)//achar(9)//achar(9)//"Total number of particles = ", NVR
-      write (*, *) ''
+      write (dummy_string, *) achar(9)//achar(9)//achar(9)//"Total number of particles distributed = ", NVR_pr
+      call vpm_print( dummy_string, blue, 1)
+      write (dummy_string, *) achar(9)//achar(9)//achar(9)//"Total number of particles = ", NVR
+      call vpm_print( dummy_string, blue, 1)
+      write (dummy_string, *) ''
+      call vpm_print( dummy_string, blue, 1)
    end if 
    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
@@ -463,7 +468,7 @@ subroutine proj_gath_new(NN)
    integer :: source, mat4
    integer :: status(MPI_STATUS_SIZE)
    integer :: imax, imin, jmax, jmin, kmax, kmin
-   real(dp), allocatable:: RHS_pmtmp(:, :, :, :)
+   real(dp), allocatable:: RHS_pm_tmp(:, :, :, :)
    real(dp)            :: xpmax, xpmin, ypmax, ypmin, zpmax, zpmin
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -482,34 +487,39 @@ subroutine proj_gath_new(NN)
       imax = int((xpmax - XMIN_pm)/DXpm) + 1; imin = int((xpmin - XMIN_pm)/DXpm) + 1
       jmax = int((ypmax - YMIN_pm)/DYpm) + 1; jmin = int((ypmin - YMIN_pm)/DYpm) + 1
       kmax = int((zpmax - ZMIN_pm)/DZpm) + 1; kmin = int((zpmin - ZMIN_pm)/DZpm) + 1
-      NN_proj(1) = max(imin - interf_iproj, 1); NN_proj(2) = max(jmin - interf_iproj, 1); NN_proj(3) = max(kmin - interf_iproj, 1)     !call  projlibinit(Xbound,Dpm,NN,NN_bl,EPSVOL,IDVPM,ND)
-      NN_proj(4) = min(imax + interf_iproj, NN(1)); NN_proj(5) = min(jmax + interf_iproj, NN(2)); NN_proj(6) = min(kmax + interf_iproj, NN(3))
+      NN_proj(1) = max(imin - interf_iproj, 1)
+      NN_proj(2) = max(jmin - interf_iproj, 1)
+      NN_proj(3) = max(kmin - interf_iproj, 1)     !call  projlibinit(Xbound,Dpm,NN,NN_bl,EPSVOL,IDVPM,ND)
+      NN_proj(4) = min(imax + interf_iproj, NN(1))
+      NN_proj(5) = min(jmax + interf_iproj, NN(2))
+      NN_proj(6) = min(kmax + interf_iproj, NN(3))
    end if
+   
    if (my_rank .ne. 0) then
       call MPI_SEND(NN_proj, 6, MPI_INTEGER, 0, 1, MPI_COMM_WORLD, ierr)
       nn1 = NN_proj(4) - NN_proj(1) + 1
       nn2 = NN_proj(5) - NN_proj(2) + 1
       nn3 = NN_proj(6) - NN_proj(3) + 1
-      allocate (RHS_pmtmp(neqpm + 1, nn1, nn2, nn3))
-      RHS_pmtmp(1:neqpm + 1, 1:nn1, 1:nn2, 1:nn3) = &
+      allocate (RHS_pm_tmp(neqpm + 1, nn1, nn2, nn3))
+      RHS_pm_tmp(1:neqpm + 1, 1:nn1, 1:nn2, 1:nn3) = &
          RHS_pm(1:neqpm + 1, NN_proj(1):NN_proj(4), NN_proj(2):NN_proj(5), NN_proj(3):NN_proj(6))
       call mpimat4(mat4, neqpm + 1, nn1, nn2, nn3)
-      call MPI_SEND(RHS_pmtmp, 1, mat4, 0, 1, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(RHS_pm_tmp, 1, mat4, 0, 1, MPI_COMM_WORLD, ierr)
       call MPI_TYPE_FREE(mat4, ierr)
-      deallocate (RHS_pmtmp)
+      deallocate (RHS_pm_tmp)
    else
       do source = 1, np - 1
          call MPI_RECV(NN_tmp, 6, MPI_INTEGER, source, 1, MPI_COMM_WORLD, status, ierr)
          nn1 = NN_tmp(4) - NN_tmp(1) + 1
          nn2 = NN_tmp(5) - NN_tmp(2) + 1
          nn3 = NN_tmp(6) - NN_tmp(3) + 1
-         allocate (RHS_pmtmp(neqpm + 1, nn1, nn2, nn3))
+         allocate (RHS_pm_tmp(neqpm + 1, nn1, nn2, nn3))
          call mpimat4(mat4, neqpm + 1, nn1, nn2, nn3)
-         call MPI_RECV(RHS_pmtmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
+         call MPI_RECV(RHS_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
          RHS_pm(1:neqpm + 1, NN_tmp(1):NN_tmp(4), NN_tmp(2):NN_tmp(5), NN_tmp(3):NN_tmp(6)) = &
             RHS_pm(1:neqpm + 1, NN_tmp(1):NN_tmp(4), NN_tmp(2):NN_tmp(5), NN_tmp(3):NN_tmp(6)) + &
-            RHS_pmtmp(1:neqpm + 1, 1:nn1, 1:nn2, 1:nn3)
-         deallocate (RHS_pmtmp)
+            RHS_pm_tmp(1:neqpm + 1, 1:nn1, 1:nn2, 1:nn3)
+         deallocate (RHS_pm_tmp)
          call MPI_TYPE_FREE(mat4, ierr)
       end do
    end if

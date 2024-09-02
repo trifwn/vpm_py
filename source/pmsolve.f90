@@ -12,13 +12,12 @@ contains
 
       Implicit None
       integer, intent(in)              :: NXs, NXf, NYs, NYf, neq
-      Integer                          :: i, j, NWORK, INFO, NX, NY, nbj
+      Integer                          :: i, j, NX, NY
       integer                          :: ipar(128), stat
       integer                          :: NN, nod
-      real(dp), allocatable            ::dpar(:)
-      real(dp)                         :: XPM, YPM, XminCalc, XmaxCalc, YminCalc, YmaxCalc, pertrb
-      real(dp), allocatable            ::SOL_pm2(:, :), WORK(:)
-      real(dp), allocatable            ::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      real(dp), allocatable            :: dpar(:)
+      real(dp)                         :: XminCalc, XmaxCalc, YminCalc, YmaxCalc
+      real(dp), allocatable            :: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
       type(DFTI_DESCRIPTOR), pointer   :: xhandle
 
       !--> Assignment of Boundary Values
@@ -66,13 +65,30 @@ contains
       end do
 
       !--SOLVE PHI ON PMESH
-      NWORK = 4*(NY - 1) + (13 + int(log(2.*((NY - 1) + 1))))*(NX + 1)
-      allocate (WORK(NWORK))
       allocate (dpar(int(5*(NX - 1)/2) + 7))
       call d_init_Helmholtz_2D(XminCalc, XmaxCalc, YminCalc, YmaxCalc, NX - 1, NY - 1, 'DDDD', 0.d0, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         stop
+      endif
+
       call d_commit_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         stop
+      endif
+
       call d_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         stop
+      endif
+      
       call free_Helmholtz_2D(xhandle, ipar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         stop
+      endif
 
       do j = 1, NY
          do i = 1, NX
@@ -86,14 +102,13 @@ contains
    module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
       use MKL_POISSON
       Implicit None
-      integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
-      Integer              :: i, j, NWORK, INFO, NX, NY, nbj
-      integer              :: ipar(128), stat
-      integer              :: NN, nod
-      real(dp), allocatable ::dpar(:)
-      real(dp)     :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
-      real(dp), allocatable::SOL_pm2(:, :), WORK(:)
-      real(dp), allocatable::f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      integer, intent(in)     :: NXs, NXf, NYs, NYf, neq
+      Integer                 :: i, j, NX, NY
+      integer                 :: ipar(128), stat
+      integer                 :: NN, nod
+      real(dp), allocatable   :: dpar(:)
+      real(dp)                :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc
+      real(dp), allocatable   :: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
 
       type(DFTI_DESCRIPTOR), pointer    :: xhandle
 
@@ -137,9 +152,28 @@ contains
       !--SOLVE PHI ON PMESH
       allocate (dpar(int(5*(NX - 1)/2) + 7))
       call d_init_Helmholtz_2D(XminCalc, XmaxCalc, YminCalc, YmaxCalc, NX - 1, NY - 1, 'DDDD', 0.d0, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         stop
+      endif
+      
       call d_commit_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         stop
+      endif
+
       call d_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         stop
+      endif
+
       call free_Helmholtz_2D(xhandle, ipar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         stop
+      endif
 
       !call hwscrt(XminCalc,XmaxCalc,NX-1,1,0,0,YminCalc,YmaxCalc,NY-1,1,0,0,  &
       !                   0,SOL_pm2,NX,pertrb,INFO,WORK)
@@ -158,7 +192,7 @@ contains
       use MKL_POISSON
       Implicit None
       integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-      integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
+      integer            :: i, j, k, NX, NY, NZ
       real(dp)   :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
       integer              :: ipar(128), stat
       integer              :: dim, dim1, dim2, dim3, nod
@@ -228,9 +262,29 @@ contains
 
       allocate (dpar(int(5*(NX - 1 + NY - 1)/2) + 9))
       call d_init_Helmholtz_3D(XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,'DDDDDD',0.d0,ipar,dpar,stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         stop
+      endif
+      
       call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         stop
+      endif
+
       call d_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         stop
+      endif
+
       call free_Helmholtz_3D(xhandle, yhandle, ipar, stat)
+      if (stat .ne. 0) then
+         write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         stop
+      endif
+
 
       do k = 1, NZ
          do j = 1, NY
@@ -248,7 +302,7 @@ contains
 
       Implicit None
       integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-      integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
+      integer              :: i, j, k, NX, NY, NZ
       real(dp)     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
       integer              :: ipar(128), stat
       integer              :: NN, nod, NNX, NNY, NNZ
@@ -346,24 +400,36 @@ contains
       call d_init_Helmholtz_3D(&
          XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,BCtype,0.d0,ipar,dpar,stat &
       )
-      if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+      if (stat .ne. 0) then 
+         write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         stop
+      enendif
 
       ! Initializing complex data structures of Poisson Library for 3D Laplace Solver
       ! NOTE: Right-hand side f may be altered after the Commit step. If you want to keep it,
       ! you should save it in another memory location!
       call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
-      if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+      if (stat .ne. 0) then 
+         write(*,*) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         stop
+      endif
 
       ! Computing the approximate solution of 3D Laplace problem
       ! NOTE: Boundary data stored in the arrays bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz should not be changed
       ! between the Commit step and the subsequent call to the Solver routine!
       ! Otherwise the results may be wrong.
       call d_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
-      if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+      if (stat .ne. 0) then 
+         write(*,*) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         stop
+      endif
 
       ! Cleaning the memory used by xhandle and yhandle
       call free_Helmholtz_3D(xhandle, yhandle, ipar, stat)
-      if (stat .ne. 0) write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+      if (stat .ne. 0) then 
+         write(*,*) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         stop
+      endif
 
       do k = 1, NZ
          do j = 1, NY
@@ -374,129 +440,4 @@ contains
          end do
       end do
    End subroutine solve_eq_0_3d
-
-   !-----------------------------------------------------------------------!
-   !-> subroutine solve_phiz                                                !
-   !   This subroutines calls the fft library to solve for Phi poisson     !
-   !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
-   !-----------------------------------------------------------------------!
-   ! subroutine solve_eq_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-   !    Implicit None
-   !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-   !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-   !    real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-   !    real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
-
-   !    !--> Assignment of Boundary Values
-
-   !    XminCalc = XMIN_pm + (NXs - 1)*DXpm
-   !    XmaxCalc = XMIN_pm + (NXf - 1)*DXpm
-
-   !    YminCalc = YMIN_pm + (NYs - 1)*DYpm
-   !    YmaxCalc = YMIN_pm + (NYf - 1)*DYpm
-
-   !    ZminCalc = ZMIN_pm + (NZs - 1)*DZpm
-   !    ZmaxCalc = ZMIN_pm + (NZf - 1)*DZpm
-
-   !    NX = NXf - NXs + 1 - 2
-   !    NY = NYf - NYs + 1 - 2
-   !    NZ = NZf - NZs + 1 - 2
-   !    allocate (SOL_pm2(NX, NY, NZ))
-   !    allocate (Apois(NZ), Bpois(NZ), Cpois(NZ))
-
-   !    CX = 1.d0/DXpm**2
-   !    CY = 1.d0/DYpm**2
-   !    CZ = 1.d0/DZpm**2
-   !    Apois(1:NZ) = CZ
-   !    Bpois(1:NZ) = -2.d0*CZ
-   !    Cpois(1:NZ) = CZ
-   !    Apois(1) = 0.d0
-   !    Cpois(NZ) = 0.d0
-   !    !-->Set Right hand Side term (except for boundary conditions)
-   !    SOL_pm2(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
-   !    !-->Set Boundary Conditions
-   !    !---> XMIN,XMAX
-
-   !    !    Psiz_pm2(1:5,:)  = 0.d0
-   !    !    Psiz_pm2(NX:NX-5,:) = 0.d0
-   !    !    Psiz_pm2(:,1:5)  = 0.d0
-   !    !    Psiz_pm2(:,NY:NY-5) = 0.d0
-   !    do k = 1, NZ
-   !       do j = 1, NY
-   !          SOL_pm2(1, j, k) = SOL_pm2(1, j, k) - CX*SOL_pm(NXs, j + NYs - 1 + 1, k + NZs - 1 + 1, neq)
-   !          SOL_pm2(NX, j, k) = SOL_pm2(NX, j, k) - CX*SOL_pm(NXf, j + NYs - 1 + 1, k + NZs - 1 + 1, neq)
-   !       end do
-   !    end do
-   !    !---> YMIN,YMAX
-   !    do k = 1, NZ
-   !       do i = 1, NX
-   !          SOL_pm2(i, 1, k) = SOL_pm2(i, 1, k) - CY*SOL_pm(i + NXs - 1 + 1, NYs, k + NZs - 1 + 1, neq)
-   !          SOL_pm2(i, NY, k) = SOL_pm2(i, NY, k) - CY*SOL_pm(i + NXs - 1 + 1, NYf, k + NZs - 1 + 1, neq)
-   !       end do
-   !    end do
-
-   !    do j = 1, NY
-   !       do i = 1, NX
-   !          SOL_pm2(i, j, 1) = SOL_pm2(i, j, 1) - CZ*SOL_pm(i + NXs - 1 + 1, j + NYs - 1 + 1, NZs, neq)
-   !          SOL_pm2(i, j, NZ) = SOL_pm2(i, j, NZ) - CZ*SOL_pm(i + NXs - 1 + 1, j + NYs - 1 + 1, NZf, neq)
-   !       end do
-   !    end do
-
-   !    call POIS3D(1, NX, CX, 1, NY, CY, 1, NZ, Apois, Bpois, Cpois, &
-   !                NX, NY, Sol_pm2, IERROR)
-   !    SOL_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
-   !    if (IERROR .ne. 0) write (*, *) 'WRONG SOLUTION', ierror
-   ! End subroutine solve_eq_3d_i
-
-   ! subroutine solve_eq_0_3d_i(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-   !    Implicit None
-   !    integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-   !    Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-   !    real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-   !    real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
-
-   !    !--> Assignment of Boundary Values
-
-   !    XminCalc = XMIN_pm + (NXs - 1)*DXpm
-   !    XmaxCalc = XMIN_pm + (NXf - 1)*DXpm
-
-   !    YminCalc = YMIN_pm + (NYs - 1)*DYpm
-   !    YmaxCalc = YMIN_pm + (NYf - 1)*DYpm
-
-   !    ZminCalc = ZMIN_pm + (NZs - 1)*DZpm
-   !    ZmaxCalc = ZMIN_pm + (NZf - 1)*DZpm
-
-   !    NX = NXf - NXs + 1 - 2
-   !    NY = NYf - NYs + 1 - 2
-   !    NZ = NZf - NZs + 1 - 2
-   !    allocate (SOL_pm2(NX, NY, NZ))
-   !    allocate (Apois(NZ), Bpois(NZ), Cpois(NZ))
-
-   !    CX = 1.d0/DXpm**2
-   !    CY = 1.d0/DYpm**2
-   !    CZ = 1.d0/DZpm**2
-   !    Apois(1:NZ) = CZ
-   !    Bpois(1:NZ) = -2.d0*CZ
-   !    Cpois(1:NZ) = CZ
-   !    Apois(1) = 0.d0
-   !    Cpois(NZ) = 0.d0
-   !    !-->Set Right hand Side term (except for boundary conditions)
-
-   !    SOL_pm2(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
-   !    !-->Set Boundary Conditions
-   !    !---> XMIN,XMAX
-
-   !    !    Psiz_pm2(1:5,:)  = 0.d0
-   !    !    Psiz_pm2(NX:NX-5,:) = 0.d0
-   !    !    Psiz_pm2(:,1:5)  = 0.d0
-   !    !    Psiz_pm2(:,NY:NY-5) = 0.d0
-
-   !    call POIS3D(1, NX, CX, 1, NY, CY, 1, NZ, Apois, Bpois, Cpois, &
-   !                NX, NY, Sol_pm2, IERROR)
-
-   !    SOL_0_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
-
-   !    if (IERROR .ne. 0) write (*, *) 'WRONG SOLUTION', ierror
-   ! End subroutine solve_eq_0_3d_i
-
 End Submodule pmsolve

@@ -5,9 +5,9 @@ def fUi_HillsVortex_1(CP, a, us, z0):
 
     Args:
         CP (_type_): Control Point
-        a (_type_): 
-        us (_type_):
-        z0 (_type_):
+        a: The radius of the sphere 
+        us: The constant free stream velocity far away from the sphere
+        z0: The z-coordinate of the sphere center
 
     Returns:
         _type_: _description_

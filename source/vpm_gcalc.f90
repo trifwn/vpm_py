@@ -164,7 +164,7 @@ subroutine diffuse_vort_3d
    DZpm2 = DZpm**2
    Sol_pm = 0.d0
    !$omp parallel private(i,j,k,dwxdx,dwydy,dwzdz,VIS) shared(RHS_pm,SOL_pm)
-   ! num_threads(OMPTHREADS)
+   !!$omp num_threads(OMPTHREADS)
    !$omp do
    do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
       do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
@@ -174,7 +174,6 @@ subroutine diffuse_vort_3d
             else
                VIS = RHS_pm(4, i, j, k) + NI
             end if
-            !write(*,*) VIS,neqpm
             !--> Remember that RHS = -w
             dwxdx = (RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
                      + RHS_pm(1, i - 1, j, k))/DXpm2
@@ -245,7 +244,6 @@ subroutine calc_antidiffusion
    do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
       do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
          do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
-            !write(*,*) VIS,neqpm
             !--> Remember that RHS = -w
             dwxdx = -(RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
                       + RHS_pm(1, i - 1, j, k))/DXpm2
@@ -280,7 +278,6 @@ subroutine calc_antidiffusion
    do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
       do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
          do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
-            !write(*,*) VIS,neqpm
             !Minus because of (-w) has been included in laplvort
             dwxdx = (laplvort(1, i + 1, j, k) - 2*laplvort(1, i, j, k) &
                      + laplvort(1, i - 1, j, k))/DXpm2
