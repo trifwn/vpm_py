@@ -20,10 +20,14 @@ class Particle3DPlot:
         self.ax.set_zlabel("Z")
         self.ax.set_title("Particles in 3D")
 
+
         self.sc = self.ax.scatter([], [], [], c=[], marker="o")
         # Color bar
         self.fig.colorbar(self.sc, ax=self.ax, label="Strenghts")
         plt.ion()
+        # Set the view from top down minus z
+        self.ax.view_init(elev=90, azim=0)
+
         self.fig.show()
 
     def update(self, x, y, z, c):
@@ -55,6 +59,7 @@ class Particle3DPlot:
         # self.ax.autoscale()
         self.fig.canvas.draw()
         plt.pause(0.01)
+        print_green(f"\tPlot updated")
 
     def close(self):
         """

@@ -24,6 +24,7 @@ class VPM(object):
         number_of_processors: int = 1,
         max_particle_num: int = 1000,
         rank: int = 0,
+        verbocity: int = 1,
         dx_particle_mesh: float = 0.2,
         dy_particle_mesh: float = 0.2,
         dz_particle_mesh: float = 0.2,
@@ -49,7 +50,7 @@ class VPM(object):
         self.num_equations = number_of_equations
 
         # Initialize the VPM
-        self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK)
+        self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK, VERBOSITY=verbocity)
         self.particle_mesh = ParticleMesh()
         self.particles = Particles(number_equations= self.num_equations)
 
@@ -65,17 +66,16 @@ class VPM(object):
         projection_type: int = 4, 
         boundary_condition: int =2, 
         variable_volume: bool = True, 
-        EPSVOL: float = 0., 
         remesh: bool = True, 
-        ncell_rem: int = 1, 
         use_tree: bool = True, 
         ilevmax: int = 1,
         OMPTHREADS: int = 1,
         is_box_fixed: bool = False, 
         slice: bool = True, 
         IPMWRITE: int = 1, 
-        IPMWSTART: int = 1, 
-        IPMWSTEPS: int = 150
+        IPMWSTART: int = 0, 
+        IPMWSTEPS: int = 150,
+        VERBOSITY: int = 0
     ):
         """Wrapper function for calling Fortran subroutine `init`.
 
@@ -90,9 +90,7 @@ class VPM(object):
             projection_type (int, optional): Projection type. Defaults to 4.
             boundary_condition (int, optional): Boundary condition. Defaults to 2.
             variable_volume (bool, optional): Variable volume. Defaults to True.
-            EPSVOL (float, optional): Volume tolerance. Defaults to 1e-6.
             remesh (bool, optional): Remesh. Defaults to True.
-            ncell_rem (int, optional): Number of cells to remesh. Defaults to 1.
             use_tree (bool, optional): Use tree. Defaults to True.
             ilevmax (int, optional): Maximum level. Defaults to 1.
             OMPTHREADS (int, optional): Number of threads. Defaults to 1.
@@ -100,15 +98,17 @@ class VPM(object):
             slice (bool, optional): Slice. Defaults to True.
             IPMWRITE (int, optional): Write IPM. Defaults to 1.
             IPMWSTART (int, optional): Write IPM start. Defaults to 1.
-            IPMWSTEPS (int, optional): Write IPM steps. Defaults to 1. 
+            IPMWSTEPS (int, optional): Write IPM steps. Defaults to 1.
+            VERBOSITY (int, optional): Verbosity. Defaults to 0. 
         """
         self.dpm = np.array([DXpm, DYpm, DZpm])
         self._lib.init(
             byref(c_double(DXpm)), byref(c_double(DYpm)), byref(c_double(DZpm)), byref(c_int(projection_type)),
-            byref(c_int(boundary_condition)), byref(c_int(variable_volume)), byref(c_double(EPSVOL)), byref(c_int(ncoarse)),
-            byref(c_int(NBI)), byref(c_int(NBJ)), byref(c_int(NBK)), byref(c_int(remesh)), byref(c_int(ncell_rem)),
+            byref(c_int(boundary_condition)), byref(c_int(variable_volume)), byref(c_int(ncoarse)),
+            byref(c_int(NBI)), byref(c_int(NBJ)), byref(c_int(NBK)), byref(c_int(remesh)), 
             byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_box_fixed)),
-            byref(c_int(slice)), byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS))
+            byref(c_int(slice)), byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
+            byref(c_int(VERBOSITY))
         )
         if(self.rank == 0):
             print_green(f"Finished initializing VPM {self.rank}:")
@@ -119,13 +119,11 @@ class VPM(object):
             print(f"\tinterf_iproj= {projection_type}")
             print(f"\tibctyp= {boundary_condition}")
             print(f"\tIDVPM= {variable_volume}")
-            print(f"\tEPSVOL= {EPSVOL}")
             print(f"\tncoarse= {ncoarse}")
             print(f"\tNBI= {NBI}")
             print(f"\tNBJ= {NBJ}")
             print(f"\tNBK= {NBK}")
             print(f"\tNREMESH= {remesh}")
-            print(f"\tncell_rem= {ncell_rem}")
             print(f"\tiyntree= {use_tree}")
             print(f"\tilevmax= {ilevmax}")
             print(f"\tOMPTHREADS= {OMPTHREADS}")
@@ -137,7 +135,6 @@ class VPM(object):
 
     def vpm(
         self, 
-        num_particles: int, 
         num_equations: int,
         particle_positions: np.ndarray    | F_Array,
         particle_strengths: np.ndarray    | F_Array,
@@ -150,7 +147,6 @@ class VPM(object):
         """_summary_
 
         Args:
-            num_particles (int): Number of particles
             num_equations (int): Number of equations to model
             particle_positions (np.ndarray): Particle positions array of shape (3, NVR_in)
             particle_strengths (np.ndarray): Particle strenghts array of shape (num_equations + 1, NVR_in)
@@ -169,7 +165,16 @@ class VPM(object):
             particle_velocities = particle_velocities.data
         if isinstance(particle_deformations, F_Array):
             particle_deformations = particle_deformations.data
-        
+
+        # Check that the arrays have the same number of particles
+        num_particles = particle_positions.shape[1]
+        if not (particle_strengths.shape[1] == num_particles):
+            raise ValueError("Number of particles in particle_strengths does not match particle_positions")
+        if not (particle_velocities.shape[1] == num_particles):
+            raise ValueError("Number of particles in particle_velocities does not match particle_positions")
+        if not (particle_deformations.shape[1] == num_particles):
+            raise ValueError("Number of particles in particle_deformations does not match particle_positions")
+
         # Get the pointers to arrays for the particles
         XP_ptr = dp_array_to_pointer(particle_positions, copy = True)
         UP_ptr = dp_array_to_pointer(particle_velocities, copy = True)
@@ -222,11 +227,12 @@ class VPM(object):
             RHS_arr = F_Array.from_ctype(RHS_pm_ptr, ownership=True, name = "RHS")
             self.particle_mesh.RHS = RHS_arr.transfer_data_ownership()
 
-    def remesh_particles_3d(self, iflag: int):
+    def remesh_particles_3d(self, iflag: int, particles_per_cell: int= 1):
         """Remesh particles in 3D
 
         Args:
             iflag (int): Flag to remesh particles
+            particles_per_cell (int): Number of particles per cell
         """
         NVR = self.particles.NVR
         neq = self.num_equations
@@ -236,7 +242,8 @@ class VPM(object):
         GP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
         NVR = c_int(NVR)
         self._lib.remesh_particles_3d(
-            byref(c_int(iflag)), byref(XP_struct), byref(QP_struct),
+            byref(c_int(iflag)), byref(c_int(particles_per_cell)),
+            byref(XP_struct), byref(QP_struct),
             byref(UP_struct), byref(GP_struct), byref(NVR)
         )
         XP_arr = F_Array.from_ctype(XP_struct, ownership=True, name = "XP_remesh")
@@ -293,20 +300,20 @@ class VPM(object):
         print_IMPORTANT(f"Particle variables {self.rank}/{self.num_processors - 1}")
         self._lib.print_parvar()
     
-    def set_rhs_pm(self, RHS_PM: np.ndarray):
+    def set_rhs_pm(self, RHS_pm: np.ndarray):
         """
         Set the right-hand side of the particle mesh.
         """
-        RHS_PM = np.ascontiguousarray(RHS_PM, dtype=np.float64)
+        RHS_pm = np.asfortranarray(RHS_pm, dtype=np.float64)
         # Pass as array of shape (num_equations, NXB, NYB, NZB) not pointer
-        RHS_PM_ = RHS_PM.ctypes.data_as(POINTER(c_double))
-        sizes = np.array(RHS_PM.shape, dtype=np.int32)
+        RHS_pm_ = RHS_pm.ctypes.data_as(POINTER(c_double))
+        sizes = np.array(RHS_pm.shape, dtype=np.int32)
         size1 = sizes[0]
         size2 = sizes[1]
         size3 = sizes[2]
         size4 = sizes[3]
         self._lib.set_RHS_pm(
-            RHS_PM_, 
+            RHS_pm_, 
             byref(c_int(size1)), 
             byref(c_int(size2)), 
             byref(c_int(size3)), 

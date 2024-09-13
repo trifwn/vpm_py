@@ -42,7 +42,7 @@ def main():
     
     # Define the input parameters
     NVR = 200
-    neqpm = 4
+    neqpm = 3
     NXB = 10
     NYB = 10
     NZB = 10
@@ -56,7 +56,7 @@ def main():
 
     XP_in = np.array(np.meshgrid(x, y, z)).reshape(3, -1)
     # Define the particle quantities as random numbers
-    par_strenghts = np.ones((neqpm, NVR))
+    par_strenghts = np.ones((neqpm + 1, NVR))
 
     par_velocities = np.zeros((3, NVR), dtype=np.float64)
     par_velocities[0,:] = -1.0
@@ -83,7 +83,6 @@ def main():
             print_IMPORTANT(f"Calling the vpm subroutine. WhatToDo = {WhatToDo}")
             print_green(f"Number of particles: {NVR}")
         vpm.vpm(
-            num_particles= NVR,
             num_equations= neqpm,
             mode= WhatToDo,
             particle_positions= XP_in,

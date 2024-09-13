@@ -1,5 +1,7 @@
 Module vpm_size
-   use base_types, only: dp
+   use base_types, only: dp      
+   use io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
+                     dp_1d_alloc_info
    real(dp), save              :: Xbound(6), Dpm(3)
    integer, save               :: NN_bl(6), NN(3)
 
@@ -32,8 +34,7 @@ contains
    end subroutine get_Xbound
 
    subroutine print_vpm_size_info()
-      use io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
-                     dp_1d_alloc_info
+
       print *, "VPM_SIZE INFO"
       print *, "============"
       print *, ""

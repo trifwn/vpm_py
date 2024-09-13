@@ -1,4 +1,7 @@
 submodule(pmlib) pmsolve
+   use MKL_POISSON, only: DFTI_DESCRIPTOR,                                          &
+      d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D,&
+      d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
    implicit none
 contains
 
@@ -8,7 +11,6 @@ contains
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
    module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
-      use MKL_POISSON
 
       Implicit None
       integer, intent(in)              :: NXs, NXf, NYs, NYf, neq
@@ -100,7 +102,6 @@ contains
    End subroutine solve_eq!_i
 
    module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
-      use MKL_POISSON
       Implicit None
       integer, intent(in)     :: NXs, NXf, NYs, NYf, neq
       Integer                 :: i, j, NX, NY
@@ -189,7 +190,6 @@ contains
    End subroutine solve_eq_0
 
    module subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-      use MKL_POISSON
       Implicit None
       integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
       integer            :: i, j, k, NX, NY, NZ
@@ -298,7 +298,6 @@ contains
    End subroutine solve_eq_3d
 
    module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-      use MKL_POISSON
 
       Implicit None
       integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
@@ -403,7 +402,7 @@ contains
       if (stat .ne. 0) then 
          write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
          stop
-      enendif
+      endif
 
       ! Initializing complex data structures of Poisson Library for 3D Laplace Solver
       ! NOTE: Right-hand side f may be altered after the Commit step. If you want to keep it,

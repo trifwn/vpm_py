@@ -35,7 +35,7 @@ contains
       integer::typelist(2)
       integer ::imat(2), mat(2), start(2)
       integer ::istart
-      integer ::orig1, orig2, nsize1, nsize2, mat2
+      integer ::orig1, orig2, nsize1, nsize2, mat2, my_rank, ieer
       !allocate(struct%AS_ij(nsize,nsize))
       imat(1) = orig1
       imat(2) = orig2
@@ -50,7 +50,17 @@ contains
       typelist(2) = MPI_DOUBLE_PRECISION
 
       call MPI_TYPE_CREATE_SUBARRAY(2, imat, mat, start, MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, mat2, ierr)
+      if (ierr /= 0) then
+         print *, 'Error in MPI_TYPE_CREATE_SUBARRAY. Got error:', ierr 
+         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ieer)
+         print *, 'my_rank:', my_rank
+      end if
       call MPI_TYPE_COMMIT(mat2, ierr)
+      if (ierr /= 0) then
+         print *, 'Error in MPI_TYPE_COMMIT. Got error:', ierr 
+         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ieer)
+         print *, 'my_rank:', my_rank
+      end if
    End subroutine mpimat2_pm
 
    subroutine mpimat3_pm(mat3, nsize1, nsize2, nsize3)

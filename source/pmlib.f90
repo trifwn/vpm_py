@@ -9,6 +9,7 @@
 module pmlib
    use base_types, only : dp
    use constants, only : pi, pi2, pi4
+   use io, only: vpm_print, red, blue, green, nocolor,yellow, dummy_string, tab_level, VERBOCITY
    implicit none
    real(dp), save                :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
    real(dp), save                :: DXpm, DYpm, DZpm
@@ -303,206 +304,99 @@ contains
       nullify (SOL_pm, RHS_pm, QP, XP)
    end subroutine pmesh
 
-   !--------------------------------------------------------------------------------
-   !>@function
-   ! subroutine  definepm
+   !> @brief Defines the characteristics of the poisson solver grid.
+   !! @author Papis
+   !!> The input parameters are:
+   !!> - itype: Integer representing the type of domain extension.
+   !!> - Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax, and Zmax of  &
+   !!>            the original domain.
+   !!> - Dpm(3): Array of size 3 containing the values DX, DY, and DZ.   
+   !!> - num_dimensions: Number of dimensions of the domain.
+   !!> - ndum: Number of Dpm's by which the domain will be extended.
+   !!> - nsize(3): 
+   !!> The output parameters are:
+   !!> - Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax, and Zmax of &
+   !!>             the extended domain.
+   !!> - NN(3): Array of size 3 containing the nodes of the extended domain (1-->NXpm).
+   !!> - NN_bl(6): Array of size 6 containing the starting and ending nodes of the original domain   &
+   !!>             (defined by Xbound at input).
+   !!> - Dpm(3): Array of size 3 containing the new values DX, DY, and DZ.
+   !!>
+   !!@param[in] itype: Integer representing the type of domain extension.
+   !!@param[inout] Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax,   &
+   !!              and Zmax of the original domain.
+   !!@param[inout] Dpm(3): Array of size 3 containing the values DX, DY, and DZ.
+   !!@param[in] num_dimensions: Number of dimensions of the domain.
+   !!@param[in] ndum: Number of Dpm's by which the domain will be extended.
+   !!@param[in] nsize(3):
+   !!@param[out] NN(3): Array of size 3 containing the nodes of the extended domain (1-->NXpm).
+   !!@param[out] NN_bl(6): Array of size 6 containing the starting and ending nodes of the original  &
+   !!              domain (defined by Xbound at input).
    !>
-   !>@author Papis
-   !>
-   !>@brief
-   !>definepm  defines the characteristics of the poisson solver grid
-   !> the Input  is Dpm(3) (DX,DY,DZ)
-   !>               ndum   (the number of Dpm's which the domain will be extended see above)
-   !>               Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the original domain
-   !> the Output is Xbound(6) but of the extended domain
-   !>               NN(3) (NX,NY,NZ) the nodes of the extended domain (1-->NXpm)
-   !>               NN_bl(6) the starting and ending nodes of the original domain(defined by xbound at input)
-   !>               (NXs,NYs,NZs,NXf,NYf,NZf)
-   !>
-   !REVISION HISTORY
-   !> TODO_dd
-   !>
-   !>@param [in]
-   !>@param [out]
-   !--------------------------------------------------------------------------------
    subroutine definepm(itype, Xbound, Dpm, num_dimensions, ndum, nsize, NN, NN_bl)
       Implicit None
-      integer, intent(in)     :: itype, num_dimensions, nsize(3)
-      integer, intent(in)     :: ndum
-      real(dp), intent(inout) :: Xbound(6)
-      real(dp), intent(inout) :: Dpm(3)
+      integer, intent(in)     :: itype, num_dimensions, nsize(3), ndum
+      real(dp), intent(inout) :: Xbound(6), Dpm(3)
       integer, intent(out)    :: NN(3), NN_bl(6)
-      integer                 :: ndum_new(3), nn1, nn2
-      ! real(dp)              :: Xbound_old(6)
+      integer                 :: ndum_new(3), nn1, nn2, i, remainder
 
-      !-> Define Pmesh X,Y,Z min/max boundaries
-      if (num_dimensions .eq. 2) then
-         Xbound(6) = 0
-         Xbound(3) = 0
-      end if
 
-      ndum_new = ndum
+      do i = 1, num_dimensions
+         Xbound(i) = Xbound(i) - (ndum * Dpm(i))
+         Xbound(i + 3) = Xbound(i + 3) + (ndum * Dpm(i))
+         NN(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
+      end do
       
       select case(itype)
+      !Itype 1:
+      ! extends the domain by ndum_new cells
       case(1)
-         !Itype 1:
-         ! extends the domain by ndum_new cells
-         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-
-         Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
-         Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-         
-         !Find number of nodes with the Dpm given from input
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-
-         ! Do the same for the 3d direction
-         if (num_dimensions .eq. 3) then
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-         end if
+         ndum_new = 0
+         ! Already done    
+      !Itype 2:
+      !extends the domain by ndum_new cells
+      !Makes the domain divisible by nsize by changing the DPM
       case(2)
-         !Itype 2:
-         ! extends the domain by ndum_new cells and changes Dpm so that the number
-         !of cells are divided exactly by nsize
-         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-
-         Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
-         Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-
-         if (num_dimensions .eq. 3) then
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-         end if
-
-         !Find number of nodes with the Dpm given from input
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         if (num_dimensions .eq. 3) NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-         NN(1) = NN(1) + nsize(1) - mod(NN(1) - 1, nsize(1))
-         NN(2) = NN(2) + nsize(2) - mod(NN(2) - 1, nsize(2))
-         if (num_dimensions .eq. 3) NN(3) = NN(3) + nsize(3) - mod(NN(3) - 1, nsize(3))
-         Dpm(1) = (abs(Xbound(4) - Xbound(1))/(NN(1) - 1))
-         Dpm(2) = (abs(Xbound(5) - Xbound(2))/(NN(2) - 1))
-         if (num_dimensions .eq. 3) Dpm(3) = (abs(Xbound(6) - Xbound(3))/(NN(3) - 1))
-      case(4)
-         !Itype 4:
-         ! extends the domain by ndum_new cells 
-         ! and adds dummy cells at both directions
-         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         ndum_new(1) = nsize(1) - mod(NN(1) - 1, nsize(1))
-         !if (mod(ndum_new(1),2).ne.0) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(1),NN(1)
-         ! !   stop
-         !endif
-         !if (mod(ndum_new(2),2).ne.0) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(2),NN(2)
-         ! !   stop
-         !endif
-         !if (mod(ndum_new(3),2).ne.0.and.num_dimensions.eq.3) then
-         !   write(*,*) 'error sizes',ndum_new,nsize(3),NN(3)
-         ! !   stop
-         !endif
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-         ndum_new(1) = ndum_new(1) + ndum
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
+         ndum_new = 0
+         do i = 1,num_dimensions
+            NN(i) = NN(i) + nsize(i) - mod(NN(i) - 1, nsize(i))
+            Dpm(i) = (abs(Xbound(i + 3) - Xbound(i))/(NN(i) - 1))
+         end do
+      !Itype 3: 
+      ! extends the domain by ndum_new cells 
+      ! Makes the domain divisible by nsize by adding new dummy nodes and keeps the original DPM
       case(3)
-         !Itype 3: 
-         ! extends the domain by ndum_new cells 
-         ! and adds dummy cells at both directions so that the total cells are divided by nsize
-         Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-         Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-
-         Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
-         Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-         NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-
-         if (num_dimensions .eq. 3) then
-            Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-            Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-            NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-         end if
-         
-         ndum_new(1) = nsize(1) - mod(NN(1) - 1, nsize(1)) ! X direction
-         ndum_new(2) = nsize(2) - mod(NN(2) - 1, nsize(2)) ! Y direction
-         ndum_new(3) = nsize(3) - mod(NN(3) - 1, nsize(3)) ! Z direction
-
-         if (mod(ndum_new(1), 2) .eq. 0) then
-            ndum_new(1) = ndum_new(1)/2
-            Xbound(1) = Xbound(1) - ((ndum_new(1))*Dpm(1))
-            Xbound(4) = Xbound(4) + ((ndum_new(1))*Dpm(1))
-            ndum_new(1) = ndum_new(1) + ndum
-            NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         else
-            nn1 = mod(ndum_new(1), 2)
-            nn2 = int(ndum_new(1))/int(2)
-            Xbound(1) = Xbound(1) - ((nn1 + nn2)*Dpm(1))
-            Xbound(4) = Xbound(4) + ((nn2)*Dpm(1))
-            NN(1) = int(nint(abs(Xbound(4) - Xbound(1))/(Dpm(1)))) + 1
-         end if
-
-         if (mod(ndum_new(2), 2) .eq. 0) then
-            ndum_new(2) = ndum_new(2)/2
-            Xbound(2) = Xbound(2) - ((ndum_new(2))*Dpm(2))
-            Xbound(5) = Xbound(5) + ((ndum_new(2))*Dpm(2))
-            ndum_new(2) = ndum_new(2) + ndum !add the initial dummy cells
-            NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         else
-            nn1 = mod(ndum_new(2), 2)
-            nn2 = int(ndum_new(2))/int(2)
-            Xbound(2) = Xbound(2) - ((nn1 + nn2)*Dpm(2))
-            Xbound(5) = Xbound(5) + ((nn2)*Dpm(2))
-            NN(2) = int(nint(abs(Xbound(5) - Xbound(2))/(Dpm(2)))) + 1
-         end if
-
-         if (num_dimensions .eq. 3) then
-            if (mod(ndum_new(3), 2) .eq. 0) then
-               ndum_new(3) = ndum_new(3)/2
-               Xbound(3) = Xbound(3) - ((ndum_new(3))*Dpm(3))
-               Xbound(6) = Xbound(6) + ((ndum_new(3))*Dpm(3))
-               ndum_new(3) = ndum_new(3) + ndum !add the initial dummy cells
-               NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-            else
-               nn1 = mod(ndum_new(3), 2)
-               nn2 = int(ndum_new(3))/int(2)
-               Xbound(3) = Xbound(3) - ((nn1 + nn2)*Dpm(3))
-               Xbound(6) = Xbound(6) + ((nn2)*Dpm(3))
-               NN(3) = int(nint(abs(Xbound(6) - Xbound(3))/(Dpm(3)))) + 1
-            end if
-         endif   
+         do i = 1, num_dimensions
+            ! The new number of nodes is increased so that it is divided by nsize
+            remainder = mod(NN(i) - 1, nsize(i))
+            if ((remainder .eq. 0).or.(remainder.eq.nsize(i))) then
+               ndum_new(i) = 0
+               cycle
+            endif
+            ! Add remainder to make nodes divisible by nsize
+            ndum_new(i) = nsize(i) - remainder
+            ! Here we add the new nodes symmetrically or asymmetrically to the domain
+            nn1 = mod(ndum_new(i), 2)  ! Asymmetric addition part
+            nn2 = int(ndum_new(i)/ 2)  ! Symmetric addition part
+            Xbound(i) = Xbound(i) - ((nn1 + nn2) * Dpm(i))
+            Xbound(i + 3) = Xbound(i + 3) + (nn2 * Dpm(i))
+            NN(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
+         end do
       end select
       
-      !2d do not have Z nodes
-      if (num_dimensions .eq. 2) NN(3) = 1
-      
       !Define the nodes which the original domain starts (corresponding to Xbound_in)
-      !NN_bl(1) = ndum_new(1)+ ndum + 1
-      !NN_bl(1) = ndum_new(1)+ ndum + 1
-      NN_bl(1) = ndum + 1
-      NN_bl(4) = NN(1) - ndum
-      
-      !NN_bl(2) = ndum_new(2)+ ndum + 1
-      !NN_bl(5) = NN(2) - ndum
-      NN_bl(2) = ndum + 1
-      NN_bl(5) = NN(2) - ndum
-      
-      !2d do not have Z nodes
+      do i=1,num_dimensions
+         NN_bl(i) = ndum + 1 !+ ndum_new(i)
+         NN_bl(i + 3) = NN(i) - ndum !- ndum_new(i)
+      enddo
+     
+      ! In the 2D case, zero the 3d dimension
       if (num_dimensions .eq. 2) then
          NN(3) = 1
          NN_bl(3) = 1
          NN_bl(6) = 1
-      else if (num_dimensions .eq. 3) then
-         !NN_bl(3) = ndum_new(3) + ndum + 1
-         !NN_bl(6) = NN(3) - ndum
-         NN_bl(3) = ndum + 1
-         NN_bl(6) = NN(3) - ndum
+         Xbound(6) = 0
+         Xbound(3) = 0
       end if
    end subroutine definepm
 

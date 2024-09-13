@@ -34,11 +34,10 @@ class VPM_Lib:
         # API.init
         cls._lib_vpm.init.argtypes = [
             POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_int),
-            POINTER(c_int), POINTER(c_int), POINTER(c_double), POINTER(c_int),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int),
-            POINTER(c_int)
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int)
         ]
         cls._lib_vpm.init.restype = None
 
@@ -57,7 +56,8 @@ class VPM_Lib:
         
         # API.remesh_particles_3d
         cls._lib_vpm.remesh_particles_3d.argtypes = [
-            POINTER(c_int), POINTER(F_Array_Struct), POINTER(F_Array_Struct),
+            POINTER(c_int), POINTER(c_int), 
+            POINTER(F_Array_Struct), POINTER(F_Array_Struct),
             POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(c_int)
         ]
         cls._lib_vpm.remesh_particles_3d.restype = None

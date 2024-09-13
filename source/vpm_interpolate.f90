@@ -1,55 +1,58 @@
-!---------------------------------------------------------------------------!
-!-> subroutine back_to_particles                                            !
-!   This subroutine interpolates PM grid values back to particles at the    !
-!   positions they ARE.Convections takes place afterwards.                  !
-!   Input :                                                                 !
-!          itype (1,2) defines what value to interpolate to the particles   !
-!---------------------------------------------------------------------------!
-subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP, &
-                                velvrx_pm, velvry_pm, velvrz_pm, &
-                                Xbound, Dpm, NN, NVR, neqpm, iproj, itype, NVRM)
+submodule(vpm_lib) vpm_interpolate_par
+   implicit none
+contains
+   !---------------------------------------------------------------------------!
+   !-> subroutine back_to_particles                                            !
+   !   This subroutine interpolates PM grid values back to particles at the    !
+   !   positions they ARE.Convections takes place afterwards.                  !
+   !   Input :                                                                 !
+   !          itype (1,2) defines what value to interpolate to the particles   !
+   !---------------------------------------------------------------------------!
+   module subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP,    &
+                                 velvrx_pm, velvry_pm, velvrz_pm,    &
+                                 deformx_pm, deformy_pm, deformz_pm, &
+                                 NVR, iproj, itype, NVRM)
+      use openmpth
+      use projlib, only: projection_fun
+      use base_types, only: dp
+      use vpm_size, only: NN, XBound, Dpm
+      use vpm_vars, only: neqpm
+      Implicit None
+      integer, intent(in)     :: NVR, iproj, NVRM, itype
+      real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: deformx_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: deformy_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: deformz_pm(NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
+      real(dp), intent(inout) :: QP(neqpm+1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
-   use openmpth
-   use projlib, only: projection_fun
-   use base_types, only: dp
-   Implicit None
-   integer, intent(in)             :: NN(3), NVR, iproj,  neqpm, NVRM, itype
-   ! real(dp), intent(in), dimension(:,:,:,:) :: RHS_pm, SOL_pm
-   ! real(dp), intent(in), dimension(:,:,:) :: velvrx_pm, velvry_pm, velvrz_pm
-   real(dp), intent(inout) :: QP(neqpm + 1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
-   ! OLD
-   ! real(dp), intent(in)    :: RHS_pm(neqpm + 1, NN(1), NN(2), NN(3))
-   real(dp), intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
-   real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
-   real(dp), intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
-   real(dp), intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
+      real(dp)         :: fx, fy, fz, f, x, y, z
+      integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf
 
-   real(dp), intent(in)    :: Xbound(6), Dpm(3)
-
-   real(dp) :: fx, fy, fz, f, x, y, z, Gloc(3)
-   integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf, DVpm
-   ! integer          :: ivortx, ivorty,
-   if (iproj .eq. 2) then
-      ips = 0
-      ipf = 1
-   else if (iproj .eq. 3) then
-      ips = 1
-      ipf = 2
-   else if (iproj .eq. 4) then
-      ips = 1
-      ipf = 2
-   end if
-   DVpm = Dpm(1)*Dpm(2)*Dpm(3)
-   if (itype .eq. 1) then
-      !Itype==1 normal back to part
+      
+      if (iproj .eq. 2) then
+         ips = 0
+         ipf = 1
+      else if (iproj .eq. 3) then
+         ips = 1
+         ipf = 2
+      else if (iproj .eq. 4) then
+         ips = 1
+         ipf = 2
+      end if
+      
+      UP(1:3, :) = 0.d0
+      GP(1:3, :) = 0.d0
+      
       do nv = 1, NVR
          !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
          inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
          jnode = int((XP(2, nv) - XBound(2))/Dpm(2)) + 1
          knode = int((XP(3, nv) - XBound(3))/Dpm(3)) + 1
          !--We search the 4 nodes close to the particles
-         Gloc(1:3) = 0.d0
          do k = knode - ips, knode + ipf
             do j = jnode - ips, jnode + ipf
                do i = inode - ips, inode + ipf
@@ -64,28 +67,61 @@ subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP, &
 
                   f = fx*fy*fz
 
-                  !QP(1,nv)    = QP(1,nv)    +  f * RHS_pm(1,i,j,k)
-                  !QP(2,nv)    = QP(2,nv)    +  f * RHS_pm(2,i,j,k)
-                  !QP(3,nv)    = QP(3,nv)    +  f * RHS_pm(3,i,j,k)
                   UP(1, nv) = UP(1, nv) + f*(velvrx_pm(i, j, k))
                   UP(2, nv) = UP(2, nv) + f*(velvry_pm(i, j, k))
                   UP(3, nv) = UP(3, nv) + f*(velvrz_pm(i, j, k))
-
-                  Gloc(1:3) = Gloc(1:3) + f*SOL_pm(1:3, i, j, k)
-
+                  GP(1, nv) = GP(1, nv) + f*(deformx_pm(i, j, k))
+                  GP(2, nv) = GP(2, nv) + f*(deformy_pm(i, j, k))
+                  GP(3, nv) = GP(3, nv) + f*(deformz_pm(i, j, k))
                end do
             end do
          end do
 
-         !  QP(1:3,nv)  = QP(1:3,nv) * DVpm!QP(neqpm+1,nv)
-         GP(1:3, nv) = Gloc(1:3)*QP(neqpm + 1, nv)
+         ! Normalize GP using the particle "volume"
+         ! if (itype.ne.1) then
+         GP(1:3, nv) = GP(1:3, nv)*QP(neqpm+1, nv)
+         ! end if
       end do
-   end if
+   end subroutine back_to_particles_3D
 
-   if (itype .eq. 2) then
-      !diffusion
-      GP(1:3, :) = 0.d0
-      !Itype==1 normal back to part
+   !---------------------------------------------------------------------------!
+   !-> subroutine back_to_particles                                            !
+   !   This subroutine interpolates a quantity from the PM grid to the         !
+   !     particle locations XP                                                 !
+   !  Input :                                                                 !
+   !        Q_pm : PM grid values                                              !
+   !        XP   : Particle positions                                          !
+   !        QP   : Particle values                                             !
+   !        NVR   : Number of particles                                        !
+   !        iproj : Projection type                                            !
+   !---------------------------------------------------------------------------!
+   module subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj)
+      use openmpth
+      use projlib, only: projection_fun
+      use base_types, only: dp
+      use vpm_size, only: NN, XBound, Dpm
+      use vpm_vars, only: neqpm
+      Implicit None
+      integer, intent(in)     :: NVR, iproj
+      real(dp), intent(in)    :: Q_pm(neqpm, NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: XP(3, NVR)
+      real(dp), intent(out)   :: QP(neqpm+1, NVR)
+      
+      real(dp)                :: fx, fy, fz, f, x, y, z
+      integer                 :: inode, jnode, knode, i, j, k, nv, ips, ipf
+
+      if (iproj .eq. 2) then
+         ips = 0
+         ipf = 1
+      else if (iproj .eq. 3) then
+         ips = 1
+         ipf = 2
+      else if (iproj .eq. 4) then
+         ips = 1
+         ipf = 2
+      end if
+      
+      QP(1:neqpm, :) = 0
       do nv = 1, NVR
          !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
          inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
@@ -105,83 +141,13 @@ subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP, &
                   fz = projection_fun(iproj, z)
 
                   f = fx*fy*fz
-
-                  GP(1, nv) = GP(1, nv) + f*Sol_pm(1, i, j, k)
-                  GP(2, nv) = GP(2, nv) + f*Sol_pm(2, i, j, k)
-                  GP(3, nv) = GP(3, nv) + f*Sol_pm(3, i, j, k)
+                  QP(1:neqpm, nv) = QP(1:neqpm, nv) + f*Q_pm(1:neqpm, i, j, k)
 
                end do
             end do
          end do
-
-         GP(1, nv) = GP(1, nv)*QP(neqpm + 1, nv)
-         GP(2, nv) = GP(2, nv)*QP(neqpm + 1, nv)
-         GP(3, nv) = GP(3, nv)*QP(neqpm + 1, nv)
+         QP(1:neqpm, nv) = QP(1:neqpm, nv)*QP(neqpm+1, nv)
       end do
-   end if
-end subroutine back_to_particles_3D
+   end subroutine interpolate_particle_Q 
 
-!---------------------------------------------------------------------------!
-!-> subroutine back_to_particles                                            !
-!   This subroutine interpolates PM grid values back to particles at the    !
-!   positions they ARE.Convections takes place afterwards.                  !
-!   Input :                                                                 !
-!          itype (1,2) defines what value to interpolate to the particles   !
-!---------------------------------------------------------------------------!
-subroutine back_to_particles_3D_rem(RHS_pm, XP, QP, Xbound, Dpm, NN, NVR, iproj)
-   use openmpth
-   use projlib, only: projection_fun
-   use base_types, only: dp
-   Implicit None
-   integer, intent(in)             :: NN(3), NVR, iproj
-   ! real(dp), intent(in), dimension(:, :, :, :) :: RHS_pm
-   real(dp), intent(in)    :: RHS_pm(4, NN(1), NN(2), NN(3))
-   ! f2py depend(NN) :: RHS_pm(4, NN(1), NN(2), NN(3))
-   real(dp), intent(inout) :: QP(4, NVR), XP(3, NVR)
-
-   real(dp), intent(in)    :: Xbound(6), Dpm(3)
-
-   real(dp) :: fx, fy, fz, f, x, y, z
-   integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf
-
-   if (iproj .eq. 2) then
-      ips = 0
-      ipf = 1
-   else if (iproj .eq. 3) then
-      ips = 1
-      ipf = 2
-   else if (iproj .eq. 4) then
-      ips = 1
-      ipf = 2
-   end if
-   QP(:, 1:3) = 0
-   do nv = 1, NVR
-      !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
-      inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
-      jnode = int((XP(2, nv) - XBound(2))/Dpm(2)) + 1
-      knode = int((XP(3, nv) - XBound(3))/Dpm(3)) + 1
-
-      !--We search the 4 nodes close to the particles
-      do k = knode - ips, knode + ipf
-         do j = jnode - ips, jnode + ipf
-            do i = inode - ips, inode + ipf
-               x = (XP(1, nv) - XBound(1) - (i - 1)*Dpm(1))/Dpm(1)
-               fx = projection_fun(iproj, x)
-
-               y = (XP(2, nv) - XBound(2) - (j - 1)*Dpm(2))/Dpm(2)
-               fy = projection_fun(iproj, y)
-
-               z = (XP(3, nv) - XBound(3) - (k - 1)*Dpm(3))/Dpm(3)
-               fz = projection_fun(iproj, z)
-
-               f = fx*fy*fz
-               QP(1:3, nv) = QP(1:3, nv) + f*RHS_pm(1:3, i, j, k)
-
-            end do
-         end do
-      end do
-      QP(1:3, nv) = QP(1:3, nv)*QP(4, nv)
-   end do
-
-end subroutine back_to_particles_3D_rem
-
+end submodule vpm_interpolate_par

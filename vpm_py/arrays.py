@@ -176,6 +176,10 @@ class F_Array(object):
     
     def to_numpy(self):
         return self.data
+
+    def copy(self):
+        data = np.array(self.data, copy=True)
+        return F_Array.from_ndarray(data)
     
     def transfer_data_ownership(self):
         """
@@ -339,7 +343,7 @@ def benchmark(name, func, iter = 1000, *args, **kwargs):
     end = time.time()
     print(f"-"*100)
     print_green(f"Benchmarking {name}")
-    print(f"\tTook {(end-start) * 1000} ms for {iter} iterations")
+    print(f"\tfinished in {(end-start) * 1000} ms for {iter} iterations")
     print(f"\tAverage time: {(end-start) * 1000 / iter} ms")
     print(f"-"*100)
 

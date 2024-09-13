@@ -1,6 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-def fUi_HillsVortex_1(CP, a, us, z0):    
+
+def fUi_HillsVortex_1(control_point, sphere_radius, u_freestream, z_0):    
     """
 
     Args:
@@ -13,92 +16,113 @@ def fUi_HillsVortex_1(CP, a, us, z0):
         _type_: _description_
     """
     # Unpacking control point
-    x, y, z = CP
+    x, y, z = control_point
     
     # Adjust z by z0
-    z -= z0
+    z -= z_0
     
     # Compute distances
-    r3d = np.sqrt(x**2 + y**2 + z**2)
-    rho = np.sqrt(x**2 + y**2)
+    r_3d = np.sqrt(x**2 + y**2 + z**2)
+    r = np.sqrt(x**2 + y**2)
     
     # Initialize vectors
     e_phi = np.zeros(3, dtype=np.float64)
     e_rho = np.zeros(3, dtype=np.float64)
     
     # Tangential and radial coordinates
-    if rho/a < 1e-12:
+    if r/sphere_radius < 1e-12:
         e_phi[:] = 0.0
         e_rho[:] = 0.0
     else:
-        e_phi[0] = -y / rho
-        e_phi[1] = x / rho
-        e_rho[0] = x / rho
-        e_rho[1] = y / rho
+        e_phi[0] = -y / r
+        e_phi[1] = x / r
+        e_rho[0] = x / r
+        e_rho[1] = y / r
     
-    if r3d < a:
+    if r_3d < sphere_radius:
         # Inside the sphere
-        uz = 3.0/5.0 * us * (1.0 - (2.0 * rho**2 + z**2) / a**2) + 2.0/5.0 * us
-        urho = 3.0/5.0 * us * (rho * z) / a**2
-        om_phi = 3.0 * us * rho / a**2
-        defm_phi = 9.0/5.0 * us**2 / a**2 * rho * z
-        Grad = np.zeros(9, dtype=np.float64)
+        u_z = 3.0/5.0 * u_freestream * (1.0 - (2.0 * r**2 + z**2) / sphere_radius**2) + 2.0/5.0 * u_freestream
+        u_rho = 3.0/5.0 * u_freestream * (r * z) / sphere_radius**2
+        omega_phi = 3.0 * u_freestream * r / sphere_radius**2
+        deformation_phi = 9.0/5.0 * u_freestream**2 / sphere_radius**2 * r * z
     else:
         # Outside the sphere
-        uz = 2.0/5.0 * us * (a**2 / (z**2 + rho**2))**(5.0/2.0) * (2.0 * z**2 - rho**2) / (2.0 * a**2)
-        urho = 3.0/5.0 * us * rho * z / a**2 * (a**2 / (z**2 + rho**2))**(5.0/2.0)
-        om_phi = 0.0
-        defm_phi = 0.0
-        Grad = np.zeros(9, dtype=np.float64)
+        u_z = 2.0/5.0 * u_freestream * (sphere_radius**2 / (z**2 + r**2))**(5.0/2.0) * (2.0 * z**2 - r**2) / (2.0 * sphere_radius**2)
+        u_rho = 3.0/5.0 * u_freestream * r * z / sphere_radius**2 * (sphere_radius**2 / (z**2 + r**2))**(5.0/2.0)
+        omega_phi = 0.0
+        deformation_phi = 0.0
     
     # Induced velocity
-    Uind = np.zeros(3, dtype=np.float64)
-    Uind[0] = urho * e_rho[0]
-    Uind[1] = urho * e_rho[1]
-    Uind[2] = uz
+    u_induced = np.zeros(3, dtype=np.float64)
+    u_induced[0] = u_rho * e_rho[0]
+    u_induced[1] = u_rho * e_rho[1]
+    u_induced[2] = u_z
     
     # Deformation
-    Defm = np.zeros(3, dtype=np.float64)
-    Defm[0] = defm_phi * e_phi[0]
-    Defm[1] = defm_phi * e_phi[1]
+    deformation = np.zeros(3, dtype=np.float64)
+    deformation[0] = deformation_phi * e_phi[0]
+    deformation[1] = deformation_phi * e_phi[1]
+    deformation[2] = 0.0
     
     # Vorticity
-    Vort = np.zeros(3, dtype=np.float64)
-    Vort[0] = om_phi * e_phi[0]
-    Vort[1] = om_phi * e_phi[1]
-    
-    return Uind, Grad, Defm, Vort
+    vorticity = np.zeros(3, dtype=np.float64)
+    vorticity[0] = omega_phi * e_phi[0]
+    vorticity[1] = omega_phi * e_phi[1]
+    vorticity[2] = 0.0
 
-def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, a=1.0, us=-1.0, z0=0.0):
-    # Initialize RHS array
-    RHS_pm_bl = np.zeros((neqpm, NN_bl[3] - NN_bl[0] + 1, NN_bl[4] - NN_bl[1] + 1, NN_bl[5] - NN_bl[2] + 1), dtype=float) 
-    # Allocate analytic_sol
+    return u_induced, deformation, vorticity
+
+def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_freestream=-1.0, sphere_z_center=0.0):
+    RHS_pm_bl = np.zeros((
+        neqpm,
+        NN_bl[3] - NN_bl[0] + 1, 
+        NN_bl[4] - NN_bl[1] + 1, 
+        NN_bl[5] - NN_bl[2] + 1
+    ), order='F', dtype=float)
+    # The RHS_pm array contains the right-hand side of the Poisson equation
+    # Meaning it contains the negative vorticity values 
     analytic_sol = np.zeros((6, NN[0], NN[1], NN[2]))
+    # Analytic solution for the Hill's spherical vortex contains:
+    # 3 velocity components (u, v, w) and 3 deformation components (du/dx, dv/dy, dw/dz)
 
-    # Main computation loop
-    for k in range(NN_bl[2], NN_bl[5]):
-        for j in range(NN_bl[1], NN_bl[4]):
-            for i in range(NN_bl[0], NN_bl[3]):
-                CP = np.array([Xbound[0] + (i - 1) * Dpm[0], 
-                               Xbound[1] + (j - 1) * Dpm[1], 
-                               Xbound[2] + (k - 1) * Dpm[2]], dtype=float)
-                
-                Uind = np.zeros(3, dtype=float)
-                Grad = np.zeros(9, dtype=float)
-                Defm = np.zeros(3, dtype=float)
-                Vort = np.zeros(3, dtype=float)
+    # Unpack NN_bl for clarity
+    i_start, j_start, k_start = NN_bl[0], NN_bl[1], NN_bl[2]
+    i_end, j_end, k_end = NN_bl[3], NN_bl[4], NN_bl[5]
 
-                # Call fUi_HillsVortex_1 function (assumed to be defined similarly in Python)
-                Uind, Grad, Defm, Vort = fUi_HillsVortex_1(CP, a, us, z0)
+    # Create range arrays for i, j, k
+    i_range = np.arange(i_start-1, i_end - 1)
+    j_range = np.arange(j_start-1, j_end - 1)
+    k_range = np.arange(k_start-1, k_end - 1)
 
-                # print(i,j,k)
-                # Update RHS_pm_bl with negative vorticity values
-                RHS_pm_bl[:3, i, j, k] = -Vort[:3]
+    # Create a meshgrid to replace the loops
+    i_grid, j_grid, k_grid = np.meshgrid(i_range, j_range, k_range, indexing='ij')
 
-                # Store analytical solution
-                analytic_sol[:3, i, j, k] = Uind
-                analytic_sol[3:6, i, j, k] = Defm
-    
+    # Vectorized computation of CP (Coordinates of Points)
+    CP = np.stack([
+        Xbound[0] + (i_grid) * Dpm[0],
+        Xbound[1] + (j_grid) * Dpm[1],
+        Xbound[2] + (k_grid) * Dpm[2]
+    ], axis=-1)
+
+
+    with open('results/hill_spherical_vortex.dat', 'w') as f:
+        f.write(f'Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
+        f.write(f'Zone T="Hill\'s Spherical Vortex", I={NN[0]-1}, J={NN[1]-1}, K={NN[2]-1}, F=POINT\n')
+        for k in range(k_start -1, k_end -1):
+            for j in range(j_start -1, j_end -1):
+                for i in range(i_start -1, i_end -1):
+                        # Call fUi_HillsVortex_1 function
+                        Uind, Defm, Vort = fUi_HillsVortex_1(
+                            CP[i,j,k,:], sphere_radius, u_freestream, sphere_z_center
+                        )
+                        # Update RHS_pm_bl with negative vorticity values and analytic_sol with the computed values
+                        RHS_pm_bl[:3, i, j, k] = -Vort[:3]
+                        analytic_sol[:3, i, j, k] = Uind
+                        analytic_sol[3:6, i, j, k] = Defm
+                        # Write the data to the file
+                        f.write(
+                            f'{CP[i,j,k,0]:.8e} {CP[i,j,k,1]:.8e} {CP[i,j,k,2]:.8e} {Uind[0]:.8e} {Uind[1]:.8e} {Uind[2]:.8e} {-Vort[0]:.8e} {-Vort[1]:.8e} {-Vort[2]:.8e}\n'
+                        )
     return analytic_sol, RHS_pm_bl
 
 def hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, vel_pm, analytic_sol):
@@ -137,47 +161,71 @@ def hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, vel_pm, analytic_sol):
     print(f'----Maximum Velocity Error-----: {max_err[6] * 100:.2f}%')
     print(f'----Mean Velocity Error-----: {mean_err[6] * 100:.2f}%')
 
-# Example Usage
-def main():
-    import matplotlib.pyplot as plt
-    sizing = 60
-    NN = [sizing, sizing, sizing]  # Grid size
-    NN_bl = [0,0,0, sizing, sizing, sizing]  # Block limits
-    Xbound = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]  # Bounds in each direction
-    Dpm = [(Xbound[3] - Xbound[0]) / (NN[0] - 1),
-        (Xbound[4] - Xbound[1]) / (NN[1] - 1),
-        (Xbound[5] - Xbound[2]) / (NN[2] - 1)]  # Grid spacing
-    neqpm = 3  # Number of equations per grid point
 
-    # Initialize the RHS_pm_bl array
-    RHS_pm_bl = np.zeros((neqpm, NN[0], NN[1], NN[2]), dtype=float)
+def visualize_vorticity(RHS_pm_bl, NN_bl):
+    """
+    Plots the vorticity components (vorticity_x, vorticity_y, vorticity_z) from RHS_pm_bl in 3D.
 
-    # Call hill_assign to compute the fields
-    analytic_sol , RHS_pm_bl = hill_assign(NN, NN_bl, Xbound, Dpm, neqpm)
-    print("Hill vortex computation complete")
-    # Extract the computed vorticity field from RHS_pm_bl
-    vorticity_field = -RHS_pm_bl[:3]
+    Parameters:
+    RHS_pm_bl (np.ndarray): Array containing the vorticity data with shape (3, nx, ny, nz).
+                            The first dimension corresponds to the 3 vorticity components (x, y, z).
+    NN_bl (list): List containing the start and end indices for the 3D domain (ix, iy, iz).
+    """
+    # Get the indices for the 3D grid
+    i_start, j_start, k_start = NN_bl[0], NN_bl[1], NN_bl[2]
+    i_end, j_end, k_end = NN_bl[3], NN_bl[4], NN_bl[5]
 
-    # hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, analytic_sol)
+    # Create meshgrid for i, j, k
+    i_range = np.arange(i_start, i_end )
+    j_range = np.arange(j_start, j_end )
+    k_range = np.arange(k_start, k_end )
+
+    i_grid, j_grid, k_grid = np.meshgrid(i_range, j_range, k_range, indexing='ij')
+
+    # Flatten the grids for plotting
+    i_flat = i_grid.flatten()
+    j_flat = j_grid.flatten()
+    k_flat = k_grid.flatten()
+
+    # Flatten the vorticity components for each x, y, z
+    vorticity_x = RHS_pm_bl[0].flatten()
+    vorticity_y = RHS_pm_bl[1].flatten()
+    vorticity_z = RHS_pm_bl[2].flatten()
+    vorticity_mag = vorticity_x**2 + vorticity_y**2 + vorticity_z**2
+
+    # Create 3D scatter plots for each vorticity component
+    fig = plt.figure(figsize=(15, 5))
 
 
-    # Plotting the vorticity field
-    # We'll plot a slice of the vorticity field at the mid-plane (z=0.5)
-    for mid_index in [int(NN[2] / 2), int(NN[2] / 2) + 10]: 
-        X, Y = np.meshgrid(np.linspace(Xbound[0], Xbound[3], NN[0]), np.linspace(Xbound[1], Xbound[4], NN[1]))
-        fig, ax = plt.subplots(1, 3, figsize=(18, 6))
+    # # Plot vorticity_x
+    # ax1 = fig.add_subplot(131, projection='3d')
+    # ax1.scatter(i_flat, j_flat, k_flat, c=vorticity_x, cmap='coolwarm', marker='o')
+    # ax1.set_title("Vorticity X")
+    # ax1.set_xlabel("i")
+    # ax1.set_ylabel("j")
+    # ax1.set_zlabel("k")
 
-        # Vorticity components
-        titles = ['Vorticity X', 'Vorticity Y', 'Vorticity Z']
-        for i in range(3):
-            # ax[i].contourf(X, Y, vorticity_field[i, :, :, mid_index], cmap='jet', levels=100)
-            ax[i].matshow(vorticity_field[i, :, :, mid_index], cmap='turbo')
-            #  Scatter the grid points
-            ax[i].set_title(titles[i])
-            ax[i].set_xlabel('X (m)')
-            ax[i].set_ylabel('Y (m)')
+    # # Plot vorticity_y
+    # ax2 = fig.add_subplot(132, projection='3d')
+    # ax2.scatter(i_flat, j_flat, k_flat, c=vorticity_y, cmap='coolwarm', marker='o')
+    # ax2.set_title("Vorticity Y")
+    # ax2.set_xlabel("i")
+    # ax2.set_ylabel("j")
+    # ax2.set_zlabel("k")
 
-        plt.show()
+    # Plot vorticity_z
 
-if __name__ == "__main__":
-    main()
+    # Create a mask of all points where vorticity_mag > 1e-6
+    mask = vorticity_mag > 1e-12
+    ax3 = fig.add_subplot(111, projection='3d')
+    sc = ax3.scatter(i_flat[mask], j_flat[mask], k_flat[mask], c=vorticity_mag[mask], cmap='viridis', marker='o')
+    ax3.set_title("Vorticity Magnitude")
+    ax3.set_xlabel("i")
+    ax3.set_ylabel("j")
+    ax3.set_zlabel("k")
+    # Add colorbar
+    fig.colorbar(sc, ax=ax3, orientation='vertical', label='Vorticity Magnitude') 
+
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()

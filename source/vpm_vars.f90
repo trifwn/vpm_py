@@ -1,10 +1,12 @@
 
 Module vpm_vars
    use base_types, only: dp
+   ! SCATTERED QUANTITIES
    real(dp), allocatable      :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
+   integer, allocatable       :: NVR_projtype_scatt(:)
+   
    real(dp)                   :: DT_c, V_ref, NI
-   integer, allocatable       :: NVR_projscatt(:)
-   integer                    :: interf_iproj, ncell_rem
+   integer                    :: interf_iproj
 
    integer                    :: ncoarse, nparcell1d
    integer                    :: neqpm, NVR_p, NVR_size, NTIME_pm
@@ -54,15 +56,14 @@ contains
       print *, achar(9), 'V_ref = ', V_ref
       print *, achar(9), 'NI = ', NI
 
-      if (allocated(NVR_projscatt)) then
-         print *, achar(9)//"NVR_projscatt", " (1D): Size = (", size(NVR_projscatt), ")"
-         print '(A,4I12)', achar(9)//"Sample values: ", NVR_projscatt(1:min(size(NVR_projscatt), 4))
+      if (allocated(NVR_projtype_scatt)) then
+         print *, achar(9)//"NVR_projection_type_scatt", " (1D): Size = (", size(NVR_projtype_scatt), ")"
+         print '(A,4I12)', achar(9)//"Sample values: ", NVR_projtype_scatt(1:min(size(NVR_projtype_scatt), 4))
       else
-         print '(A)', achar(9)//"NVR_projscatt Not allocated"
+         print '(A)', achar(9)//"NVR_projection_type_scatt Not allocated"
       end if
 
       print *, achar(9), 'interf_iproj = ', interf_iproj
-      print *, achar(9), 'ncell_rem = ', ncell_rem
       print *, achar(9), 'ncoarse = ', ncoarse
       print *, achar(9), 'nparcell1d = ', nparcell1d
       print *, achar(9), 'neqpm = ', neqpm

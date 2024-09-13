@@ -11,8 +11,8 @@ end module test_mod
 
 Program test_pm
    use base_types, only: dp
-   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, EPSVOL, set_RHS_pm
-   use vpm_vars, only:  mrem, interf_iproj, ncoarse, ncell_rem, iynslice, &
+   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm
+   use vpm_vars, only:  mrem, interf_iproj, ncoarse, iynslice, &
                         IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
    use vpm_size, only:  st, et, NREMESH, iyntree, ilevmax, ibctyp, NBI, &
                         NBJ, NBK, NN,NN_bl, Xbound, DPm
@@ -22,22 +22,24 @@ Program test_pm
                         velx, vely, velz
    use test_app, only: hill_assign
    use pmeshpar, only:  IDVPM
-   use parvar, only:    QP, XP, UP, NVR
+   use parvar, only:    NVR
    use openmpth, only:  OMPTHREADS
    use vpm_lib, only:   vpm, remesh_particles_3d, write_particles, write_pm_solution
+   use io, only:        vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level
    use MPI
 
    Implicit None
-   real(dp)              :: Vref, NI_in, DT_in, FACDEF, T, &
+   real(dp)                      :: Vref, NI_in, DT_in, FACDEF, T, &
                                     XMIN, XMAX, UINF(3)
    integer                       :: NVR_MAX
-   integer                       :: my_rank, np, ierr, i, neq, j, TMAX
+   integer                       :: my_rank, np, ierr, i, neq, j, TMAX, ncell_rem
    ! integer                       :: debug_switch
    ! external                      :: sleep
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+
 
    ! ! DEBUG SWITCH USED TO ATTACH TO DEBUGGER
    ! debug_switch = 0
@@ -54,8 +56,6 @@ Program test_pm
    ! call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
    ! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-   print *, 'Processor ', my_rank, ' of ', np, ' started'
-   
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -65,7 +65,6 @@ Program test_pm
    !NOTE PEZEI NA EINAI GIA DOMAIN CIZE
    read (1, *) ibctyp               ! 1 - PERIODIC, 2 - INFLOW, 3 - OUTFLOW, 4 - WALL
    read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
-   read (1, *) EPSVOL               ! CUT-OFF VOLUME (?)
    read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
    read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
    read (1, *) NREMESH, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
@@ -144,25 +143,19 @@ Program test_pm
    !--- INITIALIZATION VPM
    call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
    !--- END INITIALIZATION VPM
-
+   
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!y
+   tab_level = 0
    if (my_rank .eq. 0) then
-      write (*, *) achar(27)//'[1;31mHill Vortex Intialization '//achar(27)//'[0m'
+      write (dummy_string, "(A)") 'Hill Vortex Initialization'
+      call vpm_print(dummy_string, red, 1)
    end if
    allocate (RHS_pm_in(neq, NN(1), NN(2), NN(3)))
    call hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_in, neq)
-   call set_RHS_pm(RHS_pm_in,size(RHS_PM_in,1), size(RHS_PM_in,2), size(RHS_PM_in,3), size(RHS_PM_in,4))
+   call set_RHS_pm(RHS_pm_in,size(RHS_pm_in,1), size(RHS_pm_in,2), size(RHS_pm_in,3), size(RHS_pm_in,4))
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
-   if (my_rank .eq. 0) then
-      st = MPI_WTIME()
-      write (*, *) achar(27)//'[1;31mRemeshing '//achar(27)//'[0m'
-   end if
-   call remesh_particles_3d(-1, XPR, QPR, GPR, UPR, NVR_EXT)
-   if (my_rank .eq. 0) then
-      et = MPI_WTIME()
-      write (*, *) achar(9), 'Remeshing took', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-   end if
+   call remesh_particles_3d(-1,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
 
    !--- ALLOCATIONS FOR ALL PARTICLES and sources
    if (my_rank .eq. 0) then
@@ -175,13 +168,6 @@ Program test_pm
    end if
    ! Reinitalize the domain
    call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 1, NI_in, NVR_MAX)
-   if (my_rank .eq. 0) then
-      write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
-      st = MPI_WTIME()
-      call write_particles(0, XP, UP, QP, NVR)
-      et = MPI_WTIME()
-      write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-   end if
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -240,22 +226,12 @@ Program test_pm
       !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
-
-      ! WRITE PARTICLES
-      if (my_rank .eq. 0) then
-         write (*, *) achar(27)//'[1;31mWriting Particles '//achar(27)//'[0m'
-         st = MPI_WTIME()
-         call write_particles(i, XP, UP, QP, NVR)
-         et = MPI_WTIME()
-         write (*, *) achar(9), 'VPM: Writing Particles', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-      end if
-      ! END WRITE PARTICLES
-
+      tab_level = 0
+      
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
-         write (*, *) achar(27)//'[1;31mCONVECTING '//achar(27)//'[0m'
-         write (*, *) achar(9), "Max Particle Velocity is now:", maxval(abs(UPR))
-
+         write (dummy_string, "(A)") "Convection of Particles"
+         call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()
 
          ! MOVE PARTICLES
@@ -280,35 +256,31 @@ Program test_pm
          !!$omp enddo
          !!$omp end parallel
          et = MPI_WTIME()
-         write (*, *) achar(9), 'Convecting Particles:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-         !    call move_par_out(DT_in)
+         write (dummy_string, "(A,I3,A,F8.3,A)") &
+               achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
+         
          st = MPI_WTIME()
          ! PROBABLY MOVES PARTICLES IN AND OUT OF THE DOMAIN
-         write (*, *) achar(27)//'[1;31mMoving Particles in/out '//achar(27)//'[0m'
+         write (dummy_string, "(A)") "Moving Particles in/out"
+         call vpm_print(dummy_string, red, 1)
          call find_par_in(T, UINF(1))
          call find_par_out
          et = MPI_WTIME()
-         write (*, *) achar(9), 'Moving Particles IN/OUT', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         write (dummy_string, "(A,I3,A,F8.3,A)") &
+               achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
       end if
       ! END CONVECTING PARTICLES
 
       !--- VPM INITIALIZATION AND REMESHING
       ! Used to redefine the sizes
       call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
+      tab_level = 0
 
-      if (mod(i, 20).eq.0) then
-         if (my_rank .eq. 0) then
-            st = MPI_WTIME()
-            write (*, *) achar(27)//'[1;31mRemeshing '//achar(27)//'[0m'
-         end if
-         
+      if (mod(i, 1).eq.0) then         
          ! Remesh the particles
-         call remesh_particles_3d(1, XPR, QPR, GPR, UPR, NVR_EXT)
-         if (my_rank.eq.0) then
-            write (*, *) achar(27)//'[1;31m AFTER Remeshing '//achar(27)//'[0m'
-            write(*,*) achar(9), 'NVR_EXT', NVR_EXT
-            write(*,*) achar(9), 'NVR', NVR
-         end if
+         ! call remesh_particles_3d(1,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
       endif
@@ -323,7 +295,6 @@ Program test_pm
       !    enddo
       !endif
       !get velocities and deformation
-      print *, 'Getting Velocities and Deformation'
    end do
    !--- END MAIN LOOP
    
@@ -383,7 +354,7 @@ subroutine find_par_out
    !    endif
    ! enddo
 
-   neq = neqpm + 1
+   neq = neqpm+1
    NVR_out_max = (2*NXpm_coarse*NYpm_coarse + 2*NYpm_coarse*NZpm_coarse + 2*NZpm_coarse*NXpm_coarse)*3*mrem**2
    allocate (XP_out(1:3, NVR_out_max), QP_out(1:neq, NVR_out_max), NVR_projout(NVR_out_max))
    allocate (XP_tmp(1:3, NVR_ext), QP_tmp(1:neq, NVR_ext))
@@ -452,7 +423,7 @@ subroutine find_par_in(T_in, U)
    end if
 
    ! Real number of equations
-   neq = neqpm + 1
+   neq = neqpm+1
 
    ! Max number of particles that can enter the domain
    NVR_in_max = (2*NXpm_coarse*NYpm_coarse + 2*NYpm_coarse*NZpm_coarse + 2*NZpm_coarse*NXpm_coarse)*3*mrem**2
@@ -574,7 +545,7 @@ End subroutine move_par_out
 !    NZpm1 = nzfin - nzstart
 !    NVR_sources = NXpm1*NYpm1*2 + NXpm1*NZpm1*2
 !    Dpm(1) = DXpm; Dpm(2) = DYpm; Dpm(3) = DZpm
-!    allocate (XSOUR(3, NVR_sources), QSOUR(neqpm + 1, NVR_sources))
+!    allocate (XSOUR(3, NVR_sources), QSOUR(neqpm+1, NVR_sources))
 !    XSOUR = 0
 !    QSOUR = 0
 !    npar = 0

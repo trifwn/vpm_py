@@ -7,17 +7,19 @@ Module api
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
 contains
-   subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type, eps_vol, &
-                         num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, num_remesh_cells, tree_type, &
-                         max_level, omp_threads, grid_define, slice_type, write_type, write_start, write_steps) &
+   subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                                     &
+                         num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,                         &
+                         max_level, omp_threads, grid_define, slice_type, write_type, write_start, write_steps, &
+                         verbocity_in) &
       bind(C, name='init')
 
-      use pmgrid, only: DXpm, DYpm, DZpm, EPSVOL
-      use vpm_vars, only: interf_iproj, ncoarse, ncell_rem, iynslice, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
+      use pmgrid, only: DXpm, DYpm, DZpm
+      use vpm_vars, only: interf_iproj, ncoarse, iynslice, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
       use vpm_size, only: NREMESH, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
       use pmeshpar, only: IDVPM
       use openmpth, only: OMPTHREADS
       use parvar, only: set_neq
+      use io, only: verbocity
       use MPI
 
       ! Declare the parameters to be passed in
@@ -25,13 +27,14 @@ contains
       real(c_double), intent(in) :: dx_pm, dy_pm, dz_pm
       integer(c_int), intent(in) :: proj_type, bc_type, vol_type, num_coarse
       integer(c_int), intent(in) :: num_nbi, num_nbj, num_nbk
-      integer(c_int), intent(in) :: remesh_type, num_remesh_cells, tree_type, max_level
+      integer(c_int), intent(in) :: remesh_type, tree_type, max_level
       integer(c_int), intent(in) :: omp_threads, grid_define, slice_type, write_type
-      real(c_double), intent(in) :: eps_vol
       integer(c_int), intent(in) :: write_start(10), write_steps(10)
+      integer(c_int), intent(in) :: verbocity_in
 
       integer :: ierr, my_rank, i
 
+      verbocity = verbocity_in
       ! Get the rank of the process
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
       if (ierr .ne. 0) then
@@ -43,12 +46,10 @@ contains
       DXpm = dx_pm
       DYpm = dy_pm
       DZpm = dz_pm
-      EPSVOL = eps_vol
 
       ! VPM_VARS
       interf_iproj = proj_type
       ncoarse = num_coarse
-      ncell_rem = num_remesh_cells
       iynslice = slice_type
       IPMWRITE = write_type
       idefine = grid_define
@@ -103,11 +104,12 @@ contains
    End subroutine finalize
 
    subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-                       RHS_PM_out, Velx_out, Vely_out, Velz_out, NTIME_in, NI_in, NVRM_in) bind(C, name='vpm')
+                       RHS_pm_out, Velx_out, Vely_out, Velz_out, NTIME_in, NI_in,&
+                       NVRM_in, deformx_out, deformy_out, deformz_out) bind(C, name='vpm')
       !  -> XP : particle positions (3 * NVR)
-      !  -> QP : particle quantities (neqpm + 1 ) * NVR)
-      !  -> UP : particle velocities
-      !  -> GP : particle defromation (wmega * \nabla)  u
+      !  -> QP : particle quantities (neqpm * NVR)
+      !  -> UP : particle velocities (3 * NVR)
+      !  -> GP : particle defromation (3*NVR) (wmega * \nabla)  u
       !  -> NVR : number of particles
       !  -> neqpm : number of equations
       !  -> WhatToDo : 0 - initialize, 1 - solve, 2 - convect, 3 - project, 4 - back, 5 - diffuse
@@ -123,14 +125,17 @@ contains
       ! Fortran to C bindings
       implicit none
       ! Interface for the arguments
-      integer(c_int), intent(inout) :: NVR_in
-      integer(c_int), intent(in)    :: neqpm_in, WhatToDo, NVRM_in, NTIME_in
-      real(c_double), intent(in)    :: NI_in
-      real(c_double), intent(inout), target :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
-      real(c_double), intent(inout), target :: UP_in(3, NVR_in), GP_in(3, NVR_in)
-      type(ND_Array), intent(out) :: RHS_PM_out, Velx_out, Vely_out, Velz_out
+      integer(c_int), intent(inout)          :: NVR_in
+      integer(c_int), intent(in)             :: neqpm_in, WhatToDo, NVRM_in, NTIME_in
+      real(c_double), intent(in)             :: NI_in
+      real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+      real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+      type(ND_Array), intent(out)            :: RHS_pm_out, Velx_out, Vely_out, Velz_out
+      type(ND_Array), intent(out), optional  :: deformx_out, deformy_out, deformz_out
 
-      real(c_double),  pointer :: RHS_pm_ptr(:, :, :, :), Velx_ptr(:, :, :), Vely_ptr(:, :, :), Velz_ptr(:, :, :)
+      real(c_double), pointer          :: RHS_pm_ptr(:, :, :, :), &
+                                          Velx_ptr(:, :, :), Vely_ptr(:, :, :), Velz_ptr(:, :, :)
+      real(c_double), pointer          :: deformx_ptr(:, :, :), deformy_ptr(:, :, :), deformz_ptr(:, :, :)
       integer :: ierr, my_rank
 
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
@@ -138,13 +143,16 @@ contains
          print *, 'Error getting the rank of the process'
          stop
       end if
+      
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVRM_in)
+               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVRM_in, &
+               deformx_ptr, deformy_ptr, deformz_ptr)
+
       
       ! Copy the data back to the arrays
       ! Assign the pointers to the arrays
       if (associated(RHS_pm_ptr)) then 
-         RHS_PM_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+         RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
       end if
 
       if (associated(Velx_ptr)) then
@@ -158,28 +166,77 @@ contains
       if (associated(Velz_ptr)) then
          Velz_out = from_intrinsic(Velz_ptr, shape(Velz_ptr))
       end if
+
+   
+      ! if ((associated(deformx_ptr)).and.(present(deformx_out))) then
+      !    deformx_out = from_intrinsic(deformx_ptr, shape(deformx_ptr))
+      ! end if
+
+      ! if ((associated(deformy_ptr)).and.(present(deformy_out))) then
+      !    deformy_out = from_intrinsic(deformy_ptr, shape(deformy_ptr))
+      ! end if
+
+      ! if ((associated(deformz_ptr)).and.(present(deformz_out))) then
+      !    deformz_out = from_intrinsic(deformz_ptr, shape(deformz_ptr))
+      ! end if
    End subroutine call_vpm
 
-   subroutine call_remesh_particles_3d(iflag, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) bind(C, name='remesh_particles_3d')
+   subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) &
+         bind(C, name='remesh_particles_3d')
       use vpm_lib, only: remesh_particles_3d
       use base_types, only: dp
       use ND_Arrays
 
       implicit none
-      integer(c_int), intent(in) :: iflag
+      integer(c_int), intent(in) :: iflag, npar_per_cell
       type(ND_Array), intent(out), target :: XP_arr, QP_arr, GP_arr, UP_arr
       integer(c_int), intent(out) :: NVR_out
 
       ! Local variables
       real(dp), allocatable, target, save :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
 
-      call remesh_particles_3d(iflag, XP_out, QP_out, GP_out, UP_out, NVR_out)
+      call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out)
       XP_arr = from_intrinsic(XP_out, shape(XP_out))
       QP_arr = from_intrinsic(QP_out, shape(QP_out))
       GP_arr = from_intrinsic(GP_out, shape(GP_out))
       UP_arr = from_intrinsic(UP_out, shape(UP_out))
 
    End subroutine call_remesh_particles_3d
+
+   subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
+      use ND_Arrays
+      use parvar, only: XP
+      implicit none
+      type(ND_Array), intent(out) :: XP_out
+      XP_out = from_intrinsic(XP, shape(XP))
+   end subroutine get_particle_positions
+
+   subroutine get_particle_strengths(QP_out) bind(C, name='get_particle_strengths')
+      use iso_c_binding
+      use ND_Arrays
+      use parvar, only: QP
+      implicit none
+      type(ND_Array), intent(out) :: QP_out
+      QP_out = from_intrinsic(QP, shape(QP))
+   end subroutine get_particle_strengths
+
+   subroutine get_particle_deformation(GP_out) bind(C, name='get_particle_deformation')
+      use iso_c_binding
+      use ND_Arrays
+      use parvar, only: GP
+      implicit none
+      type(ND_Array), intent(out) :: GP_out
+      GP_out = from_intrinsic(GP, shape(GP))
+   end subroutine get_particle_deformation
+
+   subroutine get_particle_velocities(UP_out) bind(C, name='get_particle_velocities')
+      use iso_c_binding
+      use ND_Arrays
+      use parvar, only: UP
+      implicit none
+      type(ND_Array), intent(out) :: UP_out
+      UP_out = from_intrinsic(UP, shape(UP))
+   end subroutine get_particle_velocities
 
    subroutine get_neqpm(neqpm_out) bind(C, name='get_neqpm')
       use vpm_vars, only: neqpm
@@ -198,6 +255,16 @@ contains
       vely_out => velvry_pm
       velz_out => velvrz_pm
    End subroutine get_velocity_pm
+
+   subroutine get_deformation_pm(deformx_out, deformy_out, deformz_out) bind(C, name='get_deformation_pm')
+      use pmgrid, only: deformx_pm, deformy_pm, deformz_pm
+      implicit none
+      real(c_double), dimension(:,:,:), pointer :: deformx_out, deformy_out, deformz_out
+
+      deformx_out => deformx_pm
+      deformy_out => deformy_pm
+      deformz_out => deformz_pm
+   End subroutine get_deformation_pm
 
    subroutine get_size_XP(size_out) bind(C, name='get_size_XP')
       use parvar, only: XP

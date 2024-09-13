@@ -5,6 +5,7 @@ contains
                      NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, NBK, nb_i, &
                      nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
+      use io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
       use projlib
       use pmlib, only: pmesh
       use MPI
@@ -59,37 +60,47 @@ contains
       if (npmsize .ne. neqf) stop
       ibctyp_c = ibctyp
       if (my_rank .eq. 0) then
-         write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (Infinite Domain)', achar(27)//'[0m'
+         write (dummy_string, "(A)") 'YAPS3D Block (Infinite Domain)'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'Block RHS:'
+         call vpm_print(dummy_string, nocolor, 2)
       end if
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), 'np=', my_rank, '. max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
-      if (my_rank .eq. 0) write (*, *) ''
-      
       ! 1 is the Nblocks not needed needs fix
       call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
                Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
       if (my_rank .eq. 0) then
-         write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (Infinite Domain) solution', achar(27)//'[0m'
+         write (dummy_string, "(A)") 'YAPS3D Block (Infinite Domain) got solution'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'Block SOL:'
+         call vpm_print(dummy_string, nocolor, 2)
       end if
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), "np=", my_rank, '. max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'max(SOL_pm_bl) = ', maxval(abs(SOL_pm_bl))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
       
-      if (my_rank .eq. 0) endtime = MPI_WTIME()
       if (my_rank .eq. 0) then
-         write (*, *)
+         endtime = MPI_WTIME()
          write (199, *) 'Pmesh Block (Infinite Domain)', int((endtime - starttime)/60), 'm', &
                                                          mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'Pmesh Block (Infinite Domain)', int((endtime - starttime)/60), 'm',&
-                                                         mod(endtime - starttime, 60.d0), 's'
+         write (dummy_string, "(A, I3, A, F8.3, A)") &
+               'Pmesh Block (Infinite Domain) finished in:', &
+               int((endtime - starttime)/60), ' m',&
+               mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
       end if
       !---Block definitions
       
@@ -168,7 +179,9 @@ contains
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
          write (199, *) 'Mapping Nodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'Mapping Nodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         write (dummy_string, "(A, I3, A, F8.3, A)") 'Mapping Nodes finished in', &
+            int((endtime - starttime)/60), ' m', mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
       end if
 
       !!      if(my_rank.eq.0)starttime = MPI_WTIME()
@@ -267,7 +280,9 @@ contains
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
          write (199, *) 'Gathering SOL_pm_sample', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'Gathering SOL_pm_sample', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         write (dummy_string, "(A, I3, A, F8.3, A)") 'Gathering PM Solution samples finished in', &
+               int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
       endif
 
       if (my_rank .eq. 0) starttime = MPI_WTIME()
@@ -281,9 +296,9 @@ contains
          endtime = MPI_WTIME()
          write (199, *) 'Broadcasting SOL_pm_sample', int((endtime - starttime)/60), 'm', &
                                                       mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'Broadcasting SOL_pm_sample', int((endtime - starttime)/60), 'm',&
-                                                      mod(endtime - starttime, 60.d0), 's'
-         write (*, *)
+         write (dummy_string, "(A, I3, A, F8.3, A)") 'Broadcasting PM Solution samples finished in',&
+            int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
       endif
 
       RHS_pm_coarse = 0
@@ -324,31 +339,48 @@ contains
       ibctyp_c = ibctyp
 
       if (my_rank .eq. 0) then
-         write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse', achar(27)//'[0m'
+         write (dummy_string, "(A)") 'YAPS3D Coarse'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'RHS_pm_COARSE:'
+         call vpm_print(dummy_string, nocolor, 2)
       end if
 
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), 'np=', my_rank, '. max(RHS_pm_coarse) = ', maxval(abs(RHS_pm_coarse))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'. max(RHS_pm_coarse) = ', maxval(abs(RHS_pm_coarse))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
 
       call pmesh(SOL_pm_coarse, RHS_pm_coarse, QP, XP, &
                Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
-      if (my_rank .eq. 0) write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Coarse Solution', achar(27)//'[0m'
+
+      if (my_rank .eq. 0) then
+         write (dummy_string, "(A)") 'YAPS3D Coarse got Solution'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'Coarse PM SOL:'
+         call vpm_print(dummy_string, nocolor, 2)
+      end if
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), 'np=', my_rank, '. max(SOL_PM_coarse) = ', maxval(abs(SOL_PM_coarse))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'. max(SOL_pm_coarse) = ', maxval(abs(SOL_pm_coarse))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
 
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (*, *)
-         write (*, *) achar(9), 'Pmesh Coarse', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (199, *) 'Pmesh Coarse', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         write (199, *) 'Pmesh Coarse', int((endtime - starttime)/60), 'm', &
+                                                         mod(endtime - starttime, 60.d0), 's'
+         write (dummy_string, "(A, I3, A, F8.3, A)") &
+               'Pmesh Coarse finished in:', &
+               int((endtime - starttime)/60), ' m',&
+               mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
       end if
       ! Interpolate to all blocks
 
@@ -381,9 +413,12 @@ contains
       
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (*, *)
          write (199, *) 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         write (dummy_string, "(A, I3, A, F8.3, A)") &
+               'Pmesh BC1 finished in:', &
+               int((endtime - starttime)/60), ' m',&
+               mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
          starttime = MPI_WTIME()
       end if
       
@@ -464,10 +499,12 @@ contains
       !---------------------------------------------------------------------------------
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (*, *)
          write (199, *) 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *)
+         write (dummy_string, "(A, I3, A, F8.3, A)") &
+               'Pmesh BC2 finished in:', &
+               int((endtime - starttime)/60), ' m',&
+               mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
       end if
       ! write(*,*) 'Solving for Block',nb
       !iynbc=0 means that the bc's of the poisson solver are already defined
@@ -478,36 +515,47 @@ contains
       
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
-         write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (defined bc)', achar(27)//'[0m'
+         write (dummy_string, "(A)") 'YAPS3D Block (defined bc)'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'Block RHS:'
+         call vpm_print(dummy_string, nocolor, 2) 
+         starttime = MPI_WTIME()
       end if
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), 'np=', my_rank, 'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'max(RHS_pm_bl) = ', maxval(abs(RHS_pm_bl))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
-      if (my_rank .eq. 0) starttime = MPI_WTIME()
-      if (my_rank .eq. 0) write (*, *) ''
 
       call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
                Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
-               
+
       if (my_rank .eq. 0) then
-         write (*, *) achar(9), achar(27)//'[1;34m', 'YAPS3D Block (defined bc) Solution', achar(27)//'[0m'
+         write (dummy_string, "(A)") 'YAPS3D Block (defined bc) got Solution'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") achar(9)//'Block SOL:'
+         call vpm_print(dummy_string, nocolor, 2)
       end if
       do rank = 0, np - 1
          if (my_rank .eq. rank) then
-            write (*, *) achar(9), 'np=', my_rank, 'max(SOL_PM_bl) = ', maxval(abs(SOL_PM_bl))
+            write (dummy_string, "(A,I3,A,F8.3)") &
+               achar(9)//'np=', my_rank, achar(9)//'max(SOL_pm_bl) = ', maxval(abs(RHS_pm_bl))
+            call vpm_print(dummy_string, nocolor, 2)
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
 
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (*, *)
-         write (*, *) achar(9), 'Pmesh Block (defined BC)', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (*, *) achar(9), "Total time", int((endtime - total_starttime)/60), 'm', mod(endtime - total_starttime, 60.d0), 's'
-         write (*, *)
+         write (dummy_string, "(A, I3, A, F8.3, A)") &
+               'Pmesh Block (defined BC) finished in:', &
+               int((endtime - starttime)/60), ' m',&
+               mod(endtime - starttime, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 1)
+
          write (199, *) 'Pmesh Block (defined BC)', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
          write (199, *) "Total time", int((endtime - total_starttime)/60), 'm', mod(endtime - total_starttime, 60.d0), 's'
          write (199, *) ""

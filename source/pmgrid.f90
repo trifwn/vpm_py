@@ -1,10 +1,11 @@
 module pmgrid
    use base_types, only: dp
    real(dp), allocatable, target, save :: velvrx_pm(:, :, :), velvry_pm(:, :, :), velvrz_pm(:, :, :)
+   real(dp), allocatable, target, save :: deformx_pm(:, :, :), deformy_pm(:, :, :), deformz_pm(:, :, :)
    real(dp), allocatable, target, save :: RHS_pm(:, :, :, :)
 
    real(dp), save                      :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   real(dp), save                      :: DXpm, DYpm, DZpm, DVpm, EPSVOL
+   real(dp), save                      :: DXpm, DYpm, DZpm, DVpm
    integer, save                       :: NXpm_coarse, NYpm_coarse, NZpm_coarse
    integer, save                       :: NXs_coarse_bl, NYs_coarse_bl, NXf_coarse_bl,&
                                           NYf_coarse_bl, NZs_coarse_bl, NZf_coarse_bl
@@ -72,6 +73,9 @@ contains
       call dp_3d_alloc_info("velvrx_pm", velvrx_pm)
       call dp_3d_alloc_info("velvry_pm", velvry_pm)
       call dp_3d_alloc_info("velvrz_pm", velvrz_pm)
+      call dp_3d_alloc_info("deformx_pm", deformx_pm)
+      call dp_3d_alloc_info("deformy_pm", deformy_pm)
+      call dp_3d_alloc_info("deformz_pm", deformz_pm)
       call dp_4d_alloc_info("RHS_pm", RHS_pm)
       print *, achar(9), "XMIN_pm: ", XMIN_pm
       print *, achar(9), "XMAX_pm: ", XMAX_pm
@@ -83,7 +87,6 @@ contains
       print *, achar(9), "DYpm: ", DYpm
       print *, achar(9), "DZpm: ", DZpm
       print *, achar(9), "DVpm: ", DVpm
-      print *, achar(9), "EPSVOL: ", EPSVOL
       print *, achar(9), "NXpm: ", NXpm_coarse
       print *, achar(9), "NYpm: ", NYpm_coarse
       print *, achar(9), "NZpm: ", NZpm_coarse

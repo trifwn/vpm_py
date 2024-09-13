@@ -2,7 +2,6 @@
   4                             ! projection fun
   2                             ! boundary cond type
   1                             ! Variable/Constant Volume(0,1)
-  0                             ! EPSVOL
   8                             ! ncoarse
   1  2  3                       ! Number of Blocks[i,j,k) == np
   1  1                          ! remesh(0,1)/Number of Particels per cell

@@ -25,16 +25,6 @@ Module yaps
    integer                 :: status(MPI_STATUS_SIZE), source, ierr, my_rank, np, mat4, mat5, dest
 
 
-   ! NOT USED
-   ! integer                 :: NXpm, NYpm, NZpm, 
-   ! real(dp)                :: DXpm, DYpm, DZpm,
-   ! integer                 :: idvpm, epsvol, iproj, ndumcell
-   ! real(dp)                :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
-   ! real(dp)                :: XMIN_pm_c, YMIN_pm_c, ZMIN_pm_c, XMAX_pm_c, YMAX_pm_c, ZMAX_pm_c
-   ! integer                 :: NXB, NYB, NN(3), NN_bl(6)
-   ! integer                 :: i_nb, j_nb, k_nb
-   ! integer                 :: ib, jb, kb, ibj, jbj, kbj, ixs, ixf, jxs, jxf, izs, izf, isubtrackt
-
    public                  :: yaps2d, yaps3d
 
    interface yaps2d

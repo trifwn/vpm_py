@@ -161,11 +161,16 @@ contains
       end if
       if (my_rank .eq. 0) then
          et = MPI_WTIME()
-         write (*, *) achar(9), "Calculated boundary conditions with:"
-         write (*, *) achar(9)//achar(9), "itree = ", itree
-         write (*, *) achar(9)//achar(9), "ibctyp = ", ibctyp
-         write (*, *) achar(9)//achar(9), "For a domain:", NXpm, "x", NYpm, "x", NZpm
-         write (* , *) achar(9), "Bounds", int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         write (dummy_string, *) "Calculated boundary conditions with:"
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,I1)") achar(9)//"itree = ", itree
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,I1)") achar(9)//"ibctyp = ", ibctyp
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,I4,A,I4,A,I4)") achar(9)//"For a domain:", NXpm, "x", NYpm, "x", NZpm
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,I3,A,F8.3,A)") achar(9)//"Bounds finished in:", int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
+         call vpm_print(dummy_string, yellow, 2)
          write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
 

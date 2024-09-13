@@ -3,13 +3,11 @@ Module projlib
 
    real(dp), save       :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
    real(dp), save       :: DXpm, DYpm, DZpm, DVpm
-   real(dp), save       :: EPSVOL
    integer, save        :: NXpm, NYpm, NZpm, NXs, NXf, NYs, NYf, NZs, NZf
    integer, save        :: IDVPM, ND
 
    private              :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
    private              :: DXpm, DYpm, DZpm, DVpm
-   private              :: EPSVOL
    private              :: NXpm, NYpm, NZpm
    private              :: NXs, NXf, NYs, NYf, NZs, NZf
    private              :: IDVPM, ND
@@ -18,12 +16,11 @@ Module projlib
    public :: print_projlib_info
 
 contains
-   subroutine projlibinit(Xbound, Dpm, NN, NN_bl, EPSVOL_in, IDVPM_in, ND_in)
+   subroutine projlibinit(Xbound, Dpm, NN, NN_bl, IDVPM_in, ND_in)
       implicit none
-      real(dp), intent(in) :: Xbound(6), Dpm(3), EPSVOL_in
+      real(dp), intent(in) :: Xbound(6), Dpm(3)
       integer, intent(in) :: NN(3), IDVPM_in, ND_in, NN_bl(6)
 
-      EPSVOL = EPSVOL_in
       IDVPM = IDVPM_in
       ND = ND_in
 
@@ -54,6 +51,7 @@ contains
          DVpm = DVpm*DZpm
       end if
    End subroutine projlibinit
+
    ! --------------------------------------------------------------------------!
    !-->subroutine project_particles_3D                                          !
    !   This subroutine projects particle values on the PM grid                !
@@ -65,7 +63,7 @@ contains
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
    subroutine project_particles_3D( &
-      Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize &
+      Q_pm, QP, XP, Qprojtype, ipar, isize, ieq, neq, QINF, iparsize &
    )
       ! Qproj -> RHS of the PM grid
       ! Qpar -> Particle values QP_scat
@@ -82,29 +80,36 @@ contains
       use mpi
 
       Implicit None
-      integer, intent(in) :: ipar, isize, ieq(neq), iparsize, neq
-      ! real(dp) , intent(out), dimension(:,:,:,:) :: Qproj
-      real(dp), intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
-      !f2py depend(neq, NXpm, NYpm, NZpm) :: Qproj(neq, NXpm, NYpm, NZpm)
-      real(dp), intent(in) :: Qpar(isize, iparsize), QpX(3, iparsize), QINF(neq)
-      integer, intent(in) :: Qprojtype(iparsize)
-      real(dp)   :: fx, fy, fz, f, x, y, z
-      integer            :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
-      integer           :: my_rank, ierr!, tot_par_num
-      ! real(dp), dimension(neq) :: temp
-      ! integer            :: nbj, nb
+      integer, intent(in)     :: ipar, isize, ieq(neq), iparsize, neq
+      real(dp), intent(out)   :: Q_pm(neq, NXpm, NYpm, NZpm)
+      real(dp), intent(in)    :: QP(neq+1, iparsize), XP(3, iparsize), QINF(3)
+      integer, intent(in)     :: Qprojtype(iparsize)
 
-      call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
-      ! call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+      real(dp)                :: fx, fy, fz, f, x, y, z
+      integer                 :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
+      integer                 :: my_rank, ierr
+      real(dp)                :: fpriv(isize, NXpm, NYpm, NZpm)
 
+      
       !-->Projection function (TSC)
-      Qproj = 0.d0
+      Q_pm = 0.d0
+      fpriv = 0.d0
+
+
+      !$omp parallel private(nv, inode, jnode, knode, i, j, k, x, y, z, fx, fy, fz, f, itype, ips, ipf) &
+      !$omp shared(QP,fpriv, Q_pm, QpX, Qprojtype, ipar, isize, ieq, neq)
+      !$omp do
       do nv = 1, ipar
          itype = Qprojtype(nv)
          !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
-         inode = int((QpX(1, nv) - XMIN_pm)/DXpm) + 1
-         jnode = int((QpX(2, nv) - YMIN_pm)/DYpm) + 1
-         knode = int((QpX(3, nv) - ZMIN_pm)/DZpm) + 1
+         inode = int((XP(1, nv) - XMIN_pm)/DXpm) + 1
+         jnode = int((XP(2, nv) - YMIN_pm)/DYpm) + 1
+         if (ND .eq. 3) then
+            knode = int((XP(3, nv) - ZMIN_pm)/DZpm) + 1
+         else
+            knode = 1
+         end if
+         
          if (itype .eq. 2) then
             ! For type 2: project to the nearest node and the next (ips = 0, ipf = 1)
             ips = 0
@@ -115,95 +120,55 @@ contains
             ipf = 2
          end if
 
+         ! Check if particle is within the PM grid
+         if (inode - ips < 1 .or. inode + ipf > NXpm) STOP 'Particle out of bounds in X direction'
+         if (jnode - ips < 1 .or. jnode + ipf > NYpm) STOP 'Particle out of bounds in Y direction'
+         if (ND == 3 .and. (knode - ips < 1 .or. knode + ipf > NZpm)) STOP 'Particle out of bounds in Z direction'
+
          !--We search the 4 nodes close to the particles
          do k = knode - ips, knode + ipf
-            ! Check if the particle is within the PM grid
-            if (my_rank.eq.0) then
-            if (k .lt. 1 .or. k .gt. NZpm) then
-               write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT k: ",k," on particle: ", nv
-               write (*, "(A)") achar(9)//"Settings used:"
-               write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-               write (*, "(A,I5)") achar(9)//achar(9)//"Number of particles: ", ipar
-               write (*, "(A,I5)") achar(9)//"knode: ", knode
-               write (*, "(A,F5.2)") achar(9)//"ZMIN: ", ZMIN_pm
-               write (*, "(A,F5.2)") achar(9)//"DZ: ", DZpm
-               write (*, "(A,I5)") achar(9)//"NZpm: ", NZpm
-               write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(3, nv)
-               STOP
-            end if 
-            end if
-
-            do j = jnode - ips, jnode + ipf
-               ! Check if the particle is within the PM grid
-               if (my_rank.eq.0) then
-               if (j .lt. 1 .or. j .gt. NYpm) then
-                  write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT j: ",j," on particle: ", nv
-                  write (*, "(A)") achar(9)//"Settings used:"
-                  write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-                  write (*, "(A,I5.2)") achar(9)//achar(9)//"Number of particles: ", ipar
-                  write (*, "(A,I5)") achar(9)//"jnode: ", jnode
-                  write (*, "(A,F5.2)") achar(9)//"YMIN: ", YMIN_pm
-                  write (*, "(A,F5.2)") achar(9)//"DY: ", DYpm
-                  write (*, "(A,I5)") achar(9)//"NYpm: ", NYpm
-                  write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(2, nv)
-                  STOP
-               end if
-               end if
-
+            do j = jnode - ips, jnode + ipf               
                do i = inode - ips, inode + ipf
-                  ! Check if the particle is within the PM grid
-                  if (my_rank.eq.0) then
-                  if (i .lt. 1 .or. i .gt. NXpm) then
-                     write (*, "(A,I5,A,I5)") achar(9)//"PROJECT PARTICLES 3D GOT i: ",i," on particle: ", nv
-                     write (*, "(A)") achar(9)//"Settings used:"
-                     write (*, "(A,I5,A,I5)") achar(9)//achar(9)//"IPS: ", ips, "IPF: ", ipf
-                     write (*, "(A,I5)") achar(9)//achar(9)//"Number of particles: ", ipar
-                     write (*, "(A,I5)") achar(9)//"inode: ", inode
-                     write (*, "(A,F5.2)") achar(9)//"XMIN: ", XMIN_pm
-                     write (*, "(A,F5.2)") achar(9)//"DX: ", DXpm
-                     write (*, "(A,I5)") achar(9)//"NXpm: ", NXpm
-                     write (*, "(A,3F5.2)") achar(9)//"Particle location: ", QPX(1, nv)
-                     STOP
-                  end if
-                  end if
-
-                  x = (QpX(1, nv) - XMIN_pm - (i - 1)*DXpm)/DXpm
+                  x = (XP(1, nv) - XMIN_pm - (i - 1)*DXpm)/DXpm
                   fx = projection_fun(itype, x)
 
-                  y = (QpX(2, nv) - YMIN_pm - (j - 1)*DYpm)/DYpm
+                  y = (XP(2, nv) - YMIN_pm - (j - 1)*DYpm)/DYpm
                   fy = projection_fun(itype, y)
 
-                  z = (QpX(3, nv) - ZMIN_pm - (k - 1)*DZpm)/DZpm
-                  fz = projection_fun(itype, z)
+                  if (ND .eq. 3) then
+                     z = (XP(3, nv) - ZMIN_pm - (k - 1)*DZpm)/DZpm
+                     fz = projection_fun(itype, z)
+                     f = fx*fy*fz
+                  else
+                     f = fx*fy
+                  end if
 
-                  f = fx*fy*fz
-                  Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k) &
-                                                   + f*QPar(ieq(1:neq - 1), nv)
-                  !-QINF(1:neq-1)*QPar(ieq(neq),nv))
-                  Qproj(ieq(neq), i, j, k) = Qproj(neq, i, j, k) &
-                                             + f*QPar(ieq(neq), nv) &
-                                             - f*QINF(neq)
-                  
-                  ! Check if the Qproj is NaN
-                  ! if (any(isnan(Qproj(:,i,j,k)))) then
-                  !    print *, "Qproj is NaN"
-                  !    print *,achar(9)//"Particle: ", nv
-                  !    print *,achar(9)//"Particle location: ", QPX(:, nv)
-                  !    print *,achar(9)//"Projection function: ", itype
-                  !    print *,achar(9)//"x,y,z: ", x, y, z
-                  !    print *,achar(9)//"fx, fy, fx: ", fx, fy, fz
-                  !    print *,achar(9)//"Projection function values f: ", f
-                  !    print *,achar(9)//"Qpar(:,nv): ", QPar(:, nv)
-                  !    print *,achar(9)//"QINF: ", QINF(:)
-                  !    stop 
-                  ! end if 
+                  ! Q_pm(ieq(1:neq - 1), i, j, k) = Q_pm(ieq(1:neq - 1), i, j, k) &
+                  !                               + f * QP(ieq(1:neq - 1), nv)
+                  !                               ! - QINF(1:neq-1) * QPar(ieq(neq),nv))
+                  ! Q_pm(ieq(neq), i, j, k) = Q_pm(ieq(neq), i, j, k) &
+                  !                               + f* QP(ieq(neq), nv) &
+                  !                               - f* QINF(neq)
+                                                
+                  ! For the last equation, we subtract the inflow value
+                  fpriv(ieq(1:neq), i, j, k) = fpriv(ieq(1:neq), i, j, k) &
+                                             + f * QP(ieq(1:neq), nv)
+
                end do
             end do
          end do
       end do
+      !$omp end do
+
+      ! Reduce the thread-private results into Qproj
+      !$omp critical
+      Q_pm = Q_pm + fpriv
+      !$omp end critical
+      !$omp end parallel
+
+
       !--After the projection all the values will be divided by Vol_pm to take into account the volume
       !  effect in the interpolation.We extend volume and density values to no-particle regions
-
    End subroutine project_particles_3D
 
    !--------------------------------------------------------------------------!
@@ -220,29 +185,24 @@ contains
       !use pmgrid
 
       Implicit None
-      integer, intent(in) :: neq, isize, iflag
+      integer, intent(in)                 :: neq, isize, iflag
       integer, intent(in), dimension(neq) ::  ieq
-      ! real(dp) , intent(out), dimension(:, :,:,:) :: Qproj
-      real(dp)   :: Qproj(isize, NXpm, NYpm, NZpm)
-      !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
-      ! real(dp)   :: fx, fy, fz, f, x, y, z,
-      real(dp)     :: EPSVOLt
-      integer              :: i, j, k, IDVPMt
-      ! integer              :: inode, jnode, knode, nv, itype, nbj, nb
-      EPSVOLt = EPSVOL
+      real(dp), intent(inout)             :: Qproj(isize, NXpm, NYpm, NZpm)
+      integer                             :: i, j, k, IDVPMt
+
       IDVPMt = IDVPM
       if (iflag .eq. 1) IDVPMt = 1
-      !  if(iflag.eq.1) EPSVOLt=0.5
+
       if (IDVPMt .eq. 0) then
          do k = 1, NZpm
             do j = 1, NYpm
                do i = 1, NXpm
                   if (i .lt. NXs .or. i .gt. NXf .or. j .lt. NYs .or. j .ge. NYf .or. k .lt. NZs .or. k .gt. NZf) then
-                     Qproj(ieq(1:neq - 1), i, j, k) = 0.d0
-                     Qproj(ieq(neq), i, j, k) = DVpm
+                     Qproj(ieq(1:neq), i, j, k) = 0.d0
+                     ! Qproj(ieq(neq), i, j, k) = DVpm
                      cycle
                   end if
-                  Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k)/(Qproj(ieq(neq), i, j, k))
+                  Qproj(ieq(1:neq), i, j, k) = Qproj(ieq(1:neq), i, j, k)/(Qproj(ieq(neq), i, j, k))
                end do
             end do
          end do
@@ -254,8 +214,8 @@ contains
                   !     Qproj (ieq(1:neq-1),i,j,k) = 0.d0
                   !     cycle
                   ! endif
-                  Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k)/DVpm
-                  Qproj(ieq(neq), i, j, k) = DVpm
+                  Qproj(ieq(1:neq), i, j, k) = Qproj(ieq(1:neq), i, j, k)/DVpm
+                  ! Qproj(ieq(neq), i, j, k) = DVpm
                end do
             end do
          end do
@@ -274,22 +234,20 @@ contains
    !      - Phi                                                               !
    !      - PsiX , PsiY                                                       !
    !--------------------------------------------------------------------------!
-   subroutine project_particles_2D(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF)
+   subroutine project_particles_2D( &
+      Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF &
+   )
       !use pmgrid
 
       Implicit None
-      integer, intent(in) :: ipar, isize, ieq(neq)
-      ! real(dp), intent(out), dimension(:, :, :, :) :: Qproj
-      real(dp), intent(out):: Qproj(isize, NXpm, NYpm, NZpm)
-      !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
+      integer, intent(in)     :: ipar, isize, ieq(neq)
+      real(dp), intent(out)   :: Qproj(isize, NXpm, NYpm, NZpm)
+      real(dp), intent(in)    :: Qpar(isize, ipar), QpX(3, ipar), QINF(neq)
+      integer, intent(in)     :: Qprojtype(ipar)
 
-      ! real(dp), allocatable:: Qprojpriv(:, :, :, :)
-      real(dp), intent(in) :: Qpar(isize, ipar), QpX(3, ipar), QINF(neq)
-      integer, intent(in) :: Qprojtype(ipar)
-      real(dp)   :: fx, fy, f, x, y
-      integer            :: inode, jnode, i, j, k, nv, itype, neq, ips, ipf
-      ! integer          :: nbj,, knode, nb
-      ! integer            ::omp_get_max_threads, omp_get_num_threads
+      real(dp)                :: fx, fy, f, x, y
+      integer                 :: inode, jnode, i, j, k, nv, itype, neq, ips, ipf
+      
       !-->Projection function (TSC)
       Qproj = 0.d0
         !!$omp parallel private(nv,Qprojpriv,jnode,inode,itype,ips,ipf,i,j,k,f,fx,fy,x,y)
@@ -436,13 +394,10 @@ contains
       real(dp)   :: Qproj(isize, NXpm, NYpm, NZpm)
       !f2py depend(isize, NXpm, NYpm, NZpm) :: Qproj(isize, NXpm, NYpm, NZpm)
       ! real(dp)   :: fx, fy, fz, f, x, y, z,
-      real(dp)   :: EPSVOLt
       integer            ::  i, j, k, neq, IDVPMt
       ! integer            :: inode, jnode, knode, nv, itype, nbj, nb
-      EPSVOLt = EPSVOL
       IDVPMt = IDVPM
       if (iflag .eq. 1) IDVPMt = 1
-      !  if(iflag.eq.1) EPSVOLt=0.5
       if (IDVPMt .eq. 0) then
          !$omp parallel private(i,j,k)
          k = 1 !nbj
@@ -453,7 +408,6 @@ contains
                   Qproj(ieq(1:neq - 1), i, j, k) = 0.d0
                   cycle
                end if
-               !if (Qproj(i,j,k,ieq(neq)).gt.EPSVOLt*DVpm) then
                Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k)/(Qproj(ieq(neq), i, j, k))
                !else
                !    Qproj (i,j,k,ieq(1:neq-1)) = 0.d0
@@ -474,7 +428,6 @@ contains
                   Qproj(ieq(1:neq - 1), i, j, k) = 0.d0
                   cycle
                end if
-               !if (Qproj(i,j,k,ieq(neq)).gt.EPSVOLt*DVpm) then
                Qproj(ieq(1:neq - 1), i, j, k) = Qproj(ieq(1:neq - 1), i, j, k)/DVpm
                Qproj(ieq(neq), i, j, k) = DVpm
                !endif
@@ -505,31 +458,28 @@ contains
 
       xabs = abs(x)
       if (itype .eq. 2) then
-         if (xabs .gt. 1) then
-            projection_fun = 0.d0
-         else if (xabs .le. 1) then
-            projection_fun = 1.d0 - xabs
-         else
-            write (*, *) 'Got xabs: ', xabs
-         end if
+         ! Rectified Linear Unit 
+         projection_fun = max(0.d0, 1.d0 - xabs)
       else if (itype .eq. 3) then
          !--Triangular-Shaped Cloud function
-         if (xabs .gt. 3.d0/2.d0) projection_fun = 0.d0
+         if (xabs .lt. 0.5d0) projection_fun = 0.5d0*(xabs + 3.d0/2.d0)**2 - 3.d0/2.d0*(xabs + 0.5d0)**2
          if (xabs .ge. 0.5d0 .and. xabs .le. 3.d0/2.d0) projection_fun = 0.5d0*(-xabs + 3.d0/2.d0)**2
-         if (xabs .ge. 0.d0 .and. xabs .lt. 0.5d0) projection_fun = 0.5d0*(xabs + 3.d0/2.d0)**2 - 3.d0/2.d0*(xabs + 0.5d0)**2
+         if (xabs .gt. 3.d0/2.d0) projection_fun = 0.d0
       else if (itype .eq. 4) then
-         if (xabs .gt. 2.d0) projection_fun = 0.d0
-         if (xabs .ge. 1.d0 .and. xabs .le. 2.d0) projection_fun = 0.5d0*(2.d0 - xabs)**2*(1.d0 - xabs)
+         !--Quadratic function
          if (xabs .lt. 1.d0) projection_fun = 1 - 2.5d0*xabs**2 + 1.5d0*xabs**3
+         if (xabs .ge. 1.d0 .and. xabs .le. 2.d0) projection_fun = 0.5d0*(2.d0 - xabs)**2*(1.d0 - xabs)
+         if (xabs .gt. 2.d0) projection_fun = 0.d0
       else if (itype .eq. 5) then
+         !--Quadratic function
          if (xabs .le. 0.5d0) projection_fun = 1.d0 - xabs**2
          if (xabs .gt. 0.5d0 .and. xabs .le. 1.5d0) projection_fun = 0.5d0*(1.d0 - xabs)*(2.d0 - xabs)
          if (xabs .gt. 1.5d0) projection_fun = 0.d0
       else if (itype .eq. 6) then
+         !--Quadratic function
          if (xabs .le. 1.d0) projection_fun = 1.d0 - xabs**2
          if (xabs .gt. 1.d0 .and. xabs .le. 2.d0) projection_fun = 0.5d0*(1.d0 - xabs)*(2.d0 - xabs)
          if (xabs .gt. 2.d0) projection_fun = 0.d0
-
       else
          write (*, *) 'No such projection function', itype
          STOP
@@ -556,7 +506,6 @@ contains
       print *, achar(9), 'DYpm', DYpm
       print *, achar(9), 'DZpm', DZpm
       print *, achar(9), 'DVpm', DVpm
-      print *, achar(9), 'EPSVOL', EPSVOL
       print *, achar(9), 'NXpm', NXpm
       print *, achar(9), 'NYpm', NYpm
       print *, achar(9), 'NZpm', NZpm

@@ -21,10 +21,13 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
+        verbocity= 2,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1
     )
+    if rank == 0:
+        plotter = Particle3DPlot()
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -39,27 +42,27 @@ def main():
 
     # Create particles
     NVR = 100
-    XPR = np.zeros((3, NVR), dtype=np.float64)
-    QPR = np.ones((neq + 1, NVR), dtype=np.float64)
-    UPR = np.zeros((3, NVR), dtype=np.float64)
-    GPR = np.zeros((3, NVR), dtype=np.float64)
-    
+    XPR_zero = np.zeros((3, NVR), dtype=np.float64)
+    XPR_zero[:, 0] = np.array([-1.5, -1.5, -1.5])
+    XPR_zero[:, 1] = np.array([ 1.5,  1.5,  1.5])
+    QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
+    UPR_zero = np.zeros((3, NVR), dtype=np.float64)
+    GPR_zero = np.zeros((3, NVR), dtype=np.float64)
+
     # Initialization VPM
     comm.Barrier()
     vpm.vpm(
-        num_particles=NVR,
         num_equations=neq,
         mode = 0,
-        particle_positions= XPR, 
-        particle_strengths= QPR, 
-        particle_velocities= UPR, 
-        particle_deformations= GPR,
+        particle_positions= XPR_zero, 
+        particle_strengths= QPR_zero, 
+        particle_velocities= UPR_zero, 
+        particle_deformations= GPR_zero,
         timestep=0,
         viscosity=NI,
     )
     comm.Barrier()
 
-    # Remeshing
     if rank == 0:
         st = MPI.Wtime()
 
@@ -70,12 +73,12 @@ def main():
         NN_bl= vpm.nn_bl,
         Xbound= vpm.xbound,
         neqpm= vpm.num_equations,
-        a = 2.0,
-        us = 1.0,
-        z0 = 0.0,
+        sphere_radius = 1.0,
+        u_freestream = 1.0,
+        sphere_z_center = 0.0,
     )
     vpm.set_rhs_pm(RHS_pm_hill)
-    print_red(f"Setting RHS_PM as computed from the hill vortex", rank)
+    print_red(f"Setting RHS_pm as computed from the hill vortex", rank)
     
     if rank == 0:
         st = MPI.Wtime()
@@ -83,24 +86,13 @@ def main():
     XPR, QPR, GPR, UPR = vpm.remesh_particles_3d(-1) 
     if rank == 0:
         et = MPI.Wtime()
-        print(f"\tRemeshing took {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+        print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
 
     print_IMPORTANT(f"Particles initialized", rank)
-    # Get the particles
-    XPR = vpm.particles.XP
-    UPR = vpm.particles.UP
-    QPR = vpm.particles.QP
-    GPR = vpm.particles.GP
 
-    UPR[:,:] = 0
-    GPR[:,:] = 0
-    if rank != 0:
-        XPR[:,:] = 0
-        QPR[:,:] = 0
     
     # Create the plot to live update the particles
     if rank == 0:
-        plotter = Particle3DPlot()
         plotter.update(
             x = XPR[0,:],
             y = XPR[1,:],
@@ -111,7 +103,6 @@ def main():
     comm.Barrier()
     # call vpm with mode = 0
     vpm.vpm(
-        num_particles= vpm.particles.NVR,
         num_equations= vpm.num_equations,
         mode = 0,
         particle_positions    =  XPR,
@@ -135,7 +126,6 @@ def main():
             color_text="green"
         )
         vpm.vpm(
-            num_particles=NVR,
             num_equations=neq,
             mode = 2,
             particle_positions    =  XPR,
@@ -163,11 +153,11 @@ def main():
             # print(f"Min: {np.min(XPR.data, axis=1)}")
             # print('\n')
 
-            # print_green(f"UPR:")
-            # print(f"Mean: {np.mean(UPR.data, axis=1)}")
-            # print(f"Max: {np.max(UPR.data, axis=1)}")
-            # print(f"Min: {np.min(UPR.data, axis=1)}")
-            # print('\n')
+            print_green(f"UPR:")
+            print(f"Mean: {np.mean(UPR.data, axis=1)}")
+            print(f"Max: {np.max(UPR.data, axis=1)}")
+            print(f"Min: {np.min(UPR.data, axis=1)}")
+            print('\n')
             
             # print_green(f"QPR:")
             # print(f"Mean: {np.mean(QPR.data, axis=1)}")
@@ -209,9 +199,11 @@ def main():
             print_IMPORTANT(f"Convecting Particles", rank)
             # # Move the particles
             for j in range(vpm.particles.NVR):
+                # Translate the particles
                 XPR[:3, j] += (UPR[:3, j] + UINF) * DT
-                FACDEF = 1.0
-                QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
+                # Diffusion of vorticity
+                # FACDEF = 1.0
+                # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
 
             # Update the plot
             plotter.update(
@@ -226,7 +218,6 @@ def main():
 
         comm.Barrier()
         vpm.vpm(
-            num_particles=NVR,
             num_equations=neq,
             mode = 0,
             particle_positions    =  XPR,
@@ -238,16 +229,16 @@ def main():
         )
         comm.Barrier()
 
-        if i<5:
-            print_IMPORTANT(f"Remeshing", rank)
-            # Remeshing
-            if rank == 0:
-                st = MPI.Wtime()
-                print_red(f"Remeshing")
-            XPR, QPR, UPR, GPR = vpm.remesh_particles_3d(1)
-            if rank == 0:
-                et = MPI.Wtime()
-                print(f"\tRemeshing took {int((et - st) / 60)}m {int(et - st) % 60}s")
+        # if i<5:
+        #     print_IMPORTANT(f"Remeshing", rank)
+        #     # Remeshing
+        #     if rank == 0:
+        #         st = MPI.Wtime()
+        #         print_red(f"Remeshing")
+        #     XPR, QPR, UPR, GPR = vpm.remesh_particles_3d(1)
+        #     if rank == 0:
+        #         et = MPI.Wtime()
+        #         print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s")
 
     MPI.Finalize()
     end_time = MPI.Wtime()

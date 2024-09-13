@@ -93,8 +93,8 @@ contains
         INQUIRE (FILE='sol/hillref.plt', EXIST=I_EXIST)
         if(I_EXIST.eqv..false.) then 
             open(1,file='sol/hillref.dat')
-            WRITE(1,'(a190)')'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
-            WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
+            write(1,'(a190)')'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
+            write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
                 ' K=',NN_bl(6)-NN_bl(3) + 1 ,' F=POINT'
         endif
         allocate(analytic_sol(6,NN(1),NN(2),NN(3)))
@@ -140,9 +140,9 @@ contains
 
         allocate(error(7,NN(1),NN(2),NN(3)))
         open(1,file='hillerror.dat')
-        WRITE(1,'(a190)') &
+        write(1,'(a190)') &
             'VARIABLES = "X" "Y" "Z" "Err-u" "Err-v "Err-w" "Err-defmx" "Err-defmy" "Err-defmz" "Err-Vmag"'
-        WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)-1,' J=',NN_bl(5)-NN_bl(2)-1,&
+        write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)-1,' J=',NN_bl(5)-NN_bl(2)-1,&
         ' K=',NN_bl(6)-NN_bl(3) - 1 ,' F=POINT'
         
         max_err=0; mean_err=0
@@ -197,8 +197,8 @@ contains
         INQUIRE (FILE='vortref.plt', EXIST=I_EXIST)
         if(I_EXIST.eqv..false.) then 
         open(1,file='vortref.dat')
-        WRITE(1,'(a190)')'VARIABLES = "X" "Y" "VORT" "PSI"'
-        WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
+        write(1,'(a190)')'VARIABLES = "X" "Y" "VORT" "PSI"'
+        write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
             ' K=',1,' F=POINT'
         endif
         do j = NN_bl(2),NN_bl(5)
@@ -236,8 +236,8 @@ contains
 
         allocate(error(1,NN(1),NN(2),NN(3)))
         open(1,file='vorterror.dat')
-        WRITE(1,'(a190)')'VARIABLES = "X" "Y" "Z" "Err-psi" '
-        WRITE(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
+        write(1,'(a190)')'VARIABLES = "X" "Y" "Z" "Err-psi" '
+        write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
         ' K=', 1 ,' F=POINT'
         
         analytic_max = maxval(abs(analytic_sol(1,:,:,:)))
