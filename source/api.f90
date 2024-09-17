@@ -105,7 +105,7 @@ contains
 
    subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                        RHS_pm_out, Velx_out, Vely_out, Velz_out, NTIME_in, NI_in,&
-                       NVRM_in, deformx_out, deformy_out, deformz_out) bind(C, name='vpm')
+                       NVR_size_in, deformx_out, deformy_out, deformz_out) bind(C, name='vpm')
       !  -> XP : particle positions (3 * NVR)
       !  -> QP : particle quantities (neqpm * NVR)
       !  -> UP : particle velocities (3 * NVR)
@@ -126,7 +126,7 @@ contains
       implicit none
       ! Interface for the arguments
       integer(c_int), intent(inout)          :: NVR_in
-      integer(c_int), intent(in)             :: neqpm_in, WhatToDo, NVRM_in, NTIME_in
+      integer(c_int), intent(in)             :: neqpm_in, WhatToDo, NVR_size_in, NTIME_in
       real(c_double), intent(in)             :: NI_in
       real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
       real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
@@ -145,7 +145,7 @@ contains
       end if
       
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVRM_in, &
+               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVR_size_in, &
                deformx_ptr, deformy_ptr, deformz_ptr)
 
       
@@ -181,7 +181,7 @@ contains
       ! end if
    End subroutine call_vpm
 
-   subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out) &
+   subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out, cuttof_value) &
          bind(C, name='remesh_particles_3d')
       use vpm_lib, only: remesh_particles_3d
       use base_types, only: dp
@@ -191,17 +191,53 @@ contains
       integer(c_int), intent(in) :: iflag, npar_per_cell
       type(ND_Array), intent(out), target :: XP_arr, QP_arr, GP_arr, UP_arr
       integer(c_int), intent(out) :: NVR_out
+      real(c_double), intent(in), optional :: cuttof_value
 
       ! Local variables
       real(dp), allocatable, target, save :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
 
-      call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out)
+      if (present(cuttof_value)) then
+         call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out, cuttof_value)
+      else
+         call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out)
+      end if
+
       XP_arr = from_intrinsic(XP_out, shape(XP_out))
       QP_arr = from_intrinsic(QP_out, shape(QP_out))
       GP_arr = from_intrinsic(GP_out, shape(GP_out))
       UP_arr = from_intrinsic(UP_out, shape(UP_out))
 
    End subroutine call_remesh_particles_3d
+
+   subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
+      use vpm_lib, only: write_pm_solution
+      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm
+      use vpm_vars, only: NTIME_pm
+      use vpm_size, only: NN, NN_bl
+      use pmeshpar, only: SOL_pm
+      implicit none
+      character(kind = c_char), intent(in), optional :: folder(*), filename(*)
+
+
+
+      if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
+         call write_pm_solution(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
+                                deformx_pm, deformy_pm, deformz_pm)
+      else
+         call write_pm_solution(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+      end if
+   End subroutine write_particle_mesh_solution
+
+   subroutine write_particles_stored(folder, filename) bind(C, name='write_particles')
+      use vpm_lib, only: write_particles
+      use parvar, only: XP, QP, UP, GP, NVR, NVR_size
+      use vpm_vars, only: neqpm, NTIME_pm
+      use io, only: vpm_write_folder, particle_output_file_suffix
+      implicit none
+      character(kind=c_char), intent(in), optional :: folder(*), filename(*)
+
+      call write_particles(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
+   End subroutine write_particles_stored
 
    subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
       use ND_Arrays
@@ -266,39 +302,9 @@ contains
       deformz_out => deformz_pm
    End subroutine get_deformation_pm
 
-   subroutine get_size_XP(size_out) bind(C, name='get_size_XP')
-      use parvar, only: XP
-      implicit none
-      integer(c_int), dimension(2) :: size_out
+!! VPM SIZE
 
-      size_out = [size(XP, 1), size(XP, 2)]
-   End subroutine get_size_XP
-
-   subroutine pmgrid_get_NN(NN_out) bind(C, name='get_NN') 
-      use vpm_size, only: get_NN
-      implicit none
-      integer(c_int), dimension(3) :: NN_out
-
-      call get_NN(NN_out)
-   End subroutine pmgrid_get_NN
-
-   subroutine pmgrid_get_NN_bl(NN_bl_out) bind(C, name='get_NN_bl') 
-      use vpm_size, only: get_NN_bl
-      implicit none
-      integer(c_int), dimension(6) :: NN_bl_out
-
-      call get_NN_bl(NN_bl_out)
-      
-   End subroutine pmgrid_get_NN_bl
-
-   subroutine pmgrid_get_Xbound(Xbound_out) bind(C, name='get_Xbound') 
-      use vpm_size, only: get_Xbound
-      implicit none
-      real(c_double), dimension(6) :: Xbound_out
-      call get_Xbound(Xbound_out)
-   End subroutine pmgrid_get_Xbound
-
-   !! LIBRARY PRINTS
+!! LIBRARY PRINTS 
    subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
       use pmeshpar, only: print_pmeshpar_info
       implicit none

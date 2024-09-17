@@ -7,9 +7,9 @@ contains
       use mpi_matrices, only: mpimat4
       Implicit None
 
-      integer, intent(in)                                            :: NN(3), neq
-      real(dp), dimension(neq, NN(1), NN(2), NN(3)), intent(inout)   :: RHS_pm
-      integer                                                        :: my_rank, np, ierr, mat4
+      integer,  intent(in)       :: NN(3), neq
+      real(dp), intent(inout)    :: RHS_pm(neq, NN(1), NN(2), NN(3))
+      integer                    :: my_rank, np, ierr, mat4
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -26,8 +26,9 @@ contains
       use pmgrid, only: RHS_pm
       use MPI
       Implicit None
-      integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, NN_bl(6), NN_tmp(3)
-      real(dp), intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+      integer, intent(in)     :: BLOCKS, nb_i, nb_j
+      integer, intent(in)     :: NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NN_bl(6), NN_tmp(3)
+      real(dp), intent(out)   :: RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
       integer :: my_rank, ierr
       integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, NN(3)
 
@@ -124,34 +125,41 @@ contains
       ! use pmeshpar
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
+      use vpm_size, only: NBI, NBJ, NBK
       use MPI
       Implicit None
-      integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), nb_i, nb_j, nb_k, NN_bl(6), NN_tmp(3)
-      real(dp), intent(out) ::RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      integer :: my_rank, ierr
-      integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf, NN(3)
+      integer, intent(in)     :: nb_i, nb_j, nb_k, BLOCKS
+      integer, intent(in)     :: NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS),  NN_bl(6), NN_tmp(3)
+      real(dp), intent(out)   :: RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+
+      integer :: my_rank, ierr, i, np
+      integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
+      call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       RHS_pm_bl = 0
       nb = my_rank + 1
-      NN(1:3) = NNbl(1:3, nb)
 
-      NXs = NNbl_bl(1, nb) ! DUMMY START
-      NXf = NNbl_bl(4, nb) ! DUMMY FINISH
+      NXs = NNbl_bl(1,nb)
+      NXf = NNbl_bl(4,nb)
 
-      NYs = NNbl_bl(2, nb)
-      NYf = NNbl_bl(5, nb)
+      NYs = NNbl_bl(2,nb)
+      NYf = NNbl_bl(5,nb)
 
-      NZs = NNbl_bl(3, nb)
-      NZf = NNbl_bl(6, nb)
-      ixs = (nb_i - 1)*(NXf - NXs) + NN_bl(1)
-      jxs = (nb_j - 1)*(NYf - NYs) + NN_bl(2)
-      kxs = (nb_k - 1)*(NZf - NZs) + NN_bl(3)
+      NZs = NNbl_bl(3,nb)
+      NZf = NNbl_bl(6,nb)
 
-      ixf = ixs + (NXf - NXs + 1) - 1
-      jxf = jxs + (NYf - NYs + 1) - 1
-      kxf = kxs + (NZf - NZs + 1) - 1
+      ixs=(nb_i-1)*(NXf-NXs) +NN_bl(1)
+      jxs=(nb_j-1)*(NYf-NYs) +NN_bl(2)
+      kxs=(nb_k-1)*(NZf-NZs) +NN_bl(3)
+
+      ! ixf= NN_bl(4) - (NBI - nb_i)*(NXf-NXs)
+      ! jxf= NN_bl(5) - (NBJ - nb_j)*(NYf-NYs)
+      ! kxf= NN_bl(6) - (NBK - nb_k)*(NZf-NZs)
+      ixf = NN_bl(1) + (nb_i)*(NXf-NXs)
+      jxf = NN_bl(2) + (nb_j)*(NYf-NYs)
+      kxf = NN_bl(3) + (nb_k)*(NZf-NZs)
 
       RHS_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf) = RHS_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf)
       if (nb_i .gt. 1) RHS_pm_bl(:, NXs, :, :) = 0.d0
@@ -294,8 +302,8 @@ contains
    end subroutine defbcast_3d
 
    module subroutine particles_scat
-      use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt, NVR_size
-      use parvar, only: XP, QP, NVR
+      use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt
+      use parvar, only: XP, QP, NVR, NVR_size
       use mpi_matrices, only: mpimat2_pm
       use MPI
       use io, only: vpm_print, blue, tab_level, dummy_string, nocolor, yellow
@@ -314,6 +322,7 @@ contains
       endif
       tab_level = tab_level + 1
 
+      call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       !---------------------------------------------
       if (my_rank .eq. 0) then
          XP_scatt(1:3, 1:NVR_p) = XP(1:3, 1:NVR_p)
@@ -321,8 +330,8 @@ contains
          NVR_pr = NVR_p
          NVR_r = NVR/np
 
-         write (dummy_string, "(A,I5,A,I5, A, I5)") &
-            "Processor ", my_rank, " got : NVR_p = ", NVR_p, " and NVR_r = ", NVR_r
+         write (dummy_string, "(A,I5,A,I5, A, I5, A, I5)") &
+            "Processor ", my_rank, " got : NVR_p = ", NVR_p, " and NVR_r = ", NVR_r, "  NVR message size = ", NVR_size
          call vpm_print(dummy_string, nocolor, 2)
          if (NVR_r .gt. 0) then
             do i = 2, np
@@ -399,7 +408,6 @@ contains
                'finished in:', int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
          call vpm_print(dummy_string, yellow, 1)
       end if 
-      call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       tab_level = tab_level - 1 
 
    end subroutine particles_scat

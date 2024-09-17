@@ -1,6 +1,7 @@
 module parvar
    use base_types, only: dp
-   integer                    :: NVR
+   integer                    :: NVR, NVR_size
+   integer, save                      :: neq
    real(dp), pointer, save    :: XP(:, :), QP(:, :), UP(:, :), GP(:, :)
    !   XP: Particle positions
    
@@ -16,7 +17,6 @@ module parvar
 
    !   UP: Particle velocites                -> U = grad x psi = 
    !   GP: Particle deformation of vorticity -> deformation = - omega*\grad u
-   integer, save                      :: neq
 
    ! Printers
    public :: print_parvar_info
@@ -69,36 +69,42 @@ contains
    subroutine set_particle_positions(XP_in) bind(C, name='set_particle_positions')
       use iso_c_binding
       implicit none
-      real(c_double), dimension(3, NVR) :: XP_in
-      XP = XP_in
+      real(c_double), dimension(3, NVR_size) :: XP_in
+      XP = XP_in(1:3, 1:NVR)
    end subroutine set_particle_positions
 
    subroutine set_particle_strengths(QP_in) bind(C, name='set_particle_strengths')
       use iso_c_binding
       implicit none
-      real(c_double), dimension(neq + 1, NVR) :: QP_in
-      QP = QP_in
+      real(c_double), dimension(neq + 1, NVR_size) :: QP_in
+      QP = QP_in(1:neq +1, 1:NVR)
    end subroutine set_particle_strengths
 
    subroutine set_particle_velocities(UP_in) bind(C, name='set_particle_velocities')
       use iso_c_binding
       implicit none
-      real(c_double), dimension(3, NVR) :: UP_in
-      UP = UP_in
+      real(c_double), dimension(3, NVR_size) :: UP_in
+      UP = UP_in(1:3, 1:NVR)
    end subroutine set_particle_velocities
 
    subroutine set_particle_deformation(GP_in) bind(C, name='set_particle_deformation')
       use iso_c_binding
       implicit none
-      real(c_double), dimension(3, NVR) :: GP_in
-      GP = GP_in
+      real(c_double), dimension(3, NVR_size) :: GP_in
+      GP = GP_in(1:3, 1:NVR)
    end subroutine set_particle_deformation
 
    subroutine get_nvr(NVR_out) bind(C, name='get_num_particles')
       use iso_c_binding
       implicit none
       integer(c_int) :: NVR_out
-
       NVR_out = NVR
    end subroutine get_nvr
+
+   subroutine get_nvr_size(NVR_out) bind(C, name='get_nvr_size')
+      use iso_c_binding
+      implicit none
+      integer(c_int) :: NVR_out
+      NVR_out = NVR
+   end subroutine get_nvr_size
 end module parvar

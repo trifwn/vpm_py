@@ -52,6 +52,18 @@ contains
          inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
          jnode = int((XP(2, nv) - XBound(2))/Dpm(2)) + 1
          knode = int((XP(3, nv) - XBound(3))/Dpm(3)) + 1
+         ! Stop the program if the nodes are outside the domain bounds
+         if (                                             &
+            inode - ips < 1 .or. inode + ipf > NN(1) .or. &
+            jnode - ips < 1 .or. jnode + ipf > NN(2) .or. &
+            knode - ips < 1 .or. knode + ipf > NN(3)      &
+         ) then
+            write(*,*) 'Particle outside domain bounds'
+            write(*,*) 'inode, jnode, knode = ', inode, jnode, knode
+            write(*,*) 'XP = ', XP(:, nv)
+            stop
+         end if
+
          !--We search the 4 nodes close to the particles
          do k = knode - ips, knode + ipf
             do j = jnode - ips, jnode + ipf
@@ -95,17 +107,17 @@ contains
    !        NVR   : Number of particles                                        !
    !        iproj : Projection type                                            !
    !---------------------------------------------------------------------------!
-   module subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj)
+   module subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj, NVR_size)
       use openmpth
       use projlib, only: projection_fun
       use base_types, only: dp
       use vpm_size, only: NN, XBound, Dpm
       use vpm_vars, only: neqpm
       Implicit None
-      integer, intent(in)     :: NVR, iproj
+      integer, intent(in)     :: NVR, iproj, NVR_size
       real(dp), intent(in)    :: Q_pm(neqpm, NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: XP(3, NVR)
-      real(dp), intent(out)   :: QP(neqpm+1, NVR)
+      real(dp), intent(in)    :: XP(3, NVR_size)
+      real(dp), intent(out)   :: QP(neqpm+1, NVR_size)
       
       real(dp)                :: fx, fy, fz, f, x, y, z
       integer                 :: inode, jnode, knode, i, j, k, nv, ips, ipf

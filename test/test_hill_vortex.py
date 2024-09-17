@@ -6,7 +6,7 @@ import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
 from vpm_py.visualization import Particle3DPlot
-from hill_spherical_vortex import hill_assign
+from hill_spherical_vortex import hill_assign_parallel
 
 def main():
     # Initialize MPI
@@ -17,7 +17,6 @@ def main():
     
     # Initialize VPM
     vpm = VPM(
-        max_particle_num= 10000,
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
@@ -45,9 +44,9 @@ def main():
     XPR_zero = np.zeros((3, NVR), dtype=np.float64)
     XPR_zero[:, 0] = np.array([-1.5, -1.5, -1.5])
     XPR_zero[:, 1] = np.array([ 1.5,  1.5,  1.5])
+    XPR_zero[:, 0] = np.array([-1.956, -1.9832, -2.04])
+    XPR_zero[:, 1] = np.array([2.01, 2.1, 1.89])
     QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
-    UPR_zero = np.zeros((3, NVR), dtype=np.float64)
-    GPR_zero = np.zeros((3, NVR), dtype=np.float64)
 
     # Initialization VPM
     comm.Barrier()
@@ -56,8 +55,6 @@ def main():
         mode = 0,
         particle_positions= XPR_zero, 
         particle_strengths= QPR_zero, 
-        particle_velocities= UPR_zero, 
-        particle_deformations= GPR_zero,
         timestep=0,
         viscosity=NI,
     )
@@ -67,23 +64,23 @@ def main():
         st = MPI.Wtime()
 
     print_IMPORTANT(f"Hill vortex initialization", rank)
-    _, RHS_pm_hill = hill_assign(
+    _, RHS_pm_hill = hill_assign_parallel(
         Dpm= vpm.dpm,
-        NN= vpm.nn,
-        NN_bl= vpm.nn_bl,
-        Xbound= vpm.xbound,
+        NN= vpm.particle_mesh.nn,
+        NN_bl= vpm.particle_mesh.nn_bl,
+        Xbound= vpm.particle_mesh.xbound,
         neqpm= vpm.num_equations,
         sphere_radius = 1.0,
         u_freestream = 1.0,
         sphere_z_center = 0.0,
     )
-    vpm.set_rhs_pm(RHS_pm_hill)
+    vpm.particle_mesh.set_rhs_pm(RHS_pm_hill)
     print_red(f"Setting RHS_pm as computed from the hill vortex", rank)
     
     if rank == 0:
         st = MPI.Wtime()
         print_red(f"Remeshing")
-    XPR, QPR, GPR, UPR = vpm.remesh_particles_3d(-1) 
+    XPR, QPR = vpm.remesh_particles(project_particles=False) 
     if rank == 0:
         et = MPI.Wtime()
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
@@ -107,14 +104,12 @@ def main():
         mode = 0,
         particle_positions    =  XPR,
         particle_strengths    =  QPR,
-        particle_velocities   =  UPR,
-        particle_deformations =  GPR,
         timestep=0,
         viscosity=NI,
     )
     # Main loop
     T = 0
-    max_iter = 100
+    max_iter = 500
     for i in range(1, max_iter+1):
         comm.Barrier()
         NVR = vpm.particles.NVR
@@ -130,8 +125,6 @@ def main():
             mode = 2,
             particle_positions    =  XPR,
             particle_strengths    =  QPR,
-            particle_velocities   =  UPR,
-            particle_deformations =  GPR,
             timestep=i,
             viscosity=NI,
         )
@@ -212,6 +205,8 @@ def main():
                 z = XPR[2,:],
                 c = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
             ) 
+            vpm.particles.save_to_file(f"NOTUSED.dat")
+            vpm.particle_mesh.save_to_file(f"NOTUSED.dat")
 
         sleep(0.5)
         print_IMPORTANT(f"Redefine Bounds", rank)
@@ -222,8 +217,6 @@ def main():
             mode = 0,
             particle_positions    =  XPR,
             particle_strengths    =  QPR,
-            particle_velocities   =  UPR,
-            particle_deformations =  GPR,
             timestep=i,
             viscosity=NI,
         )

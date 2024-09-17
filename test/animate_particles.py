@@ -6,14 +6,17 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.axes import Axes
 
-folder = 'results/'
+folder = 'results_euler/'
 
 # Get the files in the folder
 import os
 files = os.listdir(folder)
-files_vr = [f for f in files if f.endswith('particles.dat')]
+
+cap = 400
+
+files_vr = [f for f in files if f.endswith('particles.dat')][:cap]
 files_vr.sort()
-files_sol = [f for f in files if f.endswith('pm_output.dat')]
+files_sol = [f for f in files if f.endswith('pm_output.dat')][:cap] 
 files_sol.sort()
 
 ALL_XS = []
@@ -196,10 +199,6 @@ print(z_min, z_max)
 start_frame = 1
 total_frames = len(ALL_XS) - start_frame
 
-
-start_frame = 1
-total_frames = len(ALL_XS) - start_frame
-
 # Create the figure with 4 subplots
 fig = plt.figure(figsize=(20, 10))
 ax_particles: Axes3D = fig.add_subplot(221, projection='3d')
@@ -333,38 +332,46 @@ def update(frame):
     ax_grid_pm.set_ylim(y_center - y_range/2, y_center + y_range/2)
     ax_grid_pm.set_zlim(z_center - z_range/2, z_center + z_range/2)
 
-    # Update vorticity plots
+    vorticity = np.sqrt(ALL_PM_QXS[frame]**2 + ALL_PM_QYS[frame]**2 + ALL_PM_QZS[frame]**2)    
+    # X-Y plane contour
     mid_z = ALL_PM_ZS[frame].shape[0] // 2
-    mid_y = ALL_PM_YS[frame].shape[1] // 2
     slice_xy = (mid_z, slice(None), slice(None))
-    slice_xz = (slice(None), mid_y, slice(None))
     x_xy = ALL_PM_XS[frame][slice_xy].T
     y_xy = ALL_PM_YS[frame][slice_xy].T
-    # X-Z plane contour
-    x_xz = ALL_PM_XS[frame][slice_xz].T
-    z_xz = ALL_PM_ZS[frame][slice_xz].T
-
-    vorticity = np.sqrt(ALL_PM_QXS[frame]**2 + ALL_PM_QYS[frame]**2 + ALL_PM_QZS[frame]**2)    
     vorticity_xy = vorticity[slice_xy].T
-    vorticity_xz = vorticity[slice_xz].T
-
-
-    
     for c in contour1.collections:
         c.remove()
     contour1 = ax_vorticity1.contourf(x_xy, y_xy, vorticity_xy, cmap='viridis')
+    # Update the boundary of the contour plot
+    ax_vorticity1.set_xlim(x_xy.min(), x_xy.max())
+    ax_vorticity1.set_ylim(y_xy.min(), y_xy.max())
+    # Update title
+    ax_vorticity1.set_title(f'Vorticity (X-Y plane) Z={ALL_PM_ZS[frame][mid_z, 0, 0]:.2f}')
+
+    # X-Z plane contour
+    mid_y = ALL_PM_YS[frame].shape[1] // 2
+    slice_xz = (slice(None), mid_y, slice(None))
+    x_xz = ALL_PM_XS[frame][slice_xz].T
+    z_xz = ALL_PM_ZS[frame][slice_xz].T
+    vorticity_xz = vorticity[slice_xz].T
     
     for c in contour2.collections:
         c.remove()
     contour2 = ax_vorticity2.contourf(x_xz, z_xz, vorticity_xz, cmap='viridis')
 
+    # Update the boundary of the contour plot
+    ax_vorticity2.set_xlim(x_xz.min(), x_xz.max())
+    ax_vorticity2.set_ylim(z_xz.min(), z_xz.max())
+    # Update title
+    ax_vorticity1.set_title(f'Vorticity (X-Y plane) Z={ALL_PM_ZS[frame][mid_z, 0, 0]:.2f}')
+
     # Update figure title
-    fig.suptitle(f"Frame {frame} / {total_frames + start_frame - 1}")
+    fig.suptitle(f"Frame {frame} / {total_frames + start_frame - 1}, Realtime = {frame * 0.1:.1f}s")
 
     return particles, mesh_points, contour1, contour2
 
-ani = FuncAnimation(fig, update, frames=total_frames-1, blit=False, repeat=False, interval=100)
 fig.tight_layout()
-plt.show()
+ani = FuncAnimation(fig, update, frames=total_frames-1, blit=False, repeat=False, interval=100)
 ani.event_source.stop()
+# Save the animation
 ani.save(f"{folder}/anim.gif")

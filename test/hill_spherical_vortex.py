@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
+from mpi4py import MPI
 
 def fUi_HillsVortex_1(control_point, sphere_radius, u_freestream, z_0):    
     """
@@ -123,6 +123,85 @@ def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_freestream=-
                         f.write(
                             f'{CP[i,j,k,0]:.8e} {CP[i,j,k,1]:.8e} {CP[i,j,k,2]:.8e} {Uind[0]:.8e} {Uind[1]:.8e} {Uind[2]:.8e} {-Vort[0]:.8e} {-Vort[1]:.8e} {-Vort[2]:.8e}\n'
                         )
+    return analytic_sol, RHS_pm_bl
+
+def hill_assign_parallel(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_freestream=-1.0, sphere_z_center=0.0):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    RHS_pm_bl = np.zeros((
+        neqpm,
+        NN_bl[3] - NN_bl[0] + 1, 
+        NN_bl[4] - NN_bl[1] + 1, 
+        NN_bl[5] - NN_bl[2] + 1
+    ), order='F', dtype=float)
+
+    analytic_sol = np.zeros((6, NN[0], NN[1], NN[2]))
+
+    i_start, j_start, k_start = NN_bl[0], NN_bl[1], NN_bl[2]
+    i_end, j_end, k_end = NN_bl[3], NN_bl[4], NN_bl[5]
+
+    # Distribute k-range among processors
+    k_range = np.array_split(range(k_start - 1, k_end - 1), size)[rank]
+
+    local_RHS_pm_bl = np.zeros_like(RHS_pm_bl)
+    local_analytic_sol = np.zeros_like(analytic_sol)
+
+    CP = np.zeros((i_end - i_start + 1, j_end - j_start + 1, len(k_range), 3))
+    for idx, k in enumerate(k_range):
+        for j in range(j_start - 1, j_end - 1):
+            for i in range(i_start - 1, i_end - 1):
+                CP[i-(i_start-1), j-(j_start-1), idx] = [
+                    Xbound[0] + i * Dpm[0],
+                    Xbound[1] + j * Dpm[1],
+                    Xbound[2] + k * Dpm[2]
+                ]
+
+    if rank == 0:
+        file = open('results/hill_spherical_vortex.dat', 'w')
+        file.write(f'Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
+        file.write(f'Zone T="Hill\'s Spherical Vortex", I={NN[0]-1}, J={NN[1]-1}, K={NN[2]-1}, F=POINT\n')
+    else:
+        file = None
+
+    for idx, k in enumerate(k_range):
+        for j in range(j_start - 1, j_end - 1):
+            for i in range(i_start - 1, i_end - 1):
+                Uind, Defm, Vort = fUi_HillsVortex_1(
+                    CP[i-(i_start-1), j-(j_start-1), idx], sphere_radius, u_freestream, sphere_z_center
+                )
+                local_RHS_pm_bl[:3, i-(i_start-1), j-(j_start-1), idx] = -Vort[:3]
+                local_analytic_sol[:3, i, j, k] = Uind
+                local_analytic_sol[3:6, i, j, k] = Defm
+
+                if file:
+                    file.write(
+                        f'{CP[i-(i_start-1),j-(j_start-1),idx,0]:.8e} {CP[i-(i_start-1),j-(j_start-1),idx,1]:.8e} '
+                        f'{CP[i-(i_start-1),j-(j_start-1),idx,2]:.8e} {Uind[0]:.8e} {Uind[1]:.8e} {Uind[2]:.8e} '
+                        f'{-Vort[0]:.8e} {-Vort[1]:.8e} {-Vort[2]:.8e}\n'
+                    )
+
+    if file:
+        file.close()
+
+    # Gather results on process 0
+    gathered_RHS_pm_bl = comm.gather(local_RHS_pm_bl, root=0)
+    gathered_analytic_sol = comm.gather(local_analytic_sol, root=0)
+
+    if rank == 0:
+        for i, part in enumerate(gathered_RHS_pm_bl):
+            k_slice = np.array_split(range(k_start - 1, k_end - 1), size)[i]
+            RHS_pm_bl[:, :, :, k_slice - (k_start - 1)] = part[:, :, :, :len(k_slice)]
+
+        for i, part in enumerate(gathered_analytic_sol):
+            k_slice = np.array_split(range(k_start - 1, k_end - 1), size)[i]
+            analytic_sol[:, :, :, k_slice] = part[:, :, :, k_slice]
+
+    # Broadcast final results to all processes
+    RHS_pm_bl = comm.bcast(RHS_pm_bl, root=0)
+    analytic_sol = comm.bcast(analytic_sol, root=0)
+
     return analytic_sol, RHS_pm_bl
 
 def hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, vel_pm, analytic_sol):

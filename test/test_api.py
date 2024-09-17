@@ -1,10 +1,7 @@
 from vpm_py import VPM
-from time import sleep
 import numpy as np
-import matplotlib.pyplot as plt
 from mpi4py import MPI
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 
 def print_blue(text):
     print(f"\033[94m{text}\033[00m")
@@ -27,7 +24,6 @@ def main():
 
     vpm = VPM(
         number_of_equations= 3,
-        max_particle_num= 1000,
         rank= rank,
         number_of_processors= number_of_processors,
     )
@@ -57,14 +53,6 @@ def main():
     XP_in = np.array(np.meshgrid(x, y, z)).reshape(3, -1)
     # Define the particle quantities as random numbers
     par_strenghts = np.ones((neqpm + 1, NVR))
-
-    par_velocities = np.zeros((3, NVR), dtype=np.float64)
-    par_velocities[0,:] = -1.0
-    par_velocities[1,:] = -1.0/ 2.
-    par_velocities[2,:] = -1.0/ 3.
-
-    # Deformation of the particles
-    par_deformations = np.zeros((3, NVR), dtype=np.float64)
     
     RHS_pm_in = np.zeros((neqpm, NXB, NYB, NZB), dtype=np.float64)
     NTIME = 0
@@ -87,8 +75,6 @@ def main():
             mode= WhatToDo,
             particle_positions= XP_in,
             particle_strengths= par_strenghts,
-            particle_velocities= par_velocities,
-            particle_deformations= par_deformations,
             timestep= NTIME,
             viscosity= NI,
         )
@@ -97,17 +83,6 @@ def main():
             print_IMPORTANT(f"Completed successfully. WhatToDo = {WhatToDo}")
             print_green(f"Number of particles: {NVR}")
             print('\n\n\n')
-
-        # DEBUGGING
-        # if rank == 0:
-        #     vpm.print_projlib_parameters()
-        #     vpm.print_pmgrid_parameters()
-        #     vpm.print_pmesh_parameters()
-        #     vpm.print_vpm_vars()
-        #     vpm.print_vpm_size()
-        #     vpm.print_parvar()
-        #     print('\n\n')
-        # sleep(1)
 
         XP = vpm.particles.XP
         QP = vpm.particles.QP
@@ -123,9 +98,7 @@ def main():
             
         # Remesh the particles
         comm.Barrier()
-        (
-            XP_new, QP_new, UP_new, GP_new
-        ) = vpm.remesh_particles_3d(1)
+        XP, UP = vpm.remesh_particles(project_particles= True)
         comm.Barrier()
 
         NX_pm = vpm.NX_pm

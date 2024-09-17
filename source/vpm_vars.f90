@@ -9,7 +9,7 @@ Module vpm_vars
    integer                    :: interf_iproj
 
    integer                    :: ncoarse, nparcell1d
-   integer                    :: neqpm, NVR_p, NVR_size, NTIME_pm
+   integer                    :: neqpm, NVR_p, NTIME_pm
 
    integer, save              :: IPMWRITE, idefine, iynslice
    integer, save              :: mrem = 1
@@ -68,7 +68,6 @@ contains
       print *, achar(9), 'nparcell1d = ', nparcell1d
       print *, achar(9), 'neqpm = ', neqpm
       print *, achar(9), 'NVR_p = ', NVR_p
-      print *, achar(9), 'NVR_size = ', NVR_size
       print *, achar(9), 'NTIME_pm = ', NTIME_pm
       print *, achar(9), 'IPMWRITE = ', IPMWRITE
       print *, achar(9), 'mrem = ', mrem

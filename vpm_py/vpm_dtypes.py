@@ -27,7 +27,10 @@ def pointer_to_dp_array(
     """
     pointer = cast(pointer, POINTER(c_double))
     data = np.ctypeslib.as_array(pointer, shape= shape)
-    data = data.reshape(shape, order= 'F')
+    if not data.flags['F_CONTIGUOUS']:
+        data = data.reshape(shape, order= 'F')
+    else:
+        data = data.reshape(shape)
     if copy:
         data = np.array(data, copy= True, order= 'F')
     return data

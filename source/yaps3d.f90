@@ -513,7 +513,6 @@ contains
       lmax = 0
 
       
-      call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") 'YAPS3D Block (defined bc)'
          call vpm_print(dummy_string, red, 1)

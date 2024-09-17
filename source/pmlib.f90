@@ -15,7 +15,7 @@ module pmlib
    real(dp), save                :: DXpm, DYpm, DZpm
 
    integer, save                 :: NVR, NXpm, NYpm, NZpm, ND
-   integer, save                 :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
+   integer, save                 :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl
 
    integer, save                 :: nbound, levmax
    integer, save                 :: itree, ibctyp 
@@ -32,7 +32,7 @@ module pmlib
    private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm
    
    private :: NVR, NXpm, NYpm, NZPm, ND
-   private :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl, NBlocks
+   private :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl
 
    private :: itree, ibctyp
    
@@ -180,7 +180,6 @@ contains
       NVR = NVR_in
       levmax = levmax_in
       ND = ND_in
-      NBlocks = Nblocks_in
 
       ! integer                        :: ierr, my_rank, np, rank
       ! real(dp)                       :: XPM, YPM, velx, vely
@@ -304,47 +303,38 @@ contains
       nullify (SOL_pm, RHS_pm, QP, XP)
    end subroutine pmesh
 
-   !> @brief Defines the characteristics of the poisson solver grid.
-   !! @author Papis
-   !!> The input parameters are:
-   !!> - itype: Integer representing the type of domain extension.
-   !!> - Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax, and Zmax of  &
-   !!>            the original domain.
-   !!> - Dpm(3): Array of size 3 containing the values DX, DY, and DZ.   
-   !!> - num_dimensions: Number of dimensions of the domain.
-   !!> - ndum: Number of Dpm's by which the domain will be extended.
-   !!> - nsize(3): 
-   !!> The output parameters are:
-   !!> - Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax, and Zmax of &
-   !!>             the extended domain.
-   !!> - NN(3): Array of size 3 containing the nodes of the extended domain (1-->NXpm).
-   !!> - NN_bl(6): Array of size 6 containing the starting and ending nodes of the original domain   &
-   !!>             (defined by Xbound at input).
-   !!> - Dpm(3): Array of size 3 containing the new values DX, DY, and DZ.
-   !!>
-   !!@param[in] itype: Integer representing the type of domain extension.
-   !!@param[inout] Xbound(6): Array of size 6 containing the values Xmin, Ymin, Zmin, Xmax, Ymax,   &
-   !!              and Zmax of the original domain.
-   !!@param[inout] Dpm(3): Array of size 3 containing the values DX, DY, and DZ.
-   !!@param[in] num_dimensions: Number of dimensions of the domain.
-   !!@param[in] ndum: Number of Dpm's by which the domain will be extended.
-   !!@param[in] nsize(3):
-   !!@param[out] NN(3): Array of size 3 containing the nodes of the extended domain (1-->NXpm).
-   !!@param[out] NN_bl(6): Array of size 6 containing the starting and ending nodes of the original  &
-   !!              domain (defined by Xbound at input).
+
+   !> @brief Defines the characteristics of the Poisson solver grid.
    !>
-   subroutine definepm(itype, Xbound, Dpm, num_dimensions, ndum, nsize, NN, NN_bl)
-      Implicit None
-      integer, intent(in)     :: itype, num_dimensions, nsize(3), ndum
+   !> This subroutine extends the computational domain and adjusts its parameters
+   !> based on the specified extension type.
+   !>
+   !> @param[in]    itype                 Type of domain extension (1, 2, or 3)
+   !> @param[inout] Xbound                Domain boundaries [Xmin, Ymin, Zmin, Xmax, Ymax, Zmax]
+   !> @param[inout] Dpm                   Grid spacings [DX, DY, DZ]
+   !> @param[in]    num_dimensions        Number of dimensions (2 or 3)
+   !> @param[in]    ndum                  Number of cells to extend the domain by
+   !> @param[in]    nsize                 Desired divisibility of domain size [NX, NY, NZ]
+   !> @param[out]   num_nodes             Number of nodes in extended domain [NX, NY, NZ]
+   !> @param[out]   original_domain_idxs  Indexs of start and end nodes of original domain [IXs, JYs, KZs, IXe, JYe, KZe]
+   !>
+   !> @details
+   !> Extension types:
+   !> - Type 1: Extends the domain by ndum cells
+   !> - Type 2: Extends the domain and adjusts Dpm to make it divisible by nsize
+   !> - Type 3: Extends the domain by adding nodes to make it divisible by nsize, keeping original Dpm
+   subroutine definepm(itype, Xbound, Dpm, num_dimensions, n_dum, nsize, num_nodes, original_domain_idxs)
+      implicit None
+      integer, intent(in)     :: itype, num_dimensions, nsize(3), n_dum
       real(dp), intent(inout) :: Xbound(6), Dpm(3)
-      integer, intent(out)    :: NN(3), NN_bl(6)
+      integer, intent(out)    :: num_nodes(3), original_domain_idxs(6)
       integer                 :: ndum_new(3), nn1, nn2, i, remainder
 
-
+      ! Extend domain boundaries and calculate initial number of nodes
       do i = 1, num_dimensions
-         Xbound(i) = Xbound(i) - (ndum * Dpm(i))
-         Xbound(i + 3) = Xbound(i + 3) + (ndum * Dpm(i))
-         NN(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
+         Xbound(i) = Xbound(i) - (n_dum * Dpm(i))
+         Xbound(i + 3) = Xbound(i + 3) + (n_dum * Dpm(i))
+         num_nodes(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
       end do
       
       select case(itype)
@@ -359,8 +349,8 @@ contains
       case(2)
          ndum_new = 0
          do i = 1,num_dimensions
-            NN(i) = NN(i) + nsize(i) - mod(NN(i) - 1, nsize(i))
-            Dpm(i) = (abs(Xbound(i + 3) - Xbound(i))/(NN(i) - 1))
+            num_nodes(i) = num_nodes(i) + nsize(i) - mod(num_nodes(i) - 1, nsize(i))
+            Dpm(i) = (abs(Xbound(i + 3) - Xbound(i))/(num_nodes(i) - 1))
          end do
       !Itype 3: 
       ! extends the domain by ndum_new cells 
@@ -368,7 +358,7 @@ contains
       case(3)
          do i = 1, num_dimensions
             ! The new number of nodes is increased so that it is divided by nsize
-            remainder = mod(NN(i) - 1, nsize(i))
+            remainder = mod(num_nodes(i) - 1, nsize(i))
             if ((remainder .eq. 0).or.(remainder.eq.nsize(i))) then
                ndum_new(i) = 0
                cycle
@@ -380,21 +370,24 @@ contains
             nn2 = int(ndum_new(i)/ 2)  ! Symmetric addition part
             Xbound(i) = Xbound(i) - ((nn1 + nn2) * Dpm(i))
             Xbound(i + 3) = Xbound(i + 3) + (nn2 * Dpm(i))
-            NN(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
+            num_nodes(i) = int(nint(abs(Xbound(i + 3) - Xbound(i)) / Dpm(i))) + 1
          end do
       end select
       
       !Define the nodes which the original domain starts (corresponding to Xbound_in)
       do i=1,num_dimensions
-         NN_bl(i) = ndum + 1 !+ ndum_new(i)
-         NN_bl(i + 3) = NN(i) - ndum !- ndum_new(i)
+         nn1 = mod(ndum_new(i), 2)
+         if (nn1.eq.2) nn1 = 0
+         nn2 = int(ndum_new(i)/ 2)
+         original_domain_idxs(i) = n_dum + 1 ! + nn1 + nn2
+         original_domain_idxs(i + 3) = num_nodes(i) - n_dum !- nn2
       enddo
      
       ! In the 2D case, zero the 3d dimension
       if (num_dimensions .eq. 2) then
-         NN(3) = 1
-         NN_bl(3) = 1
-         NN_bl(6) = 1
+         num_nodes(3) = 1
+         original_domain_idxs(3) = 1
+         original_domain_idxs(6) = 1
          Xbound(6) = 0
          Xbound(3) = 0
       end if

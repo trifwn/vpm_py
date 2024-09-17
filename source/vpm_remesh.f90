@@ -12,15 +12,15 @@ submodule(vpm_lib) vpm_remesh
    !-->The loops starts from 2 because we need cells that DO NOT contain particles  !
    !-->Total Number of Cells                                                        !
    !--------------------------------------------------------------------------------!
-   module subroutine remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out)
+   module subroutine remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out, cutoff_value)
       use pmgrid, only:    XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, &
                            YMAX_pm, XMAX_pm, ZMAX_pm, DVpm,             &
                            NXpm_coarse, NYpm_coarse, NZpm_coarse,       &
                            NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
                            NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
                            RHS_pm
-      use vpm_vars, only:  mrem, neqpm, interf_iproj, NVR_size, V_ref 
-      use parvar, only: NVR, XP, QP, GP, UP
+      use vpm_vars, only:  mrem, neqpm, interf_iproj, V_ref 
+      use parvar, only: NVR, XP, QP, GP, UP, NVR_size
       use base_types, only: dp
       use io, only: vpm_print, nocolor, tab_level, yellow, dummy_string
       use MPI
@@ -28,9 +28,10 @@ submodule(vpm_lib) vpm_remesh
       Implicit None
 
       ! PARAMETERS
-      integer,  intent(in)  :: iflag, npar_per_cell
+      integer,  intent(in)             :: iflag, npar_per_cell
       real(dp), intent(out), allocatable, target, dimension(:,:) :: XP_out, QP_out, GP_OUT, UP_OUT
-      integer,  intent(out) :: NVR_out
+      integer,  intent(out)            :: NVR_out
+      real(dp), intent(in), optional   :: cutoff_value
 
       ! LOCAL VARIABLES
       real(dp), dimension(8)           :: X, Y, Z, Q
@@ -40,17 +41,30 @@ submodule(vpm_lib) vpm_remesh
       integer                          :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin
       integer                          :: nc
       integer, allocatable             :: ieq(:)
-      real(dp)                         :: Xbound(6), Dpm(3), wmag, cuttof_value
+      real(dp)                         :: Xbound(6), Dpm(3), wmag, cutoff
       real(dp), allocatable            :: QINF(:)
       integer                          :: NVR_old, eq 
       integer                          :: my_rank, ierr, np, NN(3), NN_bl(6)
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+
+      if (present(cutoff_value)) then
+         cutoff = cutoff_value
+      else
+         cutoff = 1e-09
+      end if
+
       if (my_rank .eq. 0) then
          st = MPI_WTIME()
-         write (dummy_string, "(A)") 'Remeshing '
+         write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value:', cutoff
          call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A)") 'RHS_PM will be used to remesh the particles'
+         call vpm_print(dummy_string, nocolor, 2)
+         if (iflag .eq. 1) then
+            write (dummy_string, "(A)") 'RHS_PM will be interpolated from the particle data'
+            call vpm_print(dummy_string, nocolor, 2)
+         end if
       end if
       tab_level = tab_level + 1
 
@@ -88,6 +102,7 @@ submodule(vpm_lib) vpm_remesh
 
       ! Project particles on PM grid to get RHS
       if (iflag .eq. 1) then
+         ! RHS_pm(neqpm+1,:,:,:)=DVpm
          call project_particles_parallel
       end if
 
@@ -96,15 +111,6 @@ submodule(vpm_lib) vpm_remesh
          ncell = npar_per_cell
          allocate (XC(ncell), YC(ncell), ZC(ncell), QC(ncell))
          
-         ! NOT IMPLEMENTED
-         ! ndum_rem = 2
-         ! !if ncell gt 1 particles IN cell else in nodes
-         ! if (ncell .eq. 1) then
-         !    nnod = 0
-         ! else
-         !    nnod = 1
-         ! end if
-
          if (ncell .eq. 1) then
             nxstart  = NN_bl(1) + interf_iproj/2
             nystart  = NN_bl(2) + interf_iproj/2
@@ -146,7 +152,7 @@ submodule(vpm_lib) vpm_remesh
          QP = 0
          npar = 0
          V_ref = 1.d0/float(ncell)*DVpm
-         cuttof_value = 1e-09
+
          ! !$omp parallel private(i,j,k,npar,X,Y,Z) num_threads(OMPTHREADS)
          ! !$omp do
          do k = nzstart, nzfin
@@ -158,71 +164,51 @@ submodule(vpm_lib) vpm_remesh
                   Z(1) = ZMIN_pm + Dpm(3)*(k - 1) ! 
                   !-> Get PM cell nodes orthogonal structured grid
                   if (ncell .gt. 1) then
-                     do eq=1,neqpm
-                        ! FORTAN ORDERING
-                        X(2) = XMIN_pm + Dpm(1)*(i)
-                        X(3) = XMIN_pm + Dpm(1)*(i)
-                        X(4) = XMIN_pm + Dpm(1)*(i - 1)
-                        X(5) = XMIN_pm + Dpm(1)*(i - 1)
-                        X(6) = XMIN_pm + Dpm(1)*(i)
-                        X(7) = XMIN_pm + Dpm(1)*(i)
-                        X(8) = XMIN_pm + Dpm(1)*(i - 1)
+                     ! FORTAN ORDERING
+                     X(2) = XMIN_pm + Dpm(1)*(i)
+                     X(3) = XMIN_pm + Dpm(1)*(i)
+                     X(4) = XMIN_pm + Dpm(1)*(i - 1)
+                     X(5) = XMIN_pm + Dpm(1)*(i - 1)
+                     X(6) = XMIN_pm + Dpm(1)*(i)
+                     X(7) = XMIN_pm + Dpm(1)*(i)
+                     X(8) = XMIN_pm + Dpm(1)*(i - 1)
 
-                        Y(2) = YMIN_pm + Dpm(2)*(j - 1)
-                        Y(3) = YMIN_pm + Dpm(2)*(j)
-                        Y(4) = YMIN_pm + Dpm(2)*(j)
-                        Y(5) = YMIN_pm + Dpm(2)*(j - 1)
-                        Y(6) = YMIN_pm + Dpm(2)*(j - 1)
-                        Y(7) = YMIN_pm + Dpm(2)*(j)
-                        Y(8) = YMIN_pm + Dpm(2)*(j)
+                     Y(2) = YMIN_pm + Dpm(2)*(j - 1)
+                     Y(3) = YMIN_pm + Dpm(2)*(j)
+                     Y(4) = YMIN_pm + Dpm(2)*(j)
+                     Y(5) = YMIN_pm + Dpm(2)*(j - 1)
+                     Y(6) = YMIN_pm + Dpm(2)*(j - 1)
+                     Y(7) = YMIN_pm + Dpm(2)*(j)
+                     Y(8) = YMIN_pm + Dpm(2)*(j)
 
-                        Z(2) = ZMIN_pm + Dpm(3)*(k - 1)
-                        Z(3) = ZMIN_pm + Dpm(3)*(k - 1)
-                        Z(4) = ZMIN_pm + Dpm(3)*(k - 1)
-                        Z(5) = ZMIN_pm + Dpm(3)*(k)
-                        Z(6) = ZMIN_pm + Dpm(3)*(k)
-                        Z(7) = ZMIN_pm + Dpm(3)*(k)
-                        Z(8) = ZMIN_pm + Dpm(3)*(k)
+                     Z(2) = ZMIN_pm + Dpm(3)*(k - 1)
+                     Z(3) = ZMIN_pm + Dpm(3)*(k - 1)
+                     Z(4) = ZMIN_pm + Dpm(3)*(k - 1)
+                     Z(5) = ZMIN_pm + Dpm(3)*(k)
+                     Z(6) = ZMIN_pm + Dpm(3)*(k)
+                     Z(7) = ZMIN_pm + Dpm(3)*(k)
+                     Z(8) = ZMIN_pm + Dpm(3)*(k)
 
-                        ! INTERPOLATE Q from RHS_pm
-                        Q(1) = RHS_pm(eq,i -1, j-1 , k-1)
-                        Q(2) = RHS_pm(eq,i   , j-1 , k-1)
-                        Q(3) = RHS_pm(eq,i   , j   , k-1)
-                        Q(4) = RHS_pm(eq,i -1, j   , k-1)
-                        Q(5) = RHS_pm(eq,i -1, j-1 , k  )
-                        Q(6) = RHS_pm(eq,i   , j-1 , k  )
-                        Q(7) = RHS_pm(eq,i   , j   , k  )
-                        Q(8) = RHS_pm(eq,i -1, j   , k  )
-
-                        YC = cell3d_interp_euler(Y, ncell, 2)
-                        ZC = cell3d_interp_euler(Z, ncell, 2)
-                        XC = cell3d_interp_euler(X, ncell, 2)
-                        QC = cell3d_interp_euler(Q, ncell, 2)
-                        do nc = 1, ncell
-                           npar = npar + 1
-                           XP(1, npar) = XC(nc)
-                           XP(2, npar) = YC(nc)
-                           XP(3, npar) = ZC(nc)
-                           STOP
-                           ! THIS SHOULD NOT BE ONE IT SHOULD BE AN INTERPOLATION OF RHS_pm
-                           ! WMAG
-                        end do
-                     enddo
-                     
-                     ! wmag = 0
-                     ! do eq = 1, neqpm
-                     !    wmag = wmag + RHS_pm(eq, i, j, k)**2
-                     ! enddo
+                     YC = cell3d_interp_euler(Y, ncell, 2)
+                     ZC = cell3d_interp_euler(Z, ncell, 2)
+                     XC = cell3d_interp_euler(X, ncell, 2)
+                     do nc = 1, ncell
+                        npar = npar + 1
+                        XP(1, npar) = XC(nc)
+                        XP(2, npar) = YC(nc)
+                        XP(3, npar) = ZC(nc)
+                        QP(neqpm+1, npar) = DVpm / float(ncell)
+                     end do
                   else
                      wmag = sqrt(RHS_pm(1, i, j, k)**2 + RHS_pm(2, i, j, k)**2 + RHS_pm(3, i, j, k)**2)
-                     if (wmag .lt. cuttof_value) cycle
+                     if (wmag .lt. cutoff) cycle
                      npar = npar + 1
                      XP(1, npar) = X(1)
                      XP(2, npar) = Y(1)
                      XP(3, npar) = Z(1)
                      
-                     QP(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k) * DVpm
                      QP(neqpm+1, npar) = DVpm
+                     QP(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k) * DVpm
                   end if
                end do
             end do
@@ -263,7 +249,7 @@ submodule(vpm_lib) vpm_remesh
       UP => UP_OUT
       
       if (my_rank.eq.0) then
-         if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP, NVR, 4)
+         if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP, NVR, 4, NVR_size)
 
          write (dummy_string, *) 'After remesh'
          call vpm_print(dummy_string, nocolor, 2)

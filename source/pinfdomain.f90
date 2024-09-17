@@ -27,10 +27,10 @@ contains
       !--Solve PM with zero boundary conditions
       neq_siz = neqf
       allocate (SOL_0_pm(neq_siz, NXpm, NYpm, NZpm))
-      allocate (source_bound(neq_siz, Nblocks*(NXpm*2 + NYpm*2)))
-      allocate (x_s(2, Nblocks*(NXpm*2 + NYpm*2)))
-      allocate (y_s(2, Nblocks*(NXpm*2 + NYpm*2)))
-      allocate (d_s((Nblocks*(NXpm*2 + NYpm*2))))
+      allocate (source_bound(neq_siz, NXpm*2 + NYpm*2))
+      allocate (x_s(2, NXpm*2 + NYpm*2))
+      allocate (y_s(2, NXpm*2 + NYpm*2))
+      allocate (d_s((NXpm*2 + NYpm*2)))
 
       !these variables are used in case we want a higher order source definition(linear for example)
       d_s = 0.d0
@@ -102,12 +102,11 @@ contains
       nworkb = 2*NXpm*NYpm + 2*NXpm*NZpm + 2*NZPm*Nypm
       neq_siz = neqf
       allocate (SOL_0_pm(neq_siz, NXpm, NYpm, NZpm))
-      allocate (source_bound(neq_siz, Nblocks*(nworkb)))
-      allocate(x_s(4, Nblocks*(nworkb)))
-      allocate(y_s(4, Nblocks*(nworkb)))
-      allocate (z_s(4, Nblocks*(nworkb)))
-
-      allocate (d_s((Nblocks*(nworkb))))
+      allocate (source_bound(neq_siz, nworkb))
+      allocate (x_s(4,nworkb))
+      allocate (y_s(4,nworkb))
+      allocate (z_s(4,nworkb))
+      allocate (d_s(nworkb))
       d_s = 0.d0
       x_s = 0.d0
       y_s = 0.d0

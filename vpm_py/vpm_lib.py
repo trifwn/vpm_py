@@ -58,6 +58,12 @@ class VPM_Lib:
         cls._lib_vpm.remesh_particles_3d.argtypes = [
             POINTER(c_int), POINTER(c_int), 
             POINTER(F_Array_Struct), POINTER(F_Array_Struct),
-            POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(c_int)
+            POINTER(F_Array_Struct), POINTER(F_Array_Struct), 
+            POINTER(c_int), POINTER(c_double)
         ]
         cls._lib_vpm.remesh_particles_3d.restype = None
+
+        cls._lib_vpm.write_particle_mesh_solution.argtypes = []
+        cls._lib_vpm.write_particle_mesh_solution.restype = None
+        cls._lib_vpm.write_particles.argtypes = []
+        cls._lib_vpm.write_particles.restype = None

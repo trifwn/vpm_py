@@ -178,7 +178,7 @@ class F_Array(object):
         return self.data
 
     def copy(self):
-        data = np.array(self.data, copy=True)
+        data = np.array(self.data, copy=True, order='F', dtype=np.float64)
         return F_Array.from_ndarray(data)
     
     def transfer_data_ownership(self):

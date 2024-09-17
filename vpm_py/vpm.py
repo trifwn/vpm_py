@@ -2,7 +2,7 @@ import numpy as np
 from mpi4py import MPI
 import os
 
-from ctypes import c_int,  byref, POINTER, cdll, c_double, cast
+from ctypes import c_int,  byref, c_double
 
 # Local imports
 from . import ParticleMesh
@@ -22,7 +22,6 @@ class VPM(object):
         self,
         number_of_equations: int = 3,
         number_of_processors: int = 1,
-        max_particle_num: int = 1000,
         rank: int = 0,
         verbocity: int = 1,
         dx_particle_mesh: float = 0.2,
@@ -35,7 +34,6 @@ class VPM(object):
 
         self.rank = rank
         self.num_processors = number_of_processors
-        self.max_particle_num = max_particle_num
         
         # Divide processors into NBI, NBJ, NBK so that NBI * NBJ * NBK = number of processors
         NBI, NBJ, NBK = divide_processors(number_of_processors)
@@ -72,9 +70,9 @@ class VPM(object):
         OMPTHREADS: int = 1,
         is_box_fixed: bool = False, 
         slice: bool = True, 
-        IPMWRITE: int = 1, 
-        IPMWSTART: int = 0, 
-        IPMWSTEPS: int = 150,
+        IPMWRITE: int = 0, 
+        IPMWSTART: int = -1, 
+        IPMWSTEPS: int = -1,
         VERBOSITY: int = 0
     ):
         """Wrapper function for calling Fortran subroutine `init`.
@@ -132,17 +130,16 @@ class VPM(object):
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
-
+    
     def vpm(
         self, 
         num_equations: int,
-        particle_positions: np.ndarray    | F_Array,
-        particle_strengths: np.ndarray    | F_Array,
-        particle_velocities: np.ndarray   | F_Array,
-        particle_deformations: np.ndarray | F_Array,
+        particle_positions: np.ndarray | F_Array,
+        particle_strengths: np.ndarray | F_Array,
         mode: int,
         timestep: int,
         viscosity: float,
+        num_particles: int | None = None,
     ):
         """_summary_
 
@@ -150,30 +147,27 @@ class VPM(object):
             num_equations (int): Number of equations to model
             particle_positions (np.ndarray): Particle positions array of shape (3, NVR_in)
             particle_strengths (np.ndarray): Particle strenghts array of shape (num_equations + 1, NVR_in)
-            particle_velocities (np.ndarray): Particle velocities array of shape (3, NVR_in)
-            particle_deformations (np.ndarray): Particle deformation array of shape (3, NVR_in)
             mode (int): 0 - initialize, 1 - solve, 2 - convect, 3 - project, 4 - back, 5 - diffuse
             timestep (int): Timestep
             viscosity (float): Viscosity term for the diffusion equation
+            num_particles (int, optional): Number of points to treat as particles. When None defaults
+                        to all the points in the arrays. If different from None, the rest of the points
+                        will be treated as source terms. Defaults to None.
         """
         # Check if the arrays are F_Arrays
         if isinstance(particle_positions, F_Array):
             particle_positions = particle_positions.data
         if isinstance(particle_strengths, F_Array):
             particle_strengths = particle_strengths.data
-        if isinstance(particle_velocities, F_Array):
-            particle_velocities = particle_velocities.data
-        if isinstance(particle_deformations, F_Array):
-            particle_deformations = particle_deformations.data
 
         # Check that the arrays have the same number of particles
-        num_particles = particle_positions.shape[1]
-        if not (particle_strengths.shape[1] == num_particles):
+        NVR_size = particle_positions.shape[1]
+        if not (particle_strengths.shape[1] == NVR_size):
             raise ValueError("Number of particles in particle_strengths does not match particle_positions")
-        if not (particle_velocities.shape[1] == num_particles):
-            raise ValueError("Number of particles in particle_velocities does not match particle_positions")
-        if not (particle_deformations.shape[1] == num_particles):
-            raise ValueError("Number of particles in particle_deformations does not match particle_positions")
+        
+        # Create F_Arrays to store the results
+        particle_velocities = np.zeros_like(particle_positions, dtype=np.float64, order='K')  
+        particle_deformations = np.zeros_like(particle_positions, dtype=np.float64, order='K')
 
         # Get the pointers to arrays for the particles
         XP_ptr = dp_array_to_pointer(particle_positions, copy = True)
@@ -181,18 +175,20 @@ class VPM(object):
         QP_ptr = dp_array_to_pointer(particle_strengths, copy = True)
         GP_ptr = dp_array_to_pointer(particle_deformations, copy = True)
 
-        comm = MPI.COMM_WORLD
         # Get the pointers to arrays for the grid values
         RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
         Velx_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
         Vely_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
         Velz_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
 
+        if num_particles is None:
+            num_particles = NVR_size
+
         self._lib.vpm(
             XP_ptr, QP_ptr, UP_ptr, GP_ptr,
             byref(c_int(num_particles)), byref(c_int(num_equations)),byref(c_int(mode)), 
             byref(RHS_pm_ptr), byref(Velx_ptr), byref(Vely_ptr), byref(Velz_ptr),
-            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(self.max_particle_num))
+            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(NVR_size))
         )
         # store the results of the particles
         self.particles.particle_positions = pointer_to_dp_array(XP_ptr, particle_positions.shape)
@@ -201,16 +197,9 @@ class VPM(object):
         self.particles.particle_deformations = pointer_to_dp_array(GP_ptr, particle_deformations.shape)
                 
         # store the results of the particle mesh
-        Nx = self.NX_pm
-        Ny = self.NY_pm
-        Nz = self.NZ_pm
         neq = self.num_equations
 
-        self.particle_mesh.Nx = Nx
-        self.particle_mesh.Ny = Ny
-        self.particle_mesh.Nz = Nz
         self.particle_mesh.number_equations = neq
-        
         if not Velx_ptr.is_null():
             Ux_arr = F_Array.from_ctype(Velx_ptr, ownership=True, name = "Ux")
             self.particle_mesh.Ux = Ux_arr.transfer_data_ownership()
@@ -227,12 +216,13 @@ class VPM(object):
             RHS_arr = F_Array.from_ctype(RHS_pm_ptr, ownership=True, name = "RHS")
             self.particle_mesh.RHS = RHS_arr.transfer_data_ownership()
 
-    def remesh_particles_3d(self, iflag: int, particles_per_cell: int= 1):
+    def remesh_particles(self, project_particles: bool, particles_per_cell: int= 1, cut_off: float = 1e-9):
         """Remesh particles in 3D
 
         Args:
-            iflag (int): Flag to remesh particles
+            project_particles (bool): Whether to project the particles or use RHS_pm 
             particles_per_cell (int): Number of particles per cell
+            cut_off (float): Cut off value for the remeshing
         """
         NVR = self.particles.NVR
         neq = self.num_equations
@@ -242,9 +232,10 @@ class VPM(object):
         GP_struct = F_Array_Struct.null(ndims=2, total_size=3*NVR)
         NVR = c_int(NVR)
         self._lib.remesh_particles_3d(
-            byref(c_int(iflag)), byref(c_int(particles_per_cell)),
+            byref(c_int(project_particles)), byref(c_int(particles_per_cell)),
             byref(XP_struct), byref(QP_struct),
-            byref(UP_struct), byref(GP_struct), byref(NVR)
+            byref(UP_struct), byref(GP_struct),
+            byref(NVR), byref(c_double(cut_off))
         )
         XP_arr = F_Array.from_ctype(XP_struct, ownership=True, name = "XP_remesh")
         QP_arr = F_Array.from_ctype(QP_struct, ownership=True, name = "QP_remesh")
@@ -256,7 +247,7 @@ class VPM(object):
         self.particles.particle_velocities = UP_arr.transfer_data_ownership()
         self.particles.particle_strengths = QP_arr.transfer_data_ownership()
         self.particles.particle_deformations = GP_arr.transfer_data_ownership()
-        return XP_arr, QP_arr, UP_arr, GP_arr
+        return XP_arr, QP_arr
 
     def print_pmesh_parameters(self):
         """
@@ -299,87 +290,6 @@ class VPM(object):
         """
         print_IMPORTANT(f"Particle variables {self.rank}/{self.num_processors - 1}")
         self._lib.print_parvar()
-    
-    def set_rhs_pm(self, RHS_pm: np.ndarray):
-        """
-        Set the right-hand side of the particle mesh.
-        """
-        RHS_pm = np.asfortranarray(RHS_pm, dtype=np.float64)
-        # Pass as array of shape (num_equations, NXB, NYB, NZB) not pointer
-        RHS_pm_ = RHS_pm.ctypes.data_as(POINTER(c_double))
-        sizes = np.array(RHS_pm.shape, dtype=np.int32)
-        size1 = sizes[0]
-        size2 = sizes[1]
-        size3 = sizes[2]
-        size4 = sizes[3]
-        self._lib.set_RHS_pm(
-            RHS_pm_, 
-            byref(c_int(size1)), 
-            byref(c_int(size2)), 
-            byref(c_int(size3)), 
-            byref(c_int(size4))
-        )
-    
-    @property
-    def NX_pm(self):
-        NX_pm = c_int()
-        self._lib.get_NX_pm_coarse(byref(NX_pm))
-        return NX_pm.value
-    
-    @property
-    def NY_pm(self):
-        NY_pm = c_int()
-        self._lib.get_NY_pm_coarse(byref(NY_pm))
-        return NY_pm.value
-    
-    @property
-    def NZ_pm(self):
-        NZ_pm = c_int()
-        self._lib.get_NZ_pm_coarse(byref(NZ_pm))
-        return NZ_pm.value
-
-    @property
-    def nn(self):       
-        """
-            NN(6) is the number of cells in each direction
-        """
-        NN = (c_int * 3)() 
-        self._lib.get_NN(byref(NN))
-        return np.array(NN)
-    
-    @property
-    def nn_bl(self):
-        """
-        NN_bl(6) is the start and end indices of the cells assigned to the processor.
-        """
-        NN_bl = (c_int * 6)()
-        self._lib.get_NN_bl(byref(NN_bl))
-        return np.array(NN_bl) 
-    
-    @property
-    def xbound(self):
-        """
-        Xbound(6) is the boundary of the domain.
-        """
-        xbound = (c_double * 6)()
-        self._lib.get_Xbound(byref(xbound))
-        return np.array(xbound)
-
-    def get_size_XP(self):
-        """
-            Get the size of the particle positions
-        """
-        size_XP = (c_int*2)()
-        self._lib.get_size_XP(byref(size_XP))
-        return size_XP.value
-    
-    def get_num_equations(self):
-        """
-            Get the number of equations
-        """
-        neqpm = c_int()
-        self._lib.get_neqpm(byref(neqpm))
-        return neqpm.value
     
     def finalize(self):
         self._lib.finalize()

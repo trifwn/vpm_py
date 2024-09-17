@@ -8,7 +8,7 @@ module io
     ! 3: Debug output
     character (len=100), save :: particle_output_file_suffix = "particles.dat"
     character (len=100), save :: pm_output_file_suffix = "pm_output.dat"
-    character (len=100), save :: vpm_write_folder = "results"
+    character (len=100), save :: vpm_write_folder = "results/"
     character (len=100), save :: vpm_speed_output_file = "speed_profile.dat"
     integer, save :: tab_level = 0
     character (len=400), save :: dummy_string = " "

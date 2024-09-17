@@ -405,11 +405,11 @@ subroutine find_par_in(T_in, U)
    !
 
    Implicit None
-   real(dp), intent(in):: T_in, U
-   real(dp)           :: XO, XMIN
-   integer                    :: NVR_in, neq
-   integer  :: i, NVR_in_max
-   real(dp), allocatable :: XP_tmp(:, :), QP_tmp(:, :)
+   real(dp), intent(in)    :: T_in, U
+   real(dp)                :: XO, XMIN
+   integer                 :: NVR_in, neq
+   integer                 :: i, NVR_in_max
+   real(dp), allocatable   :: XP_tmp(:, :), QP_tmp(:, :)
 
    ! Find the inflow particles
    XMIN = XMIN_pm + (NXs_coarse_bl + 4 - 1)*DXpm

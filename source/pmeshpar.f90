@@ -6,14 +6,13 @@ module pmeshpar
     real(dp), allocatable, save      :: velx_pm(:, :, :), vely_pm(:, :, :), velz_pm(:, :, :)
     real(dp), allocatable, save      :: velphix_pm(:, :, :), velphiy_pm(:, :, :), velphiz_pm(:, :, :)
     real(dp), allocatable, save      :: qx_pm(:, :, :), qy_pm(:, :, :)
-    real(dp), allocatable, save      :: SOL_pm(:, :, :, :), SOL_0_pm(:, :, :, :)
-    real(dp), allocatable, save      :: deformation_pm(:,:,:,:)
+    real(dp), allocatable, save      :: SOL_pm(:, :, :, :) , SOL_0_pm(:, :, :, :)
     real(dp), allocatable, save      :: source_bound(:, :), source_bound_lev(:,:,:)
     real(dp), allocatable, save      :: x_s(:, :), y_s(:, :), z_s(:, :), d_s(:), cos_s(:), sin_s(:)
     real(dp),allocatable,save        :: xs_lev(:,:,:),ys_lev(:,:,:),zs_lev(:,:,:),ds_lev(:,:,:)
     integer, allocatable, save       :: nbound_lev(:)
     integer                          :: levmax, ND
-    integer, save                    :: nbound, ndumcell, NVR_CFD_sa, IDVPM
+    integer, save                    :: nbound, ndumcell, IDVPM
 
     ! Printers
     public :: print_pmeshpar_info
@@ -38,7 +37,6 @@ contains
         print '(A,I6)',    achar(9)//"ND        =", ND
         print '(A,I6)',    achar(9)//"nbound    =", nbound
         print '(A,I6)',    achar(9)//"ndumcell  =", ndumcell
-        print '(A,I6)',    achar(9)//"NVR_CFD_sa=", NVR_CFD_sa
         print '(A,I6)',    achar(9)//"IDVPM     =", IDVPM
         
         print '(A)', achar(9)//""
@@ -52,9 +50,6 @@ contains
         call dp_3d_alloc_info("qy_pm", qy_pm)
         
         ! Velocity phi arrays
-        call dp_3d_alloc_info("velphix_pm", velphix_pm)
-        call dp_3d_alloc_info("velphiy_pm", velphiy_pm)
-        call dp_3d_alloc_info("velphiz_pm", velphiz_pm)
         
         ! SOL arrays
         call dp_4d_alloc_info("SOL_pm", SOL_pm)

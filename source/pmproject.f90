@@ -82,7 +82,7 @@ contains
       Implicit None
       integer, intent(in)     :: ipar, isize, ieq(neq), iparsize, neq
       real(dp), intent(out)   :: Q_pm(neq, NXpm, NYpm, NZpm)
-      real(dp), intent(in)    :: QP(neq+1, iparsize), XP(3, iparsize), QINF(3)
+      real(dp), intent(in)    :: QP(neq+1, iparsize), XP(3, iparsize), QINF(neq)
       integer, intent(in)     :: Qprojtype(iparsize)
 
       real(dp)                :: fx, fy, fz, f, x, y, z
@@ -121,10 +121,21 @@ contains
          end if
 
          ! Check if particle is within the PM grid
-         if (inode - ips < 1 .or. inode + ipf > NXpm) STOP 'Particle out of bounds in X direction'
-         if (jnode - ips < 1 .or. jnode + ipf > NYpm) STOP 'Particle out of bounds in Y direction'
-         if (ND == 3 .and. (knode - ips < 1 .or. knode + ipf > NZpm)) STOP 'Particle out of bounds in Z direction'
-
+         if (inode - ips < 1 .or. inode + ipf > NXpm) then
+            print *, 'Particle out of bounds in X direction', inode, ips, ipf, nv
+            read *, ierr
+            STOP
+         endif
+         if (jnode - ips < 1 .or. jnode + ipf > NYpm) then
+            print *, 'Particle out of bounds in Y direction', jnode, ips, ipf, nv
+            read *, ierr
+            STOP
+         endif
+         if (ND == 3 .and. (knode - ips < 1 .or. knode + ipf > NZpm)) then
+            print *, 'Particle out of bounds in Z direction', knode, ips, ipf, nv
+            read *, ierr
+            STOP
+         endif
          !--We search the 4 nodes close to the particles
          do k = knode - ips, knode + ipf
             do j = jnode - ips, jnode + ipf               
@@ -143,16 +154,15 @@ contains
                      f = fx*fy
                   end if
 
-                  ! Q_pm(ieq(1:neq - 1), i, j, k) = Q_pm(ieq(1:neq - 1), i, j, k) &
-                  !                               + f * QP(ieq(1:neq - 1), nv)
-                  !                               ! - QINF(1:neq-1) * QPar(ieq(neq),nv))
-                  ! Q_pm(ieq(neq), i, j, k) = Q_pm(ieq(neq), i, j, k) &
-                  !                               + f* QP(ieq(neq), nv) &
-                  !                               - f* QINF(neq)
-                                                
+                  ! Qproj(ieq(1:neq-1),i,j,k) = Qproj(ieq(1:neq-1),i,j,k) +&
+                  !           f * (QPar(ieq(1:neq-1),nv))!-QINF(1:neq-1)*QPar(ieq(neq),nv))
+                      
                   ! For the last equation, we subtract the inflow value
+                  ! Qproj(ieq(neq),i,j,k) = Qproj(neq,i,j,k) +&
+                  !           f * (QPar(ieq(neq),nv)-QINF(neq))
+
                   fpriv(ieq(1:neq), i, j, k) = fpriv(ieq(1:neq), i, j, k) &
-                                             + f * QP(ieq(1:neq), nv)
+                                             + f * (QP(ieq(1:neq), nv) - QINF(1:neq))
 
                end do
             end do
@@ -199,10 +209,10 @@ contains
                do i = 1, NXpm
                   if (i .lt. NXs .or. i .gt. NXf .or. j .lt. NYs .or. j .ge. NYf .or. k .lt. NZs .or. k .gt. NZf) then
                      Qproj(ieq(1:neq), i, j, k) = 0.d0
-                     ! Qproj(ieq(neq), i, j, k) = DVpm
+                     Qproj(ieq(neq), i, j, k) = DVpm
                      cycle
                   end if
-                  Qproj(ieq(1:neq), i, j, k) = Qproj(ieq(1:neq), i, j, k)/(Qproj(ieq(neq), i, j, k))
+                  Qproj(ieq(1:neq-1), i, j, k) = Qproj(ieq(1:neq-1), i, j, k)/ (Qproj(ieq(neq), i, j, k))
                end do
             end do
          end do
@@ -214,7 +224,7 @@ contains
                   !     Qproj (ieq(1:neq-1),i,j,k) = 0.d0
                   !     cycle
                   ! endif
-                  Qproj(ieq(1:neq), i, j, k) = Qproj(ieq(1:neq), i, j, k)/DVpm
+                  Qproj(ieq(1:neq), i, j, k) = Qproj(ieq(1:neq), i, j, k) / DVpm
                   ! Qproj(ieq(neq), i, j, k) = DVpm
                end do
             end do

@@ -26,11 +26,11 @@ class Particle3DPlot:
         self.fig.colorbar(self.sc, ax=self.ax, label="Strenghts")
         plt.ion()
         # Set the view from top down minus z
-        self.ax.view_init(elev=90, azim=0)
+        self.ax.view_init(elev=30, azim=30)
 
         self.fig.show()
 
-    def update(self, x, y, z, c):
+    def update(self, x, y, z, c, label= "Particle Strengths"):
         """
         Update the plot with new particle positions.
 
@@ -60,6 +60,10 @@ class Particle3DPlot:
         self.fig.canvas.draw()
         plt.pause(0.01)
         print_green(f"\tPlot updated")
+
+        # Update the figure title
+        if label is not None:
+            self.ax.set_title(label)
 
     def close(self):
         """

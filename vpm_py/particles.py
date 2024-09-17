@@ -2,7 +2,7 @@ import os
 import glob
 from shutil import copy2
 from tempfile import NamedTemporaryFile
-from ctypes import c_double, c_int, POINTER, cdll, CDLL, byref
+from ctypes import c_double, c_int, POINTER, cdll, CDLL, byref, c_char_p, create_string_buffer
 import numpy as np
 
 from vpm_py.arrays import F_Array, F_Array_Struct
@@ -130,13 +130,17 @@ class Particles:
         self._lib_particles.get_num_particles(byref(NVR))
         return NVR.value
     
-    def print_data_ownership(self):
-        print_IMPORTANT(f"owners of the data:", color_divider="yellow", color_text="yellow")
-        print(f"\tXP data owner: {self.particle_positions.__array_interface__['data']}")
-        print(f"\tQP data owner: {self.particle_strengths.__array_interface__['data']}")
-        print(f"\tUP data owner: {self.particle_velocities.__array_interface__['data']}")
-        print(f"\tGP data owner: {self.particle_deformations.__array_interface__['data']}")
+    def save_to_file(self, folder: str = "results", filename: str = "particles.dat"):
+        """
+        Save the particles to a file named: folder/____filename where the ____ indicates the timestep
 
-    # def __del__(self):
-    #     self._lib_particles.finalize()
-    #     os.remove(self._lib_particles_path)
+        Args:
+            folder (str, optional): Folder to save the file. Defaults to "results".
+            filename (str, optional): Filename. Defaults to "particles.dat".
+        """
+        # Convert to bytes
+        folder_bytes = create_string_buffer(folder.encode())
+        filename_bytes = create_string_buffer(filename.encode())
+
+        # Call the Fortran routine using ctypes
+        self._lib_particles.write_particles(folder_bytes, filename_bytes)
