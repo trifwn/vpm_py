@@ -174,7 +174,9 @@ class F_Array(object):
         arr = F_Array(np_array.shape, data_container=np_array)
         return arr
     
-    def to_numpy(self):
+    def to_numpy(self, copy=False):
+        if copy:
+            return np.array(self.data, copy=True, order='F', dtype=np.float64)
         return self.data
 
     def copy(self):

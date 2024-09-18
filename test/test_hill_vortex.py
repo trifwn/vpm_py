@@ -5,8 +5,8 @@ from mpi4py import MPI
 import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization import Particle3DPlot
-from hill_spherical_vortex import hill_assign_parallel
+from vpm_py.visualization.visualizer import Visualizer
+from test.test_hill_spherical_vortex import hill_assign_parallel
 
 def main():
     # Initialize MPI
@@ -26,7 +26,7 @@ def main():
         dz_particle_mesh= 0.1
     )
     if rank == 0:
-        plotter = Particle3DPlot()
+        plotter = Visualizer()
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -90,11 +90,12 @@ def main():
     
     # Create the plot to live update the particles
     if rank == 0:
-        plotter.update(
-            x = XPR[0,:],
-            y = XPR[1,:],
-            z = XPR[2,:],
-            c = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
+        plotter.update_particle_plot(
+            iteration=0,
+            particle_positions= XPR[:,:],
+            particle_strengths= QPR[:,:],
+            particle_velocities= vpm.particles.UP[:,:],
+            particle_deformations= vpm.particles.GP[:,:]
         )
 
     comm.Barrier()
@@ -199,12 +200,13 @@ def main():
                 # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
 
             # Update the plot
-            plotter.update(
-                x = XPR[0,:],
-                y = XPR[1,:],
-                z = XPR[2,:],
-                c = np.sqrt(QPR[0,:]**2 + QPR[1,:]**2 + QPR[2,:]**2)
-            ) 
+            plotter.update_particle_plot(
+                iteration=i,
+                particle_positions= XPR[:,:],
+                particle_strengths= QPR[:,:],
+                particle_velocities= UPR[:,:],
+                particle_deformations= GPR[:,:]
+            )
             vpm.particles.save_to_file(f"NOTUSED.dat")
             vpm.particle_mesh.save_to_file(f"NOTUSED.dat")
 

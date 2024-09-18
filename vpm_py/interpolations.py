@@ -48,5 +48,4 @@ plt.legend()
 plt.grid(True)
 plt.axhline(y=0, color='k', linestyle='--')
 plt.axvline(x=0, color='k', linestyle='--')
-
 plt.show()

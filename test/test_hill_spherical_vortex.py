@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpi4py import MPI
 
-def fUi_HillsVortex_1(control_point, sphere_radius, u_freestream, z_0):    
+def HillsVortex(control_point, sphere_radius, u_freestream, z_0):    
     """
 
     Args:
@@ -112,7 +112,7 @@ def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_freestream=-
             for j in range(j_start -1, j_end -1):
                 for i in range(i_start -1, i_end -1):
                         # Call fUi_HillsVortex_1 function
-                        Uind, Defm, Vort = fUi_HillsVortex_1(
+                        Uind, Defm, Vort = HillsVortex(
                             CP[i,j,k,:], sphere_radius, u_freestream, sphere_z_center
                         )
                         # Update RHS_pm_bl with negative vorticity values and analytic_sol with the computed values
@@ -168,7 +168,7 @@ def hill_assign_parallel(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_fre
     for idx, k in enumerate(k_range):
         for j in range(j_start - 1, j_end - 1):
             for i in range(i_start - 1, i_end - 1):
-                Uind, Defm, Vort = fUi_HillsVortex_1(
+                Uind, Defm, Vort = HillsVortex(
                     CP[i-(i_start-1), j-(j_start-1), idx], sphere_radius, u_freestream, sphere_z_center
                 )
                 local_RHS_pm_bl[:3, i-(i_start-1), j-(j_start-1), idx] = -Vort[:3]
@@ -239,7 +239,6 @@ def hill_error(NN, NN_bl, Xbound, Dpm, SOL_pm, vel_pm, analytic_sol):
     mean_err /= (NN[0] * NN[1] * NN[2])
     print(f'----Maximum Velocity Error-----: {max_err[6] * 100:.2f}%')
     print(f'----Mean Velocity Error-----: {mean_err[6] * 100:.2f}%')
-
 
 def visualize_vorticity(RHS_pm_bl, NN_bl):
     """

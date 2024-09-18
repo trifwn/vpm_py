@@ -4,9 +4,9 @@ from mpi4py import MPI
 import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization import Particle3DPlot
+from vpm_py.visualization.visualizer import Visualizer
 from vpm_py.arrays import F_Array
-from hill_spherical_vortex import hill_assign_parallel, visualize_vorticity
+from test.test_hill_spherical_vortex import hill_assign_parallel, visualize_vorticity
 
 
 # Initialize MPI
@@ -27,7 +27,7 @@ vpm = VPM(
 )
 
 if rank == 0:
-    plotter = Particle3DPlot()
+    plotter = Visualizer()
 
 # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
 print_blue(f"Number of processes: {np_procs}", rank)
@@ -71,7 +71,7 @@ _, RHS_pm_hill = hill_assign_parallel(
     NN_bl=vpm.particle_mesh.nn_bl,
     Xbound=vpm.particle_mesh.xbound,
     neqpm=vpm.num_equations,
-    sphere_radius=1.0,
+    sphere_radius=1.5,
     u_freestream=1.0,
     sphere_z_center=0.0,
 )
@@ -83,7 +83,7 @@ print_red(f"Setting RHS_PM as computed from the hill vortex", rank)
 if rank == 0:
     st = MPI.Wtime()
     print_red(f"Remeshing")
-XPR_zero, QPR_zero = vpm.remesh_particles(project_particles=False)
+XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False)
 if rank == 0:
     et = MPI.Wtime()
     print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
@@ -92,12 +92,12 @@ print_IMPORTANT(f"Particles initialized", rank)
 
 # Create the plot to live update the particles
 if rank == 0:
-    plotter.update(
-        x=XPR_zero[0, :],
-        y=XPR_zero[1, :],
-        z=XPR_zero[2, :],
-        c=np.sqrt(QPR_zero[0, :] ** 2 + QPR_zero[1, :] ** 2 + QPR_zero[2, :] ** 2),
-        label="Vorticity",
+    plotter.update_particle_plot(
+        iteration= 0,
+        particle_positions= XPR_hill[:,:],
+        particle_strengths= QPR_hill[:,:],
+        particle_velocities= vpm.particles.UP.to_numpy(copy=True),
+        particle_deformations= vpm.particles.GP.to_numpy(copy=True),
     )
 
 # # Define Timestep 
@@ -117,7 +117,6 @@ def check_redefine(i: int, XPR: F_Array, QPR: F_Array):
         (max_particle_poistion_z > vpm.particle_mesh.Zmax - 2 * vpm.dpm[2])):
         redefine = 1
         print_IMPORTANT("Redefining the particle mesh because the particles are out of bounds", rank)
-        input("Press Enter to continue...")
     # Broadcast the redefine flag
     comm = MPI.COMM_WORLD
     redefine = comm.bcast(redefine, root=0)
@@ -154,17 +153,18 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
         timestep=i,
         viscosity=NI,
     )
+
     if rank == 0:
+        UPR = vpm.particles.UP.to_numpy(copy=True)
+        GPR = vpm.particles.GP.to_numpy(copy=True)
         # Update the plot
-        plotter.update(
-            x=XPR[0, :],
-            y=XPR[1, :],
-            z=XPR[2, :],
-            c=np.sqrt(QPR[0, :] ** 2 + QPR[1, :] ** 2 + QPR[2, :] ** 2),
-            label=f"Particle Strength at t={T}",
+        plotter.update_particle_plot(
+            iteration=i,
+            particle_positions=XPR[:,:],
+            particle_strengths=QPR[:,:],
+            particle_velocities=UPR,
+            particle_deformations=GPR,
         )
-        UPR = vpm.particles.UP
-        GPR = vpm.particles.GP
     else:
         UPR = vpm.particles.particle_velocities
         GPR = vpm.particles.particle_deformations
@@ -180,16 +180,32 @@ def timestep(
 ):
     XPR_TMP = XPR.copy()
     QPR_TMP = QPR.copy()
-    U1 = solve(i, t, XPR, QPR)
+    U1 = solve(i, t, XPR_TMP, QPR_TMP)
+    if rank == 0:
+        if np.any(np.isnan(U1)):
+            print_red(f"U1 has NaN values", rank)
+            raise ValueError("U1 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U1[:, :]
     U2 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
+    if rank == 0:
+        if np.any(np.isnan(U2)):
+            print_red(f"U2 has NaN values", rank)
+            raise ValueError("U2 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U2[:, :]
     U3 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
+    if rank == 0:
+        if np.any(np.isnan(U3)):
+            print_red(f"U3 has NaN values", rank)
+            raise ValueError("U3 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + DT * U3[:, :]
     U4 = solve(i, t + DT, XPR_TMP, QPR_TMP)
+    if rank == 0:
+        if np.any(np.isnan(U4)):
+            print_red(f"U4 has NaN values", rank)
+            raise ValueError("U4 has NaN values")
 
     # U_mean = U1
     if rank == 0:
@@ -225,8 +241,8 @@ def timestep(
 # # Simulate
 T = 0.
 max_iter = 500
-XPR = XPR_zero 
-QPR = QPR_zero
+XPR = XPR_hill 
+QPR = QPR_hill
 for i in range(max_iter):
     XPR, QPR = timestep(i, T, XPR, QPR)
     T += DT
