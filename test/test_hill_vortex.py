@@ -5,7 +5,7 @@ from mpi4py import MPI
 import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization.visualizer import Visualizer
+from vpm_py.visualization import StandardVisualizer
 from test.test_hill_spherical_vortex import hill_assign_parallel
 
 def main():
@@ -26,7 +26,7 @@ def main():
         dz_particle_mesh= 0.1
     )
     if rank == 0:
-        plotter = Visualizer()
+        plotter = StandardVisualizer(plot_particles=("strength","magnitude"))
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -90,7 +90,7 @@ def main():
     
     # Create the plot to live update the particles
     if rank == 0:
-        plotter.update_particle_plot(
+        plotter.update_particle_plots(
             iteration=0,
             particle_positions= XPR[:,:],
             particle_strengths= QPR[:,:],

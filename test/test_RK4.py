@@ -4,9 +4,9 @@ from mpi4py import MPI
 import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization.visualizer import Visualizer
+from vpm_py.visualization import StandardVisualizer
 from vpm_py.arrays import F_Array
-from test.test_hill_spherical_vortex import hill_assign_parallel, visualize_vorticity
+from test_hill_spherical_vortex import hill_assign_parallel, visualize_vorticity
 
 
 # Initialize MPI
@@ -27,7 +27,7 @@ vpm = VPM(
 )
 
 if rank == 0:
-    plotter = Visualizer()
+    plotter = StandardVisualizer(plot_particles=("strength", 'magnitude'))
 
 # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
 print_blue(f"Number of processes: {np_procs}", rank)
@@ -92,7 +92,7 @@ print_IMPORTANT(f"Particles initialized", rank)
 
 # Create the plot to live update the particles
 if rank == 0:
-    plotter.update_particle_plot(
+    plotter.update_particle_plots(
         iteration= 0,
         particle_positions= XPR_hill[:,:],
         particle_strengths= QPR_hill[:,:],
@@ -158,7 +158,7 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
         UPR = vpm.particles.UP.to_numpy(copy=True)
         GPR = vpm.particles.GP.to_numpy(copy=True)
         # Update the plot
-        plotter.update_particle_plot(
+        plotter.update_particle_plots(
             iteration=i,
             particle_positions=XPR[:,:],
             particle_strengths=QPR[:,:],

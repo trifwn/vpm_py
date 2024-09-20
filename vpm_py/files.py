@@ -2,14 +2,78 @@ import numpy as np
 import pandas as pd
 import multiprocessing as mp
 from scipy.io import FortranFile
+import h5py
+from typing import Any  
 
-def process_particle_ouput_file(filename, folder):
+def process_particle_output_file(filename: str, folder: str | None= None):
+    """Process a single particle file stored in HDF5 format and return the data arrays."""
+    if folder:
+        filename = folder + filename
+
+    with h5py.File(filename, 'r') as f:
+        # Read the dataset groups
+        XS = np.array(f['particles/XS'])
+        YS = np.array(f['particles/YS'])
+        ZS = np.array(f['particles/ZS'])
+        UXS = np.array(f['particles/UXS'])
+        UYS = np.array(f['particles/UYS'])
+        UZS = np.array(f['particles/UZS'])
+        QXS = np.array(f['particles/QXS'])
+        QYS = np.array(f['particles/QYS'])
+        QZS = np.array(f['particles/QZS'])
+
+        # Compute magnitudes
+        UMAG = np.sqrt(UXS**2 + UYS**2 + UZS**2)
+        QMAG = np.sqrt(QXS**2 + QYS**2 + QZS**2)
+
+    # Concatenate particle positions into a single array of shape (3, N)
+    particle_positions = np.vstack((XS, YS, ZS))
+    # Concatenate particle velocities into a single array of shape (3, N)
+    particle_velocities = np.vstack((UXS, UYS, UZS))
+    # Concatenate particle vorticity into a single array of shape (3, N)
+    particle_strengths = np.vstack((QXS, QYS, QZS))
+    # Create a placeholder for particle deformations, as the original code assumes this array
+    particle_deformations = np.zeros_like(particle_positions)
+
+    return particle_positions, particle_velocities, particle_strengths, particle_deformations
+
+def process_pm_output_file(filename: str, folder: str | None = None):
+    """Process a single PM solution file stored in HDF5 format and return the data arrays."""
+    if folder:
+        filename = folder + filename
+
+    with h5py.File(filename, 'r') as f:
+        # Read the dataset groups
+        XS = np.array(f['mesh/XS'])
+        YS = np.array(f['mesh/YS'])
+        ZS = np.array(f['mesh/ZS'])
+        UXS = np.array(f['mesh/UXS'])
+        UYS = np.array(f['mesh/UYS'])
+        UZS = np.array(f['mesh/UZS'])
+        QXS = np.array(f['mesh/QXS'])
+        QYS = np.array(f['mesh/QYS'])
+        QZS = np.array(f['mesh/QZS'])
+
+    # Mesh grid needs to have shape adjusted (as done in the original function)
+    mesh_positions = np.array([XS, YS, ZS])
+    mesh_velocities = np.array([UXS, UYS, UZS])
+    mesh_strengths = np.array([QXS, QYS, QZS])
+    # Create a placeholder for mesh deformations, as the original code assumes this array
+    mesh_deformations = np.zeros_like(mesh_positions)
+
+    return mesh_positions, mesh_velocities, mesh_strengths, mesh_deformations
+
+
+def process_particle_ouput_file(filename: str , folder: str | None = None):
     """Process a single particle file and return the data arrays."""
-    data = {
+
+    data: dict[str, Any] = {
         "XS": [], "YS": [], "ZS": [], "QXS": [], "QYS": [], "QZS": [], "QMAG": [],
                                       "UXS": [], "UYS": [], "UZS": [], "UMAG": []
     }
-    with open(folder + filename) as file:
+    if folder:
+        filename = folder + filename
+    with open(filename) as file:
         lines = file.readlines()
         for l in lines[2:]:
             l = l.split()
@@ -46,13 +110,15 @@ def process_particle_ouput_file(filename, folder):
     particle_deformations = np.zeros_like(particle_positions)
     return particle_positions, particle_velocities, particle_strengths, particle_deformations
 
-def process_pm_output_file(f, folder):
-    with open(folder + f) as file:
-        lines = file.readlines()
+def process_pm_output_file(filename: str, folder: str | None = None):
+    if folder:
+        filename = folder + filename
+    with open(filename) as f:
+        lines = f.readlines()
         vars = [v.replace('"','') for v in lines[0].split()[2:]]
         sizes = [i for i in lines[1].split()]
         IS, JS, KS = [int(sizes[i][2:]) for i in range(1, 4)]
-    df = pd.read_csv(folder + f, sep=r'\s+', header=None, skiprows=3) 
+    df = pd.read_csv(filename, sep=r'\s+', header=None, skiprows=3) 
     df.columns = vars
     mesh_data = {
         "XS": df['X'].values.reshape(KS, JS, IS, order='C'),
@@ -65,10 +131,15 @@ def process_pm_output_file(f, folder):
         "QYS": df['VORTY'].values.reshape(KS, JS, IS, order='C'),
         "QZS": df['VORTZ'].values.reshape(KS, JS, IS, order='C')
     }
-    mesh_data["UMAG"] = np.sqrt(mesh_data["UXS"]**2 + mesh_data["UYS"]**2 + mesh_data["UZS"]**2)
-    mesh_data["QMAG"] = np.sqrt(mesh_data["QXS"]**2 + mesh_data["QYS"]**2 + mesh_data["QZS"]**2)
+    for k, v in mesh_data.items():
+        mesh_data[k] = np.moveaxis(v, [0, 1, 2], [2, 1, 0])
 
-    return mesh_data
+    mesh_positions = np.array([mesh_data["XS"], mesh_data["YS"], mesh_data["ZS"]])
+    mesh_velocities = np.array([mesh_data["UXS"], mesh_data["UYS"], mesh_data["UZS"]])
+    mesh_strengths = np.array([mesh_data["QXS"], mesh_data["QYS"], mesh_data["QZS"]])
+    mesh_deformations = np.zeros_like(mesh_positions)
+
+    return mesh_positions, mesh_velocities, mesh_strengths, mesh_deformations
 
 def process_multiple_files(files, folder, process_func):
     with mp.Pool() as pool:
