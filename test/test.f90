@@ -102,42 +102,57 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !--- INPUT OF PARTICLES
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   if (my_rank .eq. 0) then
-      print *, 'Reading Particles:'
-      open (11, file='particles.bin', form='unformatted', access='sequential', status='old') ! read particles
-      ! open (12, file='read_particles') ! write particles
-      print *, 'particles.bin'
+   ! if (my_rank .eq. 0) then
+   !    print *, 'Reading Particles:'
+   !    open (11, file='particles.bin', form='unformatted', access='sequential', status='old') ! read particles
+   !    ! open (12, file='read_particles') ! write particles
+   !    print *, 'particles.bin'
 
-      read (11) NVR_ext
-      ! write (12, "(I10)") NVR_ext
-      read (11) Vref
-      ! write (12, "(F10.5)") Vref
+   !    read (11) NVR_ext
+   !    ! write (12, "(I10)") NVR_ext
+   !    read (11) Vref
+   !    ! write (12, "(F10.5)") Vref
 
-      print *, achar(9), 'NVR_ext=', NVR_ext
-      print *, achar(9), 'Vref=', Vref
+   !    print *, achar(9), 'NVR_ext=', NVR_ext
+   !    print *, achar(9), 'Vref=', Vref
 
-      ! Allocate XPR and QPR arrays based on NVR_ext
-      allocate (XPR(3, NVR_ext))
-      allocate (QPR(4, NVR_ext))
+   !    ! Allocate XPR and QPR arrays based on NVR_ext
+   !    allocate (XPR(3, NVR_ext))
+   !    allocate (QPR(4, NVR_ext))
 
-      ! Read XPR and QPR arrays
-      do i = 1, NVR_ext
-         read (11) XPR(:, i)
-         read (11) QPR(:, i)
-         ! write (12, "(7F10.5)") XPR(:, i),  QPR(:, i)
-         ! write (*, *) achar(9), 'Particle: i', i
-         ! write (*, *) achar(9), 'XPR=', XPR(:, i)
-         ! write (*, *) achar(9), 'QPR=', QPR(:, i)
-      end do
-      close (11)
-      ! close(12)
+   !    ! Read XPR and QPR arrays
+   !    do i = 1, NVR_ext
+   !       read (11) XPR(:, i)
+   !       read (11) QPR(:, i)
+   !       ! write (12, "(7F10.5)") XPR(:, i),  QPR(:, i)
+   !       ! write (*, *) achar(9), 'Particle: i', i
+   !       ! write (*, *) achar(9), 'XPR=', XPR(:, i)
+   !       ! write (*, *) achar(9), 'QPR=', QPR(:, i)
+   !    end do
+   !    close (11)
+   !    ! close(12)
 
-      QPR(1:3, :) = -QPR(1:3, :)*Vref
-      QPR(4, :) = QPR(4, :)*Vref
-      QPR(neq + 1, :) = Vref
-      XPR = 0
-      QPR = 0
-   end if
+   !    QPR(1:3, :) = -QPR(1:3, :)*Vref
+   !    QPR(4, :) = QPR(4, :)*Vref
+   !    QPR(neq + 1, :) = Vref
+   !    XPR = 0
+   !    QPR = 0
+   ! end if
+   NVR = 100
+   NVR_ext = NVR
+   Vref = 1
+   allocate (XPR(3, NVR_ext))
+   allocate (QPR(4, NVR_ext))
+   allocate (UPR(3, NVR_ext))
+   allocate (GPR(3, NVR_ext))
+
+   XPR = 0
+   QPR = 0
+   UPR = 0
+   GPR = 0
+
+   XPR(1:3, 1) = [-2. , -2. , -2.]
+   XPR(1:3, 2) = [ 2. ,  2. ,  2.]
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM

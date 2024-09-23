@@ -158,12 +158,12 @@ def hill_assign_parallel(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_fre
                     Xbound[2] + k * Dpm[2]
                 ]
 
-    if rank == 0:
-        file = open('results/hill_spherical_vortex.dat', 'w')
-        file.write(f'Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
-        file.write(f'Zone T="Hill\'s Spherical Vortex", I={NN[0]-1}, J={NN[1]-1}, K={NN[2]-1}, F=POINT\n')
-    else:
-        file = None
+    # if rank == 0:
+    #     file = open('results/hill_spherical_vortex.dat', 'w')
+    #     file.write(f'Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
+    #     file.write(f'Zone T="Hill\'s Spherical Vortex", I={NN[0]-1}, J={NN[1]-1}, K={NN[2]-1}, F=POINT\n')
+    # else:
+    #     file = None
 
     for idx, k in enumerate(k_range):
         for j in range(j_start - 1, j_end - 1):
@@ -175,15 +175,15 @@ def hill_assign_parallel(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_fre
                 local_analytic_sol[:3, i, j, k] = Uind
                 local_analytic_sol[3:6, i, j, k] = Defm
 
-                if file:
-                    file.write(
-                        f'{CP[i-(i_start-1),j-(j_start-1),idx,0]:.8e} {CP[i-(i_start-1),j-(j_start-1),idx,1]:.8e} '
-                        f'{CP[i-(i_start-1),j-(j_start-1),idx,2]:.8e} {Uind[0]:.8e} {Uind[1]:.8e} {Uind[2]:.8e} '
-                        f'{-Vort[0]:.8e} {-Vort[1]:.8e} {-Vort[2]:.8e}\n'
-                    )
+                # if file:
+                #     file.write(
+                #         f'{CP[i-(i_start-1),j-(j_start-1),idx,0]:.8e} {CP[i-(i_start-1),j-(j_start-1),idx,1]:.8e} '
+                #         f'{CP[i-(i_start-1),j-(j_start-1),idx,2]:.8e} {Uind[0]:.8e} {Uind[1]:.8e} {Uind[2]:.8e} '
+                #         f'{-Vort[0]:.8e} {-Vort[1]:.8e} {-Vort[2]:.8e}\n'
+                #     )
 
-    if file:
-        file.close()
+    # if file:
+    #     file.close()
 
     # Gather results on process 0
     gathered_RHS_pm_bl = comm.gather(local_RHS_pm_bl, root=0)

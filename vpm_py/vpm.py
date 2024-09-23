@@ -2,8 +2,7 @@ import numpy as np
 from mpi4py import MPI
 import os
 
-from ctypes import c_int,  byref, c_double
-
+from ctypes import c_int,  byref, c_double, POINTER, c_char, c_char_p, create_string_buffer, cast
 # Local imports
 from . import ParticleMesh
 from . import Particles
@@ -135,7 +134,7 @@ class VPM(object):
         self, 
         num_equations: int,
         particle_positions: np.ndarray | F_Array,
-        particle_strengths: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
         mode: int,
         timestep: int,
         viscosity: float,
@@ -146,7 +145,7 @@ class VPM(object):
         Args:
             num_equations (int): Number of equations to model
             particle_positions (np.ndarray): Particle positions array of shape (3, NVR_in)
-            particle_strengths (np.ndarray): Particle strenghts array of shape (num_equations + 1, NVR_in)
+            particle_charges (np.ndarray): Particle charges array of shape (num_equations + 1, NVR_in)
             mode (int): 0 - initialize, 1 - solve, 2 - convect, 3 - project, 4 - back, 5 - diffuse
             timestep (int): Timestep
             viscosity (float): Viscosity term for the diffusion equation
@@ -157,13 +156,13 @@ class VPM(object):
         # Check if the arrays are F_Arrays
         if isinstance(particle_positions, F_Array):
             particle_positions = particle_positions.data
-        if isinstance(particle_strengths, F_Array):
-            particle_strengths = particle_strengths.data
+        if isinstance(particle_charges, F_Array):
+            particle_charges = particle_charges.data
 
         # Check that the arrays have the same number of particles
         NVR_size = particle_positions.shape[1]
-        if not (particle_strengths.shape[1] == NVR_size):
-            raise ValueError("Number of particles in particle_strengths does not match particle_positions")
+        if not (particle_charges.shape[1] == NVR_size):
+            raise ValueError("Number of particles in particle_charges does not match particle_positions")
         
         # Create F_Arrays to store the results
         particle_velocities = np.zeros_like(particle_positions, dtype=np.float64, order='K')  
@@ -172,7 +171,7 @@ class VPM(object):
         # Get the pointers to arrays for the particles
         XP_ptr = dp_array_to_pointer(particle_positions, copy = True)
         UP_ptr = dp_array_to_pointer(particle_velocities, copy = True)
-        QP_ptr = dp_array_to_pointer(particle_strengths, copy = True)
+        QP_ptr = dp_array_to_pointer(particle_charges, copy = True)
         GP_ptr = dp_array_to_pointer(particle_deformations, copy = True)
 
         # Get the pointers to arrays for the grid values
@@ -192,7 +191,7 @@ class VPM(object):
         )
         # store the results of the particles
         self.particles.particle_positions = pointer_to_dp_array(XP_ptr, particle_positions.shape)
-        self.particles.particle_strengths = pointer_to_dp_array(QP_ptr, particle_strengths.shape)
+        self.particles.particle_charges = pointer_to_dp_array(QP_ptr, particle_charges.shape)
         self.particles.particle_velocities = pointer_to_dp_array(UP_ptr, particle_velocities.shape)
         self.particles.particle_deformations = pointer_to_dp_array(GP_ptr, particle_deformations.shape)
                 
@@ -245,7 +244,7 @@ class VPM(object):
         # store the results
         self.particles.particle_positions = XP_arr.transfer_data_ownership()
         self.particles.particle_velocities = UP_arr.transfer_data_ownership()
-        self.particles.particle_strengths = QP_arr.transfer_data_ownership()
+        self.particles.particle_charges = QP_arr.transfer_data_ownership()
         self.particles.particle_deformations = GP_arr.transfer_data_ownership()
         return XP_arr, QP_arr
 

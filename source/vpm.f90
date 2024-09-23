@@ -1307,7 +1307,7 @@ contains
                                           deformx, deformy, deformz
 
       
-      write (filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix)
+      write (filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix) // '.dat'
 
       write (dummy_string, "(A)") achar(9)//'Writing PM solution to file: '//trim(filout)
       call vpm_print(dummy_string, nocolor, 2)
@@ -1394,7 +1394,7 @@ contains
       logical :: exist_flag
       character*80 :: filout1
 
-      write (filout1, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix)
+      write (filout1, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix)//'.dat'
       write (dummy_string, "(A)") achar(9)//'Writing particles to file: '//trim(filout1)
       call vpm_print(dummy_string, nocolor, 2)
       
@@ -1420,5 +1420,146 @@ contains
       ! call system('rm '//filout1)
       close(10)
    end subroutine write_particles
+
+   subroutine write_particles_hdf5(NTIME, XPR, UPR, QPR, GPR, neq, NVR, NVR_size)
+      use h5fortran, only: hdf5_file
+      implicit none
+
+      integer, intent(in) :: NTIME, NVR, neq, NVR_size
+      real(dp), intent(in):: XPR(3, NVR_size), QPR(neq+1, NVR_size), UPR(3, NVR), GPR(3, NVR)
+      type(hdf5_file) :: h5f
+      character(len=80) :: filout1
+
+      ! Create the filename for the output
+      write(filout1, '(A,I5.5,A)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix) // ".h5" 
+      ! Open the HDF5 file for writing
+      call h5f%open(trim(filout1), action='w')
+
+      ! Write XPR (Particle positions) to the HDF5 file
+      call h5f%write('/XPR', XPR)
+
+      ! Write UPR (Particle velocities)
+      call h5f%write('/UPR', UPR)
+
+      ! Write QPR (Vorticity or other quantities)
+      call h5f%write('/QPR', QPR)
+
+      ! Write GPR (Other relevant particle data)
+      call h5f%write('/GPR', GPR)
+
+      ! Close the HDF5 file to ensure all data is written to disk
+      call h5f%close()
+
+   end subroutine write_particles_hdf5
+
+   subroutine write_pm_solution_hdf5(NTIME, NN_in, NNbl_in, RHS, SOL, velx, vely, velz, deformx_pm, deformy_pm, deformz_pm)
+      use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
+      use h5fortran
+
+      integer, intent(in)              :: NTIME
+      integer, intent(in)              :: NN_in(3), NNbl_in(6)
+      real(dp), intent(in)             :: RHS(neqpm, NN_in(1), NN_in(2), NN_in(3)), &
+                                          SOL(neqpm, NN_in(1), NN_in(2), NN_in(3))
+      real(dp), intent(in)             :: velx(NN_in(1), NN_in(2), NN_in(3)),       &
+                                          vely(NN_in(1), NN_in(2), NN_in(3)),       &
+                                          velz(NN_in(1), NN_in(2), NN_in(3))
+      real(dp), intent(in), optional   :: deformx_pm(NN_in(1), NN_in(2), NN_in(3)), &
+                                          deformy_pm(NN_in(1), NN_in(2), NN_in(3)), &
+                                          deformz_pm(NN_in(1), NN_in(2), NN_in(3))
+      
+      integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
+      character(len=50)                :: filout
+      integer                          :: i, j, k
+      real(dp)                         :: cellx, celly, cellz, velocx, velocy, velocz, &
+                                          wmegax, wmegay, wmegaz, psi_1, psi_2, psi_3, &
+                                          deformx, deformy, deformz
+      real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
+
+      type(hdf5_file)                  :: h5f
+
+      ! Construct file name
+      write(filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix) // ".h5"
+
+      ! Informative print statement
+      write(dummy_string, "(A)") achar(9)//'Writing PM solution to HDF5 file: '//trim(filout)
+      call vpm_print(dummy_string, nocolor, 2)
+
+      NXs = NNbl_in(1)
+      NYs = NNbl_in(2)
+      NZs = NNbl_in(3)
+      NXf = NNbl_in(4)
+      NYf = NNbl_in(5)
+      NZf = NNbl_in(6)
+
+      ! Open HDF5 file
+      call h5f%open(trim(filout), action='w')
+
+      ! Create datasets for each variable
+      call h5f%create('/X', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/Y', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/Z', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+
+      call h5f%create('/U', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/V', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/W', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+
+      call h5f%create('/VORTX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/VORTY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/VORTZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+
+      call h5f%create('/PSI1', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/PSI2', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      call h5f%create('/PSI3', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+
+      if (present(deformx_pm)) then
+         call h5f%create('/DEFORMX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+         call h5f%create('/DEFORMY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+         call h5f%create('/DEFORMZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+      end if
+
+      ! Iterate over the 3D grid and write data to HDF5 file
+      do k = NZs, NZf
+         do j = NYs, NYf
+            do i = NXs, NXf
+               ! Structured grid coordinates
+               X(i - NXs + 1, j - NYs + 1, k - NZs + 1) = XMIN_pm + (i - 1) * DXpm
+               Y(i - NXs + 1, j - NYs + 1, k - NZs + 1) = YMIN_pm + (j - 1) * DYpm
+               Z(i - NXs + 1, j - NYs + 1, k - NZs + 1) = ZMIN_pm + (k - 1) * DZpm
+            end do
+         end do
+      end do
+
+            ! Write the structured grid coordinates to the HDF5 file
+      call h5f%write('/X', X)
+      call h5f%write('/Y', Y)
+      call h5f%write('/Z', Z)
+      
+      ! Write the velocity field to the HDF5 file
+      call h5f%write('/U', velx(NXs:NXf, NYs:NYf, NZs:NZf))
+      call h5f%write('/V', vely(NXs:NXf, NYs:NYf, NZs:NZf))
+      call h5f%write('/W', velz(NXs:NXf, NYs:NYf, NZs:NZf))
+
+      ! Write the vorticity field to the HDF5 file
+      call h5f%write('/VORTX', RHS(1, NXs:NXf, NYs:NYf, NZs:NZf))
+      call h5f%write('/VORTY', RHS(2, NXs:NXf, NYs:NYf, NZs:NZf))
+      call h5f%write('/VORTZ', RHS(3, NXs:NXf, NYs:NYf, NZs:NZf))
+
+      ! Write the solution field to the HDF5 file
+      call h5f%write('/PSI1', SOL(1, 1:NN_in(1), 1:NN_in(2), 1:NN_in(3)))
+      call h5f%write('/PSI2', SOL(2, 1:NN_in(1), 1:NN_in(2), 1:NN_in(3)))
+      call h5f%write('/PSI3', SOL(3, 1:NN_in(1), 1:NN_in(2), 1:NN_in(3)))
+
+      ! Write the deformation field to the HDF5 file
+      if (present(deformx_pm)) then
+         call h5f%write('/DEFORMX', deformx_pm(NXs:NXf, NYs:NYf, NZs:NZf))
+         call h5f%write('/DEFORMY', deformy_pm(NXs:NXf, NYs:NYf, NZs:NZf))
+         call h5f%write('/DEFORMZ', deformz_pm(NXs:NXf, NYs:NYf, NZs:NZf))
+      end if
+
+      ! Close HDF5 file
+      call h5f%close()
+      
+   end subroutine write_pm_solution_hdf5
+
 
 end Module vpm_lib

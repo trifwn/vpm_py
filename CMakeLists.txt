@@ -35,6 +35,10 @@ else()
     message(STATUS "Using Fishpack")
     setup_fishpack()
 endif()
+# Setup HDF5
+# find_package(HDF5 REQUIRED)
+include(SetupHDF5)
+setup_hdf5()
 
 # Setup compiler flags
 include(VpmCompilerFlags)
@@ -51,6 +55,10 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE)
 set(LIB_DIRECTORY "${CMAKE_BINARY_DIR}/${BUILD_TYPE}/${COMPILER_NAME}/lib/")
 set(MOD_DIRECTORY "${CMAKE_BINARY_DIR}/${BUILD_TYPE}/${COMPILER_NAME}/mod/")
 set(BIN_DIRECTORY "${CMAKE_BINARY_DIR}/${BUILD_TYPE}/${COMPILER_NAME}/bin/")
+
+make_directory(${LIB_DIRECTORY})
+make_directory(${MOD_DIRECTORY})
+make_directory(${BIN_DIRECTORY})
 
 # Set output directories
 set(CMAKE_Fortran_MODULE_DIRECTORY ${MOD_DIRECTORY})

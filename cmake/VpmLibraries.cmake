@@ -34,10 +34,10 @@ function(define_vpm_targets)
 
     set(ALL_VPM_OBJECTS_SRC
         # VPM
-        ${SRC_VPM}/vpm.f90
         ${SRC_VPM}/vpm_vars.f90
         ${SRC_VPM}/vpm_size.f90
         # VPM_LIB
+        ${SRC_VPM}/vpm.f90
         ${SRC_VPM}/vpm_remesh.f90
         ${SRC_VPM}/vpm_interpolate.f90
         ${SRC_VPM}/vpm_gcalc.f90
@@ -126,15 +126,17 @@ function(define_vpm_targets)
 
     add_library(vpm_vars OBJECT ${SRC_VPM}/vpm_vars.f90)
     target_link_libraries(vpm_vars PRIVATE types io)
+
     add_library(vpm_size OBJECT ${SRC_VPM}/vpm_size.f90)
     target_link_libraries(vpm_size PRIVATE types io)
 
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
     target_link_libraries(vpm_lib PRIVATE 
-        yaps pmlib pmproject parvar pmeshpar pmgrid vpm_vars 
-        vpm_size io types constants mpi_matrices
+        yaps pmlib pmproject parvar pmeshpar pmgrid  
+        vpm_size vpm_vars io types constants mpi_matrices
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
+        h5fortran::h5fortran
     )
 
     if (BUILD_STATIC)
@@ -146,6 +148,7 @@ function(define_vpm_targets)
     target_link_libraries(vpm PRIVATE 
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
+        h5fortran::h5fortran
     )
     target_include_directories(vpm PUBLIC ${LIB_DIRECTORY}) # Set include directories using PUBLIC
     target_compile_options(vpm PRIVATE 
@@ -171,6 +174,7 @@ function(define_vpm_targets)
     add_executable(${EXE}_exe ${TEST_EXE_SRC})
     target_link_libraries(${EXE}_exe PRIVATE 
         vpm
+        h5fortran::h5fortran
     )
     target_link_options(${EXE}_exe PRIVATE 
         # $<$<BOOL:${BUILD_STATIC}>:-static>                      # Link statically

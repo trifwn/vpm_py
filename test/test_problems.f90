@@ -90,13 +90,13 @@ contains
         integer          :: i,j,k
         logical          :: I_EXIST
         RHS_pm_bl(1:3,:,:,:)=0.0d0
-        INQUIRE (FILE='sol/hillref.plt', EXIST=I_EXIST)
-        if(I_EXIST.eqv..false.) then 
-            open(1,file='sol/hillref.dat')
-            write(1,'(a190)')'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
-            write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
-                ' K=',NN_bl(6)-NN_bl(3) + 1 ,' F=POINT'
-        endif
+        ! INQUIRE (FILE='sol/hillref.plt', EXIST=I_EXIST)
+        ! if(I_EXIST.eqv..false.) then 
+        !     open(1,file='sol/hillref.dat')
+        !     write(1,'(a190)')'VARIABLES = "X" "Y" "Z" "U" "V" "W" "VORTX" "VORTY" "VORTZ"'
+        !     write(1,*)'ZONE I=',NN_bl(4)-NN_bl(1)+1,' J=',NN_bl(5)-NN_bl(2)+1,&
+        !         ' K=',NN_bl(6)-NN_bl(3) + 1 ,' F=POINT'
+        ! endif
         allocate(analytic_sol(6,NN(1),NN(2),NN(3)))
             do k=NN_bl(3), NN_bl(6)
                 do j=NN_bl(2), NN_bl(5)
@@ -111,17 +111,17 @@ contains
                         analytic_sol(1:3,i,j,k)= Uind(1:3)
                         analytic_sol(4:6,i,j,k)= Defm(1:3)
 
-                        write(1,'(9(e28.17,1x))') CP(1),CP(2),CP(3),Uind(1),Uind(2),Uind(3),&
-                                                Vort(1),Vort(2),Vort(3)
+                        ! write(1,'(9(e28.17,1x))') CP(1),CP(2),CP(3),Uind(1),Uind(2),Uind(3),&
+                        !                         Vort(1),Vort(2),Vort(3)
                     enddo
                 enddo
             enddo
-            close(1)
+            ! close(1)
         !   ---FOR PLOTTING PURPOSES ONLY
-        if (I_EXIST.eqv..false.) then 
+        ! if (I_EXIST.eqv..false.) then 
         ! call system('~/bin/preplot hillref.dat >/dev/null')
         ! call system('rm hillref.dat')
-        endif
+        ! endif
 
     End subroutine hill_assign
 

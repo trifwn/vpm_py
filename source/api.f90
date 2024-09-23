@@ -6,6 +6,8 @@ Module api
    use openmpth
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
+   integer, parameter :: MAX_STRING_LENGTH = 256
+   character(kind=c_char, len=MAX_STRING_LENGTH) :: test_string = 'This is a test string'
 contains
    subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                                     &
                          num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,                         &
@@ -215,10 +217,17 @@ contains
       use vpm_vars, only: NTIME_pm
       use vpm_size, only: NN, NN_bl
       use pmeshpar, only: SOL_pm
+      use io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
 
+      if (present(folder)) then
+         call set_string_f_c(vpm_write_folder, folder)
+      endif
 
+      if (present(filename)) then
+         call set_string_f_c(pm_output_file_suffix, filename)
+      endif
 
       if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
          call write_pm_solution(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
@@ -236,8 +245,58 @@ contains
       implicit none
       character(kind=c_char), intent(in), optional :: folder(*), filename(*)
 
+      if (present(folder)) then
+         call set_string_f_c(vpm_write_folder, folder)
+      endif
+      if (present(filename)) then
+         call set_string_f_c(particle_output_file_suffix, filename)
+      endif
+
       call write_particles(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
    End subroutine write_particles_stored
+
+   subroutine write_particles_stored_hdf5(folder, filename) bind(C, name='write_particles_hdf5')
+      use vpm_lib, only: write_particles
+      use parvar, only: XP, QP, UP, GP, NVR, NVR_size
+      use vpm_vars, only: neqpm, NTIME_pm
+      use io, only: vpm_write_folder, particle_output_file_suffix
+      implicit none
+      character(kind=c_char), intent(in), optional :: folder(*), filename(*)
+      if (present(folder)) then
+         call set_string_f_c(vpm_write_folder, folder)
+      endif
+      if (present(filename)) then
+         call set_string_f_c(particle_output_file_suffix, filename)
+      endif
+      call write_particles_hdf5(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
+   End subroutine write_particles_stored_hdf5
+
+   subroutine write_particle_mesh_solution_hdf5(folder, filename) bind(C, name='write_particle_mesh_solution_hdf5')
+      use vpm_lib, only: write_pm_solution
+      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm
+      use vpm_vars, only: NTIME_pm
+      use vpm_size, only: NN, NN_bl
+      use pmeshpar, only: SOL_pm
+      use io, only: vpm_write_folder, pm_output_file_suffix
+      implicit none
+      character(kind = c_char), intent(in), optional :: folder(*), filename(*)
+
+      if (present(folder)) then
+         call set_string_f_c(vpm_write_folder, folder)
+      endif
+
+      if (present(filename)) then
+         call set_string_f_c(pm_output_file_suffix, filename)
+      endif
+
+      if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
+                                deformx_pm, deformy_pm, deformz_pm)
+      else
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+      end if
+   End subroutine write_particle_mesh_solution_hdf5
+
 
    subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
       use ND_Arrays
@@ -349,4 +408,71 @@ contains
       call print_parvar_info()
    End subroutine print_parvar
 
+   !! STRING MANIPULATION
+   subroutine get_string_f_c(fstring, cptr)
+      use iso_c_binding
+      implicit none
+      type(c_ptr), intent(inout) :: cptr
+      character(len=MAX_STRING_LENGTH), intent(in) :: fstring
+
+      character(kind=c_char, len=MAX_STRING_LENGTH), target :: fstring_t
+      integer :: i, trimmed_length, full_length
+
+      fstring_t = trim(fstring) // c_null_char
+      trimmed_length = len_trim(fstring_t)
+      full_length = len(fstring_t)
+      do i = trimmed_length + 1, 256
+         fstring_t(i:i) = c_null_char
+      end do
+      cptr = c_loc(fstring_t)
+      ! print *, "Fortran string: ", trim(fstring)
+      ! print *, "Fortran string full length: ", full_length
+      ! print *, "Fortran string trimmed length: ", trimmed_length
+      ! print *, "Fortran string bytes: ", iachar(fstring(1:trimmed_length))
+   end subroutine get_string_f_c
+
+   subroutine set_string_f_c(fstring, new_string)
+      use iso_c_binding
+      implicit none
+      character(kind=c_char), intent(in) :: new_string(*)
+      character(len=MAX_STRING_LENGTH), intent(out) :: fstring
+      integer :: i
+      
+      fstring = ""
+      do i = 1, 256
+         if (new_string(i) == c_null_char) exit
+         fstring(i:i) = new_string(i)
+      end do
+      ! print *, "Set test_string to: ", trim(test_string)
+      ! print *, "Length of test_string: ", len_trim(test_string)
+   end subroutine set_string_f_c
+
+   !!! FILE I/O !!!
+   subroutine set_particle_file_suffix(suffix)  bind(C, name='set_particle_file_suffix')
+      use iso_c_binding
+      use io, only: particle_output_file_suffix
+      character(kind = c_char), dimension(*), intent(in) :: suffix
+      call set_string_f_c(particle_output_file_suffix, suffix)
+   end subroutine set_particle_file_suffix
+
+   subroutine set_pm_file_suffix(suffix)  bind(C, name='set_pm_file_suffix')
+      use iso_c_binding
+      use io, only: pm_output_file_suffix
+      character(kind = c_char), dimension(*), intent(in) :: suffix
+      call set_string_f_c(pm_output_file_suffix, suffix)
+   end subroutine set_pm_file_suffix
+
+   subroutine set_vpm_write_folder(folder)  bind(C, name='set_vpm_write_folder')
+      use iso_c_binding
+      use io, only: vpm_write_folder
+      character(kind = c_char), dimension(*), intent(in) :: folder
+      call set_string_f_c(vpm_write_folder, folder)
+   end subroutine set_vpm_write_folder
+
+   subroutine print_write_settings() bind(C, name = 'print_write_settings')
+      use io, only: vpm_print, particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder
+      call vpm_print("Particle output file suffix: " // trim(particle_output_file_suffix), NOCOLOR, 1)
+      call vpm_print("PM output file suffix: " // trim(pm_output_file_suffix), NOCOLOR, 1)
+      call vpm_print("VPM write folder: " // trim(vpm_write_folder), NOCOLOR, 1)
+   end subroutine print_write_settings
 End Module api

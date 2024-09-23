@@ -119,12 +119,18 @@ setup(
 
         # Visualization
         "matplotlib",
+        "pyQt5",
+
+        # Data
+        "h5py",
+        "pandas",
+        "tqdm",
 
         # Parallelism
-        # "mpi4py", # CONDA-FORGE
+        "mpi4py", # CONDA-FORGE
 
         # MATH
-        # "mkl", # CONDA
+        "mkl", # CONDA
         # "mkl-service", # CONDA
 
         # Intel libraries

@@ -1,20 +1,20 @@
 module io
     use base_types, only: dp
     integer, save :: VERBOCITY = 2
+    integer, parameter :: MAX_STRING_LENGTH = 256
     ! Verbose level
     ! 0: No output
     ! 1: Basic output
     ! 2: Detailed output
     ! 3: Debug output
-    character (len=100), save :: particle_output_file_suffix = "particles.dat"
-    character (len=100), save :: pm_output_file_suffix = "pm_output.dat"
-    character (len=100), save :: vpm_write_folder = "results/"
-    character (len=100), save :: vpm_speed_output_file = "speed_profile.dat"
+    character (len=MAX_STRING_LENGTH), save :: particle_output_file_suffix = "particles"
+    character (len=MAX_STRING_LENGTH), save :: pm_output_file_suffix = "pm_output"
+    character (len=MAX_STRING_LENGTH), save :: vpm_write_folder = "results/"
     integer, save :: tab_level = 0
-    character (len=400), save :: dummy_string = " "
+    character (len=400), save :: dummy_string = ""
     
     public :: vpm_print,set_verbose_level
-    public :: particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder, vpm_speed_output_file
+    public :: particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder
     public :: tab_level, dummy_string, VERBOCITY
 
     ! Print allocatable integer arrays

@@ -13,8 +13,7 @@ vpm_py.egg-info/
 .vscode
 fort*
 **/sol/** 
-**/results_euler/** 
-**/results/** 
+**/results*/** 
 vpm_py/shared_libs
 3d_party
 notes/

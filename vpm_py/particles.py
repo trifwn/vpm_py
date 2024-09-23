@@ -15,7 +15,7 @@ class Particles:
         self.load_lib()
 
         self.particle_positions = np.array([])
-        self.particle_strengths = np.array([])
+        self.particle_charges = np.array([])
         self.particle_velocities = np.array([])
         self.particle_deformations = np.array([])
     
@@ -75,7 +75,7 @@ class Particles:
     @property
     def QP(self):
         """
-        Particle strengths
+        Particle Charges
         """
         NVR = self.NVR
         neq = self.number_equations
@@ -130,17 +130,30 @@ class Particles:
         self._lib_particles.get_num_particles(byref(NVR))
         return NVR.value
     
-    def save_to_file(self, folder: str = "results", filename: str = "particles.dat"):
+    def save_to_file(self, filename: str = "particles", folder: str = "results", filetype: str = "h5"):
         """
         Save the particles to a file named: folder/____filename where the ____ indicates the timestep
 
         Args:
             folder (str, optional): Folder to save the file. Defaults to "results".
-            filename (str, optional): Filename. Defaults to "particles.dat".
+            filename (str, optional): Filename. Defaults to "particles".
+            filetype (str, optional): Filetype. Defaults to hdf5 format "h5" .
         """
-        # Convert to bytes
-        folder_bytes = create_string_buffer(folder.encode())
-        filename_bytes = create_string_buffer(filename.encode())
+        if not folder.endswith("/"):
+            folder += "/"
+
+        filename_b = filename.encode('utf-8')
+        folder_b = folder.encode('utf-8')
+
+        # If folder does not exist, create it
+        os.makedirs(folder, exist_ok=True)
 
         # Call the Fortran routine using ctypes
-        self._lib_particles.write_particles(folder_bytes, filename_bytes)
+        if filetype == "h5":
+            print(f"\tSaving particles to HDF5 file")
+            self._lib_particles.write_particles_hdf5(folder_b, filename_b)
+        elif filetype == "dat":
+            print(f"\tSaving particles to formatted file")
+            self._lib_particles.write_particles(folder_b, filename_b)
+        else:
+            raise ValueError(f"Invalid filetype: {filetype}")

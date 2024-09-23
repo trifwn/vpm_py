@@ -157,11 +157,35 @@ class ParticleMesh:
             byref(c_int(size4))
         )
     
-    def save_to_file(self, folder: str = "results", filename: str = "particle_mesh.dat"):
+    def save_to_file(self,  filename: str = "particle_mesh", folder: str = "results", filetype: str = "h5"):
         """
             Write the particle mesh solution
+
+            Parameters
+            ----------
+            filename : str
+                The filename to write to
+            folder : str
+                The folder to write to
+            filetype : str
+                The filetype to write to
         """
-        self._lib.write_particle_mesh_solution()
+        if not folder.endswith("/"):
+            folder += "/"
+
+        filename_b = filename.encode('utf-8')
+        folder_b = folder.encode('utf-8')
+
+        os.makedirs(folder, exist_ok=True)
+
+        if filetype == "h5":
+            print("\tWriting particle mesh solution to HDF5 file")
+            self._lib.write_particle_mesh_solution_hdf5(folder_b, filename_b)
+        elif filetype == "dat":
+            print("\tWriting particle mesh solution to formatted file")
+            self._lib.write_particle_mesh_solution(folder_b, filename_b)
+        else:
+            raise ValueError(f"Filetype {filetype} not recognized")
 
     # def get_dpm(self):
     #     """

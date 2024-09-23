@@ -20,7 +20,7 @@ function(setup_vpm_compiler_flags)
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${LINK_FLAGS} ${MKL_FLAG} -O0 -g -traceback -fpe0 -check all,nouninit" PARENT_SCOPE)        
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${LINK_FLAGS} ${MKL_FLAG} -O3 -march=native -flto" PARENT_SCOPE)        
     else()
-        set(COMPILE_FLAGS -cpp -DASCII=1 -llapack -lblas -lmpi -fPIC)
+        set(COMPILE_FLAGS -cpp -DASCII=1 -llapack -lblas -lmpi -fPIC -lhdf5)
         set(LINK_FLAGS "-fopenmp -fPIC")
         
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
