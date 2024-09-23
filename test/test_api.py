@@ -52,7 +52,7 @@ def main():
 
     XP_in = np.array(np.meshgrid(x, y, z)).reshape(3, -1)
     # Define the particle quantities as random numbers
-    par_strenghts = np.ones((neqpm + 1, NVR))
+    par_charges = np.ones((neqpm + 1, NVR))
     
     RHS_pm_in = np.zeros((neqpm, NXB, NYB, NZB), dtype=np.float64)
     NTIME = 0
@@ -74,7 +74,7 @@ def main():
             num_equations= neqpm,
             mode= WhatToDo,
             particle_positions= XP_in,
-            particle_strengths= par_strenghts,
+            particle_charges= par_charges,
             timestep= NTIME,
             viscosity= NI,
         )

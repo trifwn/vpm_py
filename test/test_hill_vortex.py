@@ -6,7 +6,7 @@ import numpy as np
 
 from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
 from vpm_py.visualization import StandardVisualizer
-from test.test_hill_spherical_vortex import hill_assign_parallel
+from test_hill_spherical_vortex import hill_assign_parallel
 
 def main():
     # Initialize MPI
@@ -26,7 +26,7 @@ def main():
         dz_particle_mesh= 0.1
     )
     if rank == 0:
-        plotter = StandardVisualizer(plot_particles=("strength","magnitude"))
+        plotter = StandardVisualizer(plot_particles=("charge","magnitude"))
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -54,7 +54,7 @@ def main():
         num_equations=neq,
         mode = 0,
         particle_positions= XPR_zero, 
-        particle_strengths= QPR_zero, 
+        particle_charges= QPR_zero, 
         timestep=0,
         viscosity=NI,
     )
@@ -93,7 +93,7 @@ def main():
         plotter.update_particle_plots(
             iteration=0,
             particle_positions= XPR[:,:],
-            particle_strengths= QPR[:,:],
+            particle_charges= QPR[:,:],
             particle_velocities= vpm.particles.UP[:,:],
             particle_deformations= vpm.particles.GP[:,:]
         )
@@ -104,7 +104,7 @@ def main():
         num_equations= vpm.num_equations,
         mode = 0,
         particle_positions    =  XPR,
-        particle_strengths    =  QPR,
+        particle_charges    =  QPR,
         timestep=0,
         viscosity=NI,
     )
@@ -125,7 +125,7 @@ def main():
             num_equations=neq,
             mode = 2,
             particle_positions    =  XPR,
-            particle_strengths    =  QPR,
+            particle_charges    =  QPR,
             timestep=i,
             viscosity=NI,
         )
@@ -200,15 +200,15 @@ def main():
                 # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
 
             # Update the plot
-            plotter.update_particle_plot(
+            plotter.update_particle_plots(
                 iteration=i,
                 particle_positions= XPR[:,:],
-                particle_strengths= QPR[:,:],
+                particle_charges= QPR[:,:],
                 particle_velocities= UPR[:,:],
                 particle_deformations= GPR[:,:]
             )
-            vpm.particles.save_to_file(f"NOTUSED.dat")
-            vpm.particle_mesh.save_to_file(f"NOTUSED.dat")
+            vpm.particles.save_to_file(filename= f"particles_test", folder="results_test")
+            vpm.particle_mesh.save_to_file(filename= f"pm_test", folder="results_test")
 
         sleep(0.5)
         print_IMPORTANT(f"Redefine Bounds", rank)
@@ -218,7 +218,7 @@ def main():
             num_equations=neq,
             mode = 0,
             particle_positions    =  XPR,
-            particle_strengths    =  QPR,
+            particle_charges    =  QPR,
             timestep=i,
             viscosity=NI,
         )

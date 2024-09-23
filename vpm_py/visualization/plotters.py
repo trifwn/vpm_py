@@ -163,6 +163,10 @@ class ParticlePlotter(Plotter):
         self.ax.set_xlim(1.1 * x.min(), 1.1 * x.max())
         self.ax.set_ylim(1.1 * y.min(), 1.1 * y.max())
 
+        # Set equal aspect ratio for 3D plots
+        if self.is_3d:
+            self.ax.set_box_aspect([1,1,1])
+
         if title:
             self.set_title(title)
         self.update_colorbar()

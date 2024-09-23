@@ -25,6 +25,7 @@ class Visualizer:
         print_IMPORTANT("Initializing the plot")
         self.plot_options: list[ResultPlot] = plot_options
         self.num_plots = len(self.plot_options) 
+        print(f"Number of plots: {self.num_plots}")
         self.fig = plt.figure(figsize=figure_size) 
         self.plotters: dict[str, Plotter] = {}
         self.data_adapters: dict[str, DataAdapter] = {}
@@ -38,8 +39,10 @@ class Visualizer:
 
     def _setup_subplots(self):
         self.rows = 1 if self.num_plots <= 2 else 2
-        self.columns = self.num_plots // self.rows + self.num_plots % 2
-
+        # We need to make sure that the number of columns is such that the number of plots is 
+        # evenly distributed across the rows
+        self.columns = self.num_plots // self.rows 
+        print(f"Rows: {self.rows}, Columns: {self.columns}")
         gs = gridspec.GridSpec( self.rows, self.columns)
 
         for i, plot_option in enumerate(self.plot_options):
@@ -78,22 +81,22 @@ class Visualizer:
     ):
         if self.has_particles:
             (
-                particle_positions, particle_velocities, particle_strengths, particle_deformations
+                particle_positions, particle_velocities, particle_charges, particle_deformations
             ) = process_particle_ouput_file(file_vr)
             self._update_particle_plots(
                 particle_positions,
-                particle_strengths,
+                particle_charges,
                 particle_velocities,
                 particle_deformations,
             )
         
         if self.has_mesh:
             (
-                mesh_positions, mesh_velocities, mesh_strengths, mesh_deformations
+                mesh_positions, mesh_velocities, mesh_charges, mesh_deformations
             ) = process_pm_output_file(file_pm)
             self._update_mesh_plots(
                 mesh_positions,
-                mesh_strengths,
+                mesh_charges,
                 mesh_velocities,
                 mesh_deformations,
             )
@@ -108,26 +111,28 @@ class Visualizer:
         folder: str, 
         total_frames: int,
         start_frame: int = 0,
-        filename: str | None = None,
+        save_filename: str | None = None,
+        particle_filename_format: str = 'particles.h5',
+        mesh_filename_format: str = 'pm_output.h5',
         dt: float | None = None,
         format: str = 'mp4'
     ):
         files = os.listdir(folder)
-        files_vr = sorted([f for f in files if f.endswith('particles.dat')])
-        files_sol = sorted([f for f in files if f.endswith('pm_output.dat')])
+        files_vr = sorted([f for f in files if f.endswith(particle_filename_format)])
+        files_sol = sorted([f for f in files if f.endswith(mesh_filename_format)])
 
         pbar = tqdm(total=total_frames, desc="Creating animation")
         def animation_loop(frame):
             pbar.update(1)
-            pbar.set_postfix_str(f"Frame {frame+1}/{total_frames}")
-            pbar.set_description(f"Drawing frame {frame+1}/{total_frames}")
+            pbar.set_postfix_str(f"Frame {frame +1}/{total_frames - start_frame}")
+            pbar.set_description(f"Drawing frame {frame +1}/{total_frames - start_frame}")
 
             file_vr = files_vr[frame + start_frame]
             file_vr = os.path.join(folder, file_vr)
             file_pm = files_sol[frame + start_frame]
             file_pm = os.path.join(folder, file_pm)
             time = (frame + start_frame) * dt if dt else None
-            self.load_results_from_disk(frame, total_frames, file_vr, file_pm, time)
+            self.load_results_from_disk(frame + start_frame, total_frames, file_vr, file_pm, time)
 
         ani = FuncAnimation(
             self.fig, 
@@ -135,8 +140,8 @@ class Visualizer:
             frames=total_frames, blit=False, repeat=False, interval=100,                
         )
         ani.event_source.stop()
-        if filename:
-            ani_name = f"{folder}/{filename}.{format}"
+        if save_filename:
+            ani_name = f"{folder}/{save_filename}.{format}"
         else:
             ani_name = f"{folder}/animation_"
             for qoi in self.particle_quantities.values():
@@ -150,11 +155,11 @@ class Visualizer:
         self,
         iteration: int,
         particle_positions: np.ndarray,
-        particle_strengths: np.ndarray,
+        particle_charges: np.ndarray,
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
         pm_positions: np.ndarray,
-        pm_strengths: np.ndarray,
+        pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray,
     ):
@@ -162,7 +167,7 @@ class Visualizer:
         if self.has_particles:
             self._update_particle_plots(
                 particle_positions,
-                particle_strengths,
+                particle_charges,
                 particle_velocities,
                 particle_deformations,
             )
@@ -170,7 +175,7 @@ class Visualizer:
         if self.has_mesh:
             self._update_mesh_plots(
                 pm_positions,
-                pm_strengths,
+                pm_charges,
                 pm_velocities,
                 pm_deformations,
             )
@@ -180,13 +185,13 @@ class Visualizer:
     def _update_particle_plots(
         self,
         particle_positions: np.ndarray,
-        particle_strengths: np.ndarray,
+        particle_charges: np.ndarray,
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
     ):
         for key, qoi in self.particle_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
-                particle_positions, particle_strengths, particle_velocities, particle_deformations
+                particle_positions, particle_charges, particle_velocities, particle_deformations
             )
             title = f"Particle {qoi.quantity_name.capitalize()}"
             if qoi.component:
@@ -197,13 +202,13 @@ class Visualizer:
     def _update_mesh_plots(
         self, 
         pm_positions: np.ndarray, 
-        pm_strengths: np.ndarray, 
+        pm_charges: np.ndarray, 
         pm_velocities: np.ndarray, 
         pm_deformations: np.ndarray
     ):
         for key, qoi in self.mesh_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
-                pm_positions, pm_strengths, pm_velocities, pm_deformations
+                pm_positions, pm_charges, pm_velocities, pm_deformations
             )
             title = f"Mesh {qoi.quantity_name.capitalize()}"
             if qoi.component:
@@ -215,13 +220,13 @@ class Visualizer:
         self,
         iteration: int,
         particle_positions: np.ndarray,
-        particle_strengths: np.ndarray,
+        particle_charges: np.ndarray,
         particle_velocities: np.ndarray,
         particle_deformations: np.ndarray,
     ):
         self._update_particle_plots(
             particle_positions,
-            particle_strengths,
+            particle_charges,
             particle_velocities,
             particle_deformations,
         )
@@ -232,13 +237,13 @@ class Visualizer:
         self,
         iteration: int,
         pm_positions: np.ndarray,
-        pm_strengths: np.ndarray,
+        pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray,
     ):
         self._update_mesh_plots(
             pm_positions,
-            pm_strengths,
+            pm_charges,
             pm_velocities,
             pm_deformations,
         )

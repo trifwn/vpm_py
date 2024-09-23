@@ -27,7 +27,7 @@ vpm = VPM(
 )
 
 if rank == 0:
-    plotter = StandardVisualizer(plot_particles=("strength", 'magnitude'))
+    plotter = StandardVisualizer(plot_particles=("charge", 'magnitude'))
 
 # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
 print_blue(f"Number of processes: {np_procs}", rank)
@@ -54,7 +54,7 @@ vpm.vpm(
     num_equations=neq,
     mode=0,
     particle_positions=XPR_zero,
-    particle_strengths=QPR_zero,
+    particle_charges=QPR_zero,
     timestep=0,
     viscosity=NI,
 )
@@ -95,7 +95,7 @@ if rank == 0:
     plotter.update_particle_plots(
         iteration= 0,
         particle_positions= XPR_hill[:,:],
-        particle_strengths= QPR_hill[:,:],
+        particle_charges= QPR_hill[:,:],
         particle_velocities= vpm.particles.UP.to_numpy(copy=True),
         particle_deformations= vpm.particles.GP.to_numpy(copy=True),
     )
@@ -126,7 +126,7 @@ def check_redefine(i: int, XPR: F_Array, QPR: F_Array):
             num_equations=neq,
             mode = 0,
             particle_positions = XPR,
-            particle_strengths = QPR,
+            particle_charges = QPR,
             timestep=i,
             viscosity=NI,
         )
@@ -149,7 +149,7 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
         num_equations=neq,
         mode=2,
         particle_positions=XPR,
-        particle_strengths=QPR,
+        particle_charges=QPR,
         timestep=i,
         viscosity=NI,
     )
@@ -161,7 +161,7 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
         plotter.update_particle_plots(
             iteration=i,
             particle_positions=XPR[:,:],
-            particle_strengths=QPR[:,:],
+            particle_charges=QPR[:,:],
             particle_velocities=UPR,
             particle_deformations=GPR,
         )
@@ -223,15 +223,15 @@ def timestep(
             XPR[:, j] = XPR[:, j] + U_mean[:,j] * DT
 
         print_IMPORTANT(f"Saving to file", rank)
-        vpm.particles.save_to_file()
-        vpm.particle_mesh.save_to_file()
+        vpm.particles.save_to_file(filename=f"{i:05d}particles.h5")
+        vpm.particle_mesh.save_to_file(filename=f"{i:05d}particle_mesh.h5")
 
     print_IMPORTANT(f"Redefine Bounds", rank)
     vpm.vpm(
         num_equations=neq,
         mode=0,
         particle_positions=XPR,
-        particle_strengths=QPR,
+        particle_charges=QPR,
         timestep=i,
         viscosity=NI,
     )

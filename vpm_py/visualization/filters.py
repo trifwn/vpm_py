@@ -51,7 +51,7 @@ class SliceFilter_3D(Filter):
     """
     def __init__(
         self,
-        plane: Plane,
+        plane: Plane | str,
         strategy: SliceStrategy,
     ):
         self.slicer = Slicer(strategy, plane)

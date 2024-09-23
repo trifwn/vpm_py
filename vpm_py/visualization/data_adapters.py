@@ -34,16 +34,16 @@ class DataAdapter(ABC):
         pass
 
 class ParticleDataAdapter(DataAdapter):
-    def _preprocess(self, partcile_positions, particle_strengths, particle_velocities, particle_deformations): 
+    def _preprocess(self, partcile_positions, particle_charges, particle_velocities, particle_deformations): 
         positions = {
             'x': partcile_positions[0,:],
             'y': partcile_positions[1,:],
             'z': partcile_positions[2,:]
         }
-        strengths = {
-            'x': particle_strengths[0,:],
-            'y': particle_strengths[1,:],
-            'z': particle_strengths[2,:]
+        charges = {
+            'x': particle_charges[0,:],
+            'y': particle_charges[1,:],
+            'z': particle_charges[2,:]
         }
         velocities = {
             'x': particle_velocities[0,:],
@@ -57,7 +57,7 @@ class ParticleDataAdapter(DataAdapter):
         }
         data = {
             'position': positions,
-            'strength': strengths,
+            'charge': charges,
             'velocity': velocities,
             'deformation': deformations
         }
@@ -72,16 +72,16 @@ class ParticleDataAdapter(DataAdapter):
         }
 
 class MeshDataAdapter(DataAdapter):
-    def _preprocess(self, pm_positions, pm_strengths, pm_velocities, pm_deformations):
+    def _preprocess(self, pm_positions, pm_charges, pm_velocities, pm_deformations):
         positions = {
             'x': pm_positions[0,:, :, :],
             'y': pm_positions[1,:, :, :],
             'z': pm_positions[2,:, :, :]
         }
-        strengths = {
-            'x': pm_strengths[0,:, : , :],
-            'y': pm_strengths[1,:, : , :],
-            'z': pm_strengths[2,:, : , :]
+        charges = {
+            'x': pm_charges[0,:, : , :],
+            'y': pm_charges[1,:, : , :],
+            'z': pm_charges[2,:, : , :]
         }
         velocities = {
             'x': pm_velocities[0,:, :, :],
@@ -95,7 +95,7 @@ class MeshDataAdapter(DataAdapter):
         }
         data = {
             'position': positions,
-            'strength': strengths,
+            'charge': charges,
             'velocity': velocities,
             'deformation': deformations
         }
