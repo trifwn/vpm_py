@@ -3,7 +3,7 @@ import numpy as np
 from mpi4py import MPI
 import numpy as np
 
-from vpm_py.vpm_io import print_IMPORTANT, print_red, print_green, print_blue
+from vpm_py.console_io import print_IMPORTANT, print_red, print_green, print_blue
 from vpm_py.visualization import StandardVisualizer
 from vpm_py.arrays import F_Array
 from test_hill_spherical_vortex import hill_assign_parallel, visualize_vorticity

@@ -706,15 +706,15 @@ contains
             write (dummy_string, '(A)') 'The computational domain bounds are recalculated from the particle positions'
             call vpm_print(dummy_string,red, 2)
             ! Write the min and max values of the particle positions
-            write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+            write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                      achar(9)//'Particle XMIN=', minval(XP(1, :)), &
                      achar(9)//'Particle XMAX=', maxval(XP(1, :))
             call vpm_print(dummy_string,yellow, 2)
-            write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+            write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                      achar(9)//'Particle YMIN=', minval(XP(2, :)), &
                      achar(9)//'Particle YMAX=', maxval(XP(2, :))
             call vpm_print(dummy_string,yellow, 2)
-            write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+            write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                      achar(9)//'Particle ZMIN=', minval(XP(3, :)), &
                      achar(9)//'Particle ZMAX=', maxval(XP(3, :))
             call vpm_print(dummy_string,yellow, 2)
@@ -722,12 +722,12 @@ contains
 
          write (dummy_string, '(A)') 'The computational domain bounds are:'
          call vpm_print(dummy_string,nocolor, 2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+         write (dummy_string, '(A, F10.5, A, F8.5, A, F10.5)') &
                   achar(9)//'XMIN=', XMIN_pm, &
                   achar(9)//'YMIN=', YMIN_pm, &
                   achar(9)//'ZMIN=', ZMIN_pm
          call vpm_print(dummy_string,nocolor, 2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+         write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                   achar(9)//'XMAX=', XMAX_pm, &
                   achar(9)//'YMAX=', YMAX_pm, &
                   achar(9)//'ZMAX=', ZMAX_pm
@@ -809,17 +809,17 @@ contains
       end if
 
       if (my_rank .eq. 0) then
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+         write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                   achar(9)//'XMIN='//achar(9), XMIN_pm, &
                   achar(9)//'YMIN='//achar(9), YMIN_pm, &
                   achar(9)//'ZMIN='//achar(9), ZMIN_pm
          call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+         write (dummy_string, '(A, F10.5, A, F10.5, A, F8.5)') &
                   achar(9)//'XMAX='//achar(9), XMAX_pm, &
                   achar(9)//'YMAX='//achar(9), YMAX_pm, &
                   achar(9)//'ZMAX='//achar(9), ZMAX_pm
          call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+         write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') &
                   achar(9)//'DX='//achar(9), DXpm, &
                   achar(9)//'DY='//achar(9), DYpm, &
                   achar(9)//'DZ='//achar(9), DZpm
@@ -910,12 +910,12 @@ contains
                if (my_rank .eq. 0) then
                   write (dummy_string, '(A,I3,A,3I3,A)') achar(9)//'Block ', nb, " = (", i, j, k, ")"
                   call vpm_print(dummy_string,blue,2)
-                  write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)//&
+                  write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') achar(9)//&
                            achar(9)//'XMIN= '//achar(9), Xbound_block(1, nb), &
                            achar(9)//'YMIN= '//achar(9), Xbound_block(2, nb), &
                            achar(9)//'ZMIN= '//achar(9), Xbound_block(3, nb)
                   call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') achar(9)// &
+                  write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') achar(9)// &
                            achar(9)//'XMAX= '//achar(9), Xbound_block(4, nb), &
                            achar(9)//'YMAX= '//achar(9), Xbound_block(5, nb), &
                            achar(9)//'ZMAX= '//achar(9), Xbound_block(6, nb)

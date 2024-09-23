@@ -9,7 +9,7 @@ import glob
 from shutil import copy2
 from typing import Any
 
-from vpm_py.vpm_io import print_red, print_green, print_IMPORTANT
+from vpm_py.console_io import print_red, print_green, print_IMPORTANT
 from vpm_py.vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 
 here = os.path.abspath(os.path.dirname(__file__))

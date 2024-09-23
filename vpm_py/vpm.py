@@ -6,7 +6,7 @@ from ctypes import c_int,  byref, c_double, POINTER, c_char, c_char_p, create_st
 # Local imports
 from . import ParticleMesh
 from . import Particles
-from .vpm_io import  print_IMPORTANT, print_green, print_blue, print_red
+from .console_io import  print_IMPORTANT, print_green, print_blue, print_red
 from .vpm_lib import VPM_Lib
 from .utils import divide_processors
 from .arrays import F_Array, F_Array_Struct
