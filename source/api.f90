@@ -11,17 +11,15 @@ Module api
 contains
    subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                                     &
                          num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,                         &
-                         max_level, omp_threads, grid_define, slice_type, write_type, write_start, write_steps, &
-                         verbocity_in) &
+                         max_level, omp_threads, grid_define, write_type, write_start, write_steps              &
+                         ) &
       bind(C, name='init')
 
-      use pmgrid, only: DXpm, DYpm, DZpm
-      use vpm_vars, only: interf_iproj, ncoarse, iynslice, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
+      use pmgrid, only: DXpm, DYpm, DZpm, IDVPM
+      use vpm_vars, only: interf_iproj, ncoarse, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
       use vpm_size, only: NREMESH, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
-      use pmeshpar, only: IDVPM
       use openmpth, only: OMPTHREADS
       use parvar, only: set_neq
-      use io, only: verbocity
       use MPI
 
       ! Declare the parameters to be passed in
@@ -30,14 +28,12 @@ contains
       integer(c_int), intent(in) :: proj_type, bc_type, vol_type, num_coarse
       integer(c_int), intent(in) :: num_nbi, num_nbj, num_nbk
       integer(c_int), intent(in) :: remesh_type, tree_type, max_level
-      integer(c_int), intent(in) :: omp_threads, grid_define, slice_type, write_type
+      integer(c_int), intent(in) :: omp_threads, grid_define, write_type
       integer(c_int), intent(in) :: write_start(10), write_steps(10)
-      integer(c_int), intent(in) :: verbocity_in
 
       integer :: ierr, my_rank, i
 
-      verbocity = verbocity_in
-      ! Get the rank of the process
+       ! Get the rank of the process
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
       if (ierr .ne. 0) then
          print *, 'Error getting the rank of the process'
@@ -48,11 +44,11 @@ contains
       DXpm = dx_pm
       DYpm = dy_pm
       DZpm = dz_pm
+      IDVPM = vol_type
 
       ! VPM_VARS
       interf_iproj = proj_type
       ncoarse = num_coarse
-      iynslice = slice_type
       IPMWRITE = write_type
       idefine = grid_define
       ! Check the IPMWRITE parameter and process accordingly
@@ -73,8 +69,6 @@ contains
       NBJ = num_nbj
       NBK = num_nbk
 
-      ! PMESHPAR
-      IDVPM = vol_type
 
       ! OPENMPTH
       OMPTHREADS = omp_threads
@@ -82,6 +76,13 @@ contains
       call set_neq(3)
 
    end subroutine initialize
+
+   subroutine set_verbose_level(verbocity_in) bind(C, name='set_verbosity')
+      use io, only: verbocity
+      implicit none
+      integer(c_int), intent(in) :: verbocity_in
+      verbocity = verbocity_in
+   end subroutine set_verbose_level
 
    subroutine finalize() bind(C, name='finalize')
       implicit none
@@ -96,7 +97,6 @@ contains
       ! Free the memory
       ! call free_vpm_vars()
       ! call free_vpm_size()
-      ! call free_pmeshpar()
       ! call free_parvar()
       ! call free_pmgrid()
       ! call free_openmpth()
@@ -213,10 +213,9 @@ contains
 
    subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
       use vpm_lib, only: write_pm_solution
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm
+      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm
       use vpm_size, only: NN, NN_bl
-      use pmeshpar, only: SOL_pm
       use io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
@@ -273,10 +272,9 @@ contains
 
    subroutine write_particle_mesh_solution_hdf5(folder, filename) bind(C, name='write_particle_mesh_solution_hdf5')
       use vpm_lib, only: write_pm_solution
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm
+      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm
       use vpm_size, only: NN, NN_bl
-      use pmeshpar, only: SOL_pm
       use io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
@@ -364,14 +362,6 @@ contains
 !! VPM SIZE
 
 !! LIBRARY PRINTS 
-   subroutine print_pmeshpar() bind(C, name='print_pmeshpar')
-      use pmeshpar, only: print_pmeshpar_info
-      implicit none
-
-      call print_pmeshpar_info()
-
-   End subroutine print_pmeshpar
-
    subroutine print_projlib() bind(C, name='print_projlib')
       use projlib, only: print_projlib_info
       implicit none

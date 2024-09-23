@@ -17,9 +17,9 @@ Module vpm_size
    
    integer, save               :: NN_tmp(3)
    integer, save               :: nb_i, nb_j, nb_k, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
-   real(dp)                    :: starttime, endtime, st, et, ct
-   integer, save               :: iynbc, iret, NBI, NBJ, NBK, NREMESH, ntorder, &
-                                  iyntree, ilevmax, itree, nsize_out(3), ibctyp, NWRITE
+   real(dp)                    :: st, et
+   integer, save               :: iynbc, iret, NBI, NBJ, NBK, NREMESH, &
+                                  iyntree, ilevmax, itree, ibctyp
 
    public :: print_vpm_size_info, get_NN_bl, get_NN, get_Xbound
 
@@ -78,13 +78,10 @@ contains
       print  *, achar(9)//"NBJ", " = ", NBJ
       print  *, achar(9)//"NBK", " = ", NBK
       print  *, achar(9)//"NREMESH", " = ", NREMESH
-      print  *, achar(9)//"ntorder", " = ", ntorder
       print  *, achar(9)//"iyntree", " = ", iyntree
       print  *, achar(9)//"ilevmax", " = ", ilevmax
       print  *, achar(9)//"itree", " = ", itree
-      print  *, achar(9)//"nsize_out", " = ", nsize_out
       print  *, achar(9)//"ibctyp", " = ", ibctyp
-      print  *, achar(9)//"NWRITE", " = ", NWRITE
    end subroutine print_vpm_size_info
 
 

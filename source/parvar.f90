@@ -1,7 +1,7 @@
 module parvar
    use base_types, only: dp
    integer                    :: NVR, NVR_size
-   integer, save                      :: neq
+   integer, save              :: neq
    real(dp), pointer, save    :: XP(:, :), QP(:, :), UP(:, :), GP(:, :)
    !   XP: Particle positions
    

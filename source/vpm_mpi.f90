@@ -57,7 +57,7 @@ contains
    module subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
       ! use pmgrid
       use vpm_vars, only: neqpm
-      use pmeshpar, only: SOL_pm
+      use pmgrid, only: SOL_pm
       use mpi_matrices, only: mpimat4
       use MPI
       Implicit None
@@ -122,7 +122,6 @@ contains
    end subroutine solget
 
    module subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
-      ! use pmeshpar
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
       use vpm_size, only: NBI, NBJ, NBK
@@ -169,9 +168,8 @@ contains
    end subroutine rhsscat_3d
 
    module subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
-      ! use pmeshpar
       use vpm_vars, only: neqpm
-      use pmeshpar, only: SOL_pm
+      use pmgrid, only: SOL_pm
       use mpi_matrices, only: mpimat4
       use io, only: vpm_print, blue
       use MPI
@@ -486,7 +484,6 @@ contains
    module subroutine proj_gath(NN)
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
-      ! use pmeshpar
       ! use parvar
       use mpi_matrices, only: mpimat4
       use MPI
@@ -519,8 +516,7 @@ contains
 
    module subroutine proj_gath_new(NN)
       use vpm_vars, only: interf_iproj, neqpm, XP_scatt, neqpm
-      use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
-      use pmeshpar, only: ND
+      use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, ND
       ! use parvar
       use mpi_matrices, only: mpimat4
       use MPI

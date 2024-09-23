@@ -203,13 +203,12 @@ contains
    subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                   RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr, NTIME_in, NI_in, NVR_size_in,&
                   deformx_ptr, deformy_ptr, deformz_ptr)
-      use pmeshpar, only:  ND, SOL_pm, IDVPM
       use parvar, only:    QP, XP, UP, GP, NVR, NVR_size,            &
                            print_particle_info, print_particle_positions
       use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm,  &
                            deformx_pm, deformy_pm, deformz_pm,       &
                            NXpm_coarse, NYpm_coarse, NZpm_coarse,    &
-                           Nblocks, print_RHS_pm
+                           Nblocks, print_RHS_pm, ND, SOL_pm, IDVPM
       use pmlib, only:     pmesh
       use projlib, only:   projlibinit, project_particles_3D, project_vol3d
       use yaps, only:      yaps3d
@@ -659,7 +658,6 @@ contains
 
    !> Defines Coarse and Fine GRID
    subroutine define_sizes
-      use pmeshpar, only:  ND, ndumcell
       use vpm_vars, only:  interf_iproj
       use vpm_size, only:  NN_bl, NN
       use pmgrid, only:    XMIN_pm, YMIN_pm, ZMIN_pm, &
@@ -667,7 +665,7 @@ contains
                            NXs_coarse_bl, NXf_coarse_bl, NYs_coarse_bl, &
                            NYf_coarse_bl, NZs_coarse_bl, NZf_coarse_bl, &
                            NXpm_coarse, NYpm_coarse, NZpm_coarse, DVPM, &
-                           DXpm, DYpm, DZpm
+                           DXpm, DYpm, DZpm, ND, ndumcell
       use pmlib, only: definepm
       use parvar, only:    XP
       use io, only: dummy_string, vpm_print, nocolor, blue, yellow, red
@@ -1085,20 +1083,19 @@ contains
       end if
    end subroutine get_domain_bounds_from_particles
 
-   subroutine convect_first_order
-      use vpm_vars, only: DT_c
+   subroutine convect_first_order(DT_convection)
       use parvar, only: NVR, XP, UP, GP, QP
-      integer                      :: i
+      real(dp), intent(in) :: DT_convection
+      integer              :: i
 
       do i = 1, NVR
-         XP(1:3, i) = XP(1:3, i) + UP(1:3, i)*DT_c
-         QP(1:neqpm, i) = QP(1:neqpm, i) + GP(1:neqpm, i)*DT_c
+         XP(1:3, i) = XP(1:3, i) + UP(1:3, i)*DT_convection
+         QP(1:neqpm, i) = QP(1:neqpm, i) + GP(1:neqpm, i)*DT_convection
       end do
    end subroutine convect_first_order
 
    subroutine project_particles_parallel
-      use pmgrid, only:    RHS_pm
-      use pmeshpar, only:  SOL_pm, IDVPM, ND
+      use pmgrid, only:    RHS_pm, SOL_pm, IDVPM, ND
       use parvar, only:    NVR, XP, QP
       use projlib, only:   projlibinit, project_particles_3D, project_vol3d
       
@@ -1184,8 +1181,7 @@ contains
    subroutine interpolate_particles_parallel(itypeb)
       use parvar, only:    NVR
       use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm, &
-                           deformx_pm, deformy_pm, deformz_pm
-      use pmeshpar, only:  SOL_pm
+                           deformx_pm, deformy_pm, deformz_pm, SOL_pm
 
       integer, intent(in)               :: itypeb
       integer, allocatable              :: ieq(:)

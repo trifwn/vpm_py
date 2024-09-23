@@ -46,8 +46,9 @@ class VPM(object):
         self.NBK = NBK
         self.num_equations = number_of_equations
 
+        self.set_verbosity(verbocity)
         # Initialize the VPM
-        self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK, VERBOSITY=verbocity)
+        self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK)
         self.particle_mesh = ParticleMesh()
         self.particles = Particles(number_equations= self.num_equations)
 
@@ -67,12 +68,10 @@ class VPM(object):
         use_tree: bool = True, 
         ilevmax: int = 1,
         OMPTHREADS: int = 1,
-        is_box_fixed: bool = False, 
-        slice: bool = True, 
+        is_domain_fixed: bool = False, 
         IPMWRITE: int = 0, 
         IPMWSTART: int = -1, 
         IPMWSTEPS: int = -1,
-        VERBOSITY: int = 0
     ):
         """Wrapper function for calling Fortran subroutine `init`.
 
@@ -91,21 +90,18 @@ class VPM(object):
             use_tree (bool, optional): Use tree. Defaults to True.
             ilevmax (int, optional): Maximum level. Defaults to 1.
             OMPTHREADS (int, optional): Number of threads. Defaults to 1.
-            is_box_fixed (bool, optional): Is box fixed. Defaults to True.
-            slice (bool, optional): Slice. Defaults to True.
+            is_domain_fixed (bool, optional): Is box fixed. Defaults to True.
             IPMWRITE (int, optional): Write IPM. Defaults to 1.
             IPMWSTART (int, optional): Write IPM start. Defaults to 1.
             IPMWSTEPS (int, optional): Write IPM steps. Defaults to 1.
-            VERBOSITY (int, optional): Verbosity. Defaults to 0. 
         """
         self.dpm = np.array([DXpm, DYpm, DZpm])
         self._lib.init(
             byref(c_double(DXpm)), byref(c_double(DYpm)), byref(c_double(DZpm)), byref(c_int(projection_type)),
             byref(c_int(boundary_condition)), byref(c_int(variable_volume)), byref(c_int(ncoarse)),
             byref(c_int(NBI)), byref(c_int(NBJ)), byref(c_int(NBK)), byref(c_int(remesh)), 
-            byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_box_fixed)),
-            byref(c_int(slice)), byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
-            byref(c_int(VERBOSITY))
+            byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_domain_fixed)),
+            byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
         )
         if(self.rank == 0):
             print_green(f"Finished initializing VPM {self.rank}:")
@@ -124,7 +120,7 @@ class VPM(object):
             print(f"\tiyntree= {use_tree}")
             print(f"\tilevmax= {ilevmax}")
             print(f"\tOMPTHREADS= {OMPTHREADS}")
-            print(f"\tidefine= {is_box_fixed}")
+            print(f"\tidefine= {is_domain_fixed}")
             print(f"\tiynslice= {slice}")
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
@@ -248,13 +244,6 @@ class VPM(object):
         self.particles.particle_deformations = GP_arr.transfer_data_ownership()
         return XP_arr, QP_arr
 
-    def print_pmesh_parameters(self):
-        """
-            Print the parameters of the particle mesh
-        """
-        print_IMPORTANT(f"Pmesh parameters {self.rank}/{self.num_processors - 1}")
-        self._lib.print_pmeshpar()
-
     def print_projlib_parameters(self):
         """
             Print the parameters of the projection library
@@ -290,6 +279,12 @@ class VPM(object):
         print_IMPORTANT(f"Particle variables {self.rank}/{self.num_processors - 1}")
         self._lib.print_parvar()
     
+    def set_verbosity(self, verbosity: int):
+        """
+            Set the verbosity of the VPM
+        """
+        self._lib.set_verbosity(byref(c_int(verbosity)))
+
     def finalize(self):
         self._lib.finalize()
         if self.rank == 0:

@@ -11,8 +11,8 @@ end module test_mod
 
 Program test_pm
    use base_types, only: dp
-   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm
-   use vpm_vars, only:  mrem, interf_iproj, ncoarse, iynslice, &
+   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm, IDVPM
+   use vpm_vars, only:  mrem, interf_iproj, ncoarse,  &
                         IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
    use vpm_size, only:  st, et, NREMESH, iyntree, ilevmax, ibctyp, NBI, &
                         NBJ, NBK, NN,NN_bl, Xbound, DPm
@@ -21,7 +21,6 @@ Program test_pm
                         QP_in, XP_in, RHS_pm_in, &
                         velx, vely, velz
    use test_app, only: hill_assign
-   use pmeshpar, only:  IDVPM
    use parvar, only:    NVR
    use openmpth, only:  OMPTHREADS
    use vpm_lib, only:   vpm, remesh_particles_3d, write_particles, write_pm_solution
@@ -71,7 +70,6 @@ Program test_pm
    read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
    read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
    read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
-   read (1, *) iynslice             !
    read (1, *) IPMWRITE             ! SAVING PARAMETER
    if (IPMWRITE .gt. 10) stop       !maximume value of writes equal to 10
    if (IPMWRITE .GT. 0) then

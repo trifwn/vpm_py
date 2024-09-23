@@ -4,12 +4,12 @@ submodule(vpm_lib) vpm_gcalc
 contains
    module subroutine calc_velocity_serial_3d(idcalc)
       ! use vpm_vars
-      use pmeshpar, only: SOL_pm
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, RHS_pm,     &
                         deformx_pm, deformy_pm, deformz_pm,          &
                         DXpm, DYpm, DZpm,                            &
                         NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
-                        NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl
+                        NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
+                        SOL_pm
       ! use parvar
       ! use openmpth
       Implicit None
@@ -157,7 +157,6 @@ contains
 
    module subroutine diffuse_vort_3d
       use vpm_vars
-      use pmeshpar
       use parvar
       use pmgrid
       use openmpth
@@ -235,7 +234,6 @@ contains
 
    module subroutine calc_antidiffusion
       use vpm_vars
-      use pmeshpar
       use parvar
       use pmgrid
       use openmpth

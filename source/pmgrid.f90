@@ -11,6 +11,12 @@ module pmgrid
                                           NYf_coarse_bl, NZs_coarse_bl, NZf_coarse_bl
    integer, save                       :: NBlocks
 
+   !! PMESH PARAMETERS
+   integer                             :: ND
+   real(dp), allocatable, save         :: SOL_pm(:, :, :, :) 
+   integer, save                       :: nbound, ndumcell, IDVPM
+
+
    ! GETTERS
    public :: get_NXpm_coarse, get_NYpm_coarse, get_NZpm_coarse
    ! SETTERS
@@ -97,6 +103,11 @@ contains
       print *, achar(9), "NZs_bl", NZs_coarse_bl
       print *, achar(9), "NZf_bl", NZf_coarse_bl
       print *, achar(9), "NBlocks: ", NBlocks
+      print '(A,I6)',    achar(9)//"ND        =", ND
+      print '(A,I6)',    achar(9)//"nbound    =", nbound
+      print '(A,I6)',    achar(9)//"ndumcell  =", ndumcell
+      print '(A,I6)',    achar(9)//"IDVPM     =", IDVPM
+      call dp_4d_alloc_info("SOL_pm", SOL_pm)
    end subroutine print_pmgrid_info
 
    subroutine print_RHS_pm()

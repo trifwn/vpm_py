@@ -5,13 +5,13 @@ Module vpm_vars
    real(dp), allocatable      :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
    integer, allocatable       :: NVR_projtype_scatt(:)
    
-   real(dp)                   :: DT_c, V_ref, NI
+   real(dp)                   :: V_ref, NI
    integer                    :: interf_iproj
 
-   integer                    :: ncoarse, nparcell1d
+   integer                    :: ncoarse
    integer                    :: neqpm, NVR_p, NTIME_pm
 
-   integer, save              :: IPMWRITE, idefine, iynslice
+   integer, save              :: IPMWRITE, idefine
    integer, save              :: mrem = 1
    integer, save              :: IPMWSTART(10), IPMWSTEPS(10)
 
@@ -52,7 +52,6 @@ contains
          print '(A)', achar(9)//"GP_scatt Not allocated"
       end if
 
-      print *, achar(9), 'DT_c = ', DT_c
       print *, achar(9), 'V_ref = ', V_ref
       print *, achar(9), 'NI = ', NI
 
@@ -65,14 +64,12 @@ contains
 
       print *, achar(9), 'interf_iproj = ', interf_iproj
       print *, achar(9), 'ncoarse = ', ncoarse
-      print *, achar(9), 'nparcell1d = ', nparcell1d
       print *, achar(9), 'neqpm = ', neqpm
       print *, achar(9), 'NVR_p = ', NVR_p
       print *, achar(9), 'NTIME_pm = ', NTIME_pm
       print *, achar(9), 'IPMWRITE = ', IPMWRITE
       print *, achar(9), 'mrem = ', mrem
       print *, achar(9), 'idefine = ', idefine
-      print *, achar(9), 'iynslice = ', iynslice
    
       print  *, achar(9)//"IPMWSTART", " (1D): Size = (", size(IPMWSTART), ")"
       print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTART(1:min(size(IPMWSTART), 4))

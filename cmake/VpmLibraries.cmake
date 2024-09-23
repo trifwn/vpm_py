@@ -66,7 +66,6 @@ function(define_vpm_targets)
         ${SRC_VPM}/mpi_matrices.f90
         ${SRC_VPM}/parvar.f90
         ${SRC_VPM}/pmgrid.f90
-        ${SRC_VPM}/pmeshpar.f90
         ${SRC_VPM}/pmproject.f90
     )
     # -------------------------------------------------------------------------------------------------
@@ -116,8 +115,6 @@ function(define_vpm_targets)
     add_library(pmgrid OBJECT  ${SRC_VPM}/pmgrid.f90)
     target_link_libraries(pmgrid PRIVATE io)
 
-    add_library(pmeshpar OBJECT  ${SRC_VPM}/pmeshpar.f90)
-    target_link_libraries(pmeshpar PRIVATE io constants)
 
     add_library(pmproject OBJECT ${SRC_VPM}/pmproject.f90)
 
@@ -132,7 +129,7 @@ function(define_vpm_targets)
 
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
     target_link_libraries(vpm_lib PRIVATE 
-        yaps pmlib pmproject parvar pmeshpar pmgrid  
+        yaps pmlib pmproject parvar pmgrid  
         vpm_size vpm_vars io types constants mpi_matrices
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
@@ -198,7 +195,6 @@ function(define_vpm_targets)
     set_compiler_flags(mpi_matrices)
     set_compiler_flags(parvar)
     set_compiler_flags(pmgrid)
-    set_compiler_flags(pmeshpar)
     set_compiler_flags(pmproject)
     set_compiler_flags(yaps)
     set_compiler_flags(vpm_vars)
