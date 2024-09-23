@@ -4,9 +4,10 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 import os
 from tqdm import tqdm
+import re
 
-from vpm_py.vpm_io import print_IMPORTANT
-from vpm_py.files import process_particle_ouput_file, process_pm_output_file
+from vpm_py.console_io import print_IMPORTANT
+from vpm_py.process_files import process_particle_ouput_file, process_pm_output_file
 
 from . import ResultPlot
 from . import QuantityOfInterest
@@ -112,14 +113,45 @@ class Visualizer:
         total_frames: int,
         start_frame: int = 0,
         save_filename: str | None = None,
-        particle_filename_format: str = 'particles.h5',
-        mesh_filename_format: str = 'pm_output.h5',
+        particle_filename_pattern: str = r'particles.*\.h5',
+        mesh_filename_pattern: str = r'pm_output.*\.h5',
         dt: float | None = None,
         format: str = 'mp4'
     ):
+        """
+        Animate the results from a specified folder containing particle and mesh files.
+        Parameters:
+        -----------
+        folder : str
+            The directory containing the result files.
+        total_frames : int
+            The total number of frames to animate.
+        start_frame : int, optional
+            The starting frame for the animation (default is 0).
+        save_filename : str or None, optional
+            The filename to save the animation. If None, a default name is generated (default is None).
+        particle_filename_pattern : str, optional
+            The regex pattern to match particle files (default is r'particles.*\.h5').
+        mesh_filename_pattern : str, optional
+            The regex pattern to match mesh files (default is r'pm_output.*\.h5').
+        dt : float or None, optional
+            The time step between frames. If None, time is not considered (default is None).
+        format : str, optional
+            The format to save the animation (default is 'mp4').
+        Returns:
+        --------
+        None
+        """
+        # Compile the regex patterns for particles and mesh filenames
+        particle_regex = re.compile(particle_filename_pattern)
+        mesh_regex = re.compile(mesh_filename_pattern)
+        
+        # List all files in the folder
         files = os.listdir(folder)
-        files_vr = sorted([f for f in files if f.endswith(particle_filename_format)])
-        files_sol = sorted([f for f in files if f.endswith(mesh_filename_format)])
+        
+        # Filter and sort files based on the regex pattern for particle and mesh files
+        files_vr = sorted([f for f in files if particle_regex.search(f)])
+        files_sol = sorted([f for f in files if mesh_regex.search(f)])
 
         pbar = tqdm(total=total_frames, desc="Creating animation")
         def animation_loop(frame):
