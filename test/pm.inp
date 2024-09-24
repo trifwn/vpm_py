@@ -8,9 +8,8 @@
   0  1                          ! tree(0,1),Number of levels
   1                             ! Number of threads       ==max(available threads)
   0                             ! 0/1 (0:box changes size/1:box is fixed)
-  1                             !iynslice
-  1                              ! IPMWRITE  number of pm time series, max value 10
-0 6000
+  1                             ! IPMWRITE  number of pm time series, max value 10
+  0 6000
 
 
 

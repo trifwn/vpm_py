@@ -1,71 +1,24 @@
-
 Module vpm_vars
    use base_types, only: dp
-   ! SCATTERED QUANTITIES
-   real(dp), allocatable      :: XP_scatt(:, :), QP_scatt(:, :), UP_scatt(:, :), GP_scatt(:, :)
-   integer, allocatable       :: NVR_projtype_scatt(:)
-   
    real(dp)                   :: V_ref, NI
-   integer                    :: interf_iproj
-
-   integer                    :: ncoarse
-   integer                    :: neqpm, NVR_p, NTIME_pm
-
-   integer, save              :: IPMWRITE, idefine
+   integer, save              :: interf_iproj, idefine
    integer, save              :: mrem = 1
+   integer                    :: neqpm, NTIME_pm
+   integer, save              :: IPMWRITE
    integer, save              :: IPMWSTART(10), IPMWSTEPS(10)
-
-   ! Printer
+   integer                    :: OMPTHREADS
    public :: print_vpm_vars_info
 
 contains
-
    subroutine print_vpm_vars_info
       print *, "VPM_VARS INFO"
       print *, "============"
       print *, ""
-      if (allocated(XP_scatt)) then
-         print *, achar(9)//"XP_scatt", " (2D): Size = (", size(XP_scatt,1), ",", size(XP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", XP_scatt(1,1:min(4,size(XP_scatt,2)))
-      else
-         print '(A)', achar(9)//"XP_scatt Not allocated"
-      end if
-
-      if (allocated(QP_scatt)) then
-         print *, achar(9)//"QP_scatt", " (2D): Size = (", size(QP_scatt,1), ",", size(QP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", QP_scatt(1,1:min(4,size(QP_scatt,2)))
-      else
-         print '(A)', achar(9)//"QP_scatt Not allocated"
-      end if
-
-      if (allocated(UP_scatt)) then
-         print *, achar(9)//"UP_scatt", " (2D): Size = (", size(UP_scatt,1), ",", size(UP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", UP_scatt(1,1:min(4,size(UP_scatt,2)))
-      else
-         print '(A)', achar(9)//"UP_scatt Not allocated"
-      end if
-
-      if (allocated(GP_scatt)) then
-         print *, achar(9)//"GP_scatt", " (2D): Size = (", size(GP_scatt,1), ",", size(GP_scatt,2), ")"
-         print *, achar(9)//"Sample values: ", GP_scatt(1,1:min(4,size(GP_scatt,2)))
-      else
-         print '(A)', achar(9)//"GP_scatt Not allocated"
-      end if
-
       print *, achar(9), 'V_ref = ', V_ref
       print *, achar(9), 'NI = ', NI
 
-      if (allocated(NVR_projtype_scatt)) then
-         print *, achar(9)//"NVR_projection_type_scatt", " (1D): Size = (", size(NVR_projtype_scatt), ")"
-         print '(A,4I12)', achar(9)//"Sample values: ", NVR_projtype_scatt(1:min(size(NVR_projtype_scatt), 4))
-      else
-         print '(A)', achar(9)//"NVR_projection_type_scatt Not allocated"
-      end if
-
       print *, achar(9), 'interf_iproj = ', interf_iproj
-      print *, achar(9), 'ncoarse = ', ncoarse
       print *, achar(9), 'neqpm = ', neqpm
-      print *, achar(9), 'NVR_p = ', NVR_p
       print *, achar(9), 'NTIME_pm = ', NTIME_pm
       print *, achar(9), 'IPMWRITE = ', IPMWRITE
       print *, achar(9), 'mrem = ', mrem
@@ -78,8 +31,5 @@ contains
       print  *, achar(9)//"IPMWSTEPS", " (1D): Size = (", size(IPMWSTEPS), ")"
       print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTEPS(1:min(size(IPMWSTEPS), 4))
       print '(A)', ""
-
-
    End subroutine print_vpm_vars_info
-
 End Module vpm_vars

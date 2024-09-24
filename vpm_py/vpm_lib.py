@@ -37,7 +37,7 @@ class VPM_Lib:
             POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
             POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
             POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int)
+            POINTER(c_int), POINTER(c_int)
         ]
         cls._lib_vpm.init.restype = None
 

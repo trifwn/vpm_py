@@ -1,8 +1,9 @@
-submodule(vpm_lib) vpm_mpi
+module vpm_mpi
+   use base_types, only: dp
    implicit none
    ! Create interfaces for all module procedures
 contains
-   module subroutine rhsbcast(RHS_pm, NN, neq)
+   subroutine rhsbcast(RHS_pm, NN, neq)
       use MPI
       use mpi_matrices, only: mpimat4
       Implicit None
@@ -21,7 +22,7 @@ contains
       !-----------------------------------
    end subroutine rhsbcast
 
-   module subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
+   subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
       use MPI
@@ -54,7 +55,7 @@ contains
 
    end subroutine rhsscat
 
-   module subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
+   subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
       ! use pmgrid
       use vpm_vars, only: neqpm
       use pmgrid, only: SOL_pm
@@ -121,7 +122,7 @@ contains
 
    end subroutine solget
 
-   module subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
+   subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
       use vpm_size, only: NBI, NBJ, NBK
@@ -167,11 +168,11 @@ contains
 
    end subroutine rhsscat_3d
 
-   module subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
+   subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
       use vpm_vars, only: neqpm
       use pmgrid, only: SOL_pm
       use mpi_matrices, only: mpimat4
-      use io, only: vpm_print, blue
+      use console_io, only: vpm_print, blue
       use MPI
       Implicit None
       integer, intent(in)           :: BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NBK, NN_bl(6), NN_tmp(3)
@@ -259,7 +260,7 @@ contains
 
    end subroutine solget_3d
 
-   module subroutine velbcast_3d
+   subroutine velbcast_3d
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm,&
                         NXpm_coarse, NYpm_coarse, NZpm_coarse
       use mpi_matrices, only: mpimat3_pm
@@ -279,7 +280,7 @@ contains
       !--------------------------------------------
    end subroutine velbcast_3d
 
-   module subroutine defbcast_3d
+   subroutine defbcast_3d
       use pmgrid, only: deformx_pm, deformy_pm, deformz_pm, &
                         NXpm_coarse, NYpm_coarse, NZpm_coarse
       use mpi_matrices, only: mpimat3_pm
@@ -299,17 +300,18 @@ contains
       !--------------------------------------------
    end subroutine defbcast_3d
 
-   module subroutine particles_scat
-      use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt
-      use parvar, only: XP, QP, NVR, NVR_size
+   subroutine particles_scat
+      use vpm_vars, only: neqpm
+      use parvar, only: XP, QP, NVR, NVR_size, XP_scatt, QP_scatt, NVR_p
       use mpi_matrices, only: mpimat2_pm
       use MPI
-      use io, only: vpm_print, blue, tab_level, dummy_string, nocolor, yellow
+      use console_io, only: vpm_print, blue, tab_level, dummy_string, nocolor, yellow
 
       Implicit None
       integer :: my_rank, np, ierr, i
       integer :: dest, NVR_pr, NVR_r, mat2
       integer :: status(MPI_STATUS_SIZE)
+      real(dp):: st, et
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
       
@@ -410,9 +412,9 @@ contains
 
    end subroutine particles_scat
 
-   module subroutine particles_gath
-      use vpm_vars, only: NVR_p, neqpm, XP_scatt, QP_scatt, UP_scatt, GP_scatt
-      use parvar, only: XP, QP, UP, GP, NVR
+   subroutine particles_gath
+      use vpm_vars, only:  neqpm
+      use parvar, only: XP, QP, UP, GP, NVR, NVR_p, XP_scatt, QP_scatt, UP_scatt, GP_scatt
       use mpi_matrices, only: mpimat2_pm
       use MPI
 
@@ -481,7 +483,7 @@ contains
       end if
    end subroutine particles_gath
 
-   module subroutine proj_gath(NN)
+   subroutine proj_gath(NN)
       use vpm_vars, only: neqpm
       use pmgrid, only: RHS_pm
       ! use parvar
@@ -514,10 +516,10 @@ contains
       end if
    end subroutine proj_gath
 
-   module subroutine proj_gath_new(NN)
-      use vpm_vars, only: interf_iproj, neqpm, XP_scatt, neqpm
+   subroutine proj_gath_new(NN)
+      use vpm_vars, only: interf_iproj, neqpm, neqpm
       use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, ND
-      ! use parvar
+      use parvar, only: XP_scatt 
       use mpi_matrices, only: mpimat4
       use MPI
 
@@ -605,4 +607,4 @@ contains
       end if
 
    end subroutine proj_gath_new
-end submodule vpm_mpi
+end module vpm_mpi

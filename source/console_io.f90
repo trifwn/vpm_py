@@ -1,4 +1,4 @@
-module io
+module console_io
     use base_types, only: dp
     integer, save :: VERBOCITY = 2
     integer, parameter :: MAX_STRING_LENGTH = 256
@@ -352,4 +352,4 @@ contains
         end if
         print '(A)', ""
     end subroutine dp_4d_alloc_info
-end module IO
+end module console_io

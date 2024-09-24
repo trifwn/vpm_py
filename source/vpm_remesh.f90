@@ -1,4 +1,5 @@
 submodule(vpm_lib) vpm_remesh
+   use base_types, only: dp
    implicit none
    
    contains
@@ -20,9 +21,9 @@ submodule(vpm_lib) vpm_remesh
                            NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
                            RHS_pm
       use vpm_vars, only:  mrem, neqpm, interf_iproj, V_ref 
+      use vpm_interpolate, only: interpolate_particle_Q
       use parvar, only: NVR, XP, QP, GP, UP, NVR_size
-      use base_types, only: dp
-      use io, only: vpm_print, nocolor, tab_level, yellow, dummy_string
+      use console_io, only: vpm_print, nocolor, tab_level, yellow, dummy_string
       use MPI
 
       Implicit None
@@ -296,7 +297,7 @@ submodule(vpm_lib) vpm_remesh
    !>@param [in]  F is the value at the global coordinates
    !>@param [out] FC is the value at global coordinates of the interpolated value
    !--------------------------------------------------------------------------------
-   module function cell3d_interp_euler(F, N, M) result(FC)
+   function cell3d_interp_euler(F, N, M) result(FC)
       use iso_fortran_env
       implicit none
 

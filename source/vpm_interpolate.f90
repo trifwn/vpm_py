@@ -1,4 +1,4 @@
-submodule(vpm_lib) vpm_interpolate_par
+module vpm_interpolate
    implicit none
 contains
    !---------------------------------------------------------------------------!
@@ -8,15 +8,15 @@ contains
    !   Input :                                                                 !
    !          itype (1,2) defines what value to interpolate to the particles   !
    !---------------------------------------------------------------------------!
-   module subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP,    &
+   subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP,    &
                                  velvrx_pm, velvry_pm, velvrz_pm,    &
                                  deformx_pm, deformy_pm, deformz_pm, &
                                  NVR, iproj, itype, NVRM)
-      use openmpth
+      ! TODO: MAKE FLAGS FOR CALC U AND CALC G
       use projlib, only: projection_fun
       use base_types, only: dp
       use vpm_size, only: NN, XBound, Dpm
-      use vpm_vars, only: neqpm
+      use vpm_vars, only: neqpm, OMPTHREADS
       Implicit None
       integer, intent(in)     :: NVR, iproj, NVRM, itype
       real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
@@ -107,12 +107,11 @@ contains
    !        NVR   : Number of particles                                        !
    !        iproj : Projection type                                            !
    !---------------------------------------------------------------------------!
-   module subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj, NVR_size)
-      use openmpth
+   subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj, NVR_size)
       use projlib, only: projection_fun
       use base_types, only: dp
       use vpm_size, only: NN, XBound, Dpm
-      use vpm_vars, only: neqpm
+      use vpm_vars, only: neqpm, OMPTHREADS
       Implicit None
       integer, intent(in)     :: NVR, iproj, NVR_size
       real(dp), intent(in)    :: Q_pm(neqpm, NN(1), NN(2), NN(3))
@@ -162,4 +161,4 @@ contains
       end do
    end subroutine interpolate_particle_Q 
 
-end submodule vpm_interpolate_par
+end module vpm_interpolate

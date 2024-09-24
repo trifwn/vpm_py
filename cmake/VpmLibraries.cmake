@@ -2,9 +2,6 @@ function(define_vpm_targets)
     set(VPM_LIB_FILES
         ${SRC_VPM}/vpm.f90
         ${SRC_VPM}/vpm_remesh.f90
-        ${SRC_VPM}/vpm_interpolate.f90
-        ${SRC_VPM}/vpm_gcalc.f90
-        ${SRC_VPM}/vpm_mpi.f90
     )
 
     set(PM_LIB_FILES_MKL
@@ -36,6 +33,7 @@ function(define_vpm_targets)
         # VPM
         ${SRC_VPM}/vpm_vars.f90
         ${SRC_VPM}/vpm_size.f90
+        ${SRC_VPM}/vpm_interpolate.f90
         # VPM_LIB
         ${SRC_VPM}/vpm.f90
         ${SRC_VPM}/vpm_remesh.f90
@@ -62,7 +60,8 @@ function(define_vpm_targets)
         ${SRC_VPM}/base_types.f90
         ${SRC_VPM}/constants.f90
         ${SRC_VPM}/arrays.f90
-        ${SRC_VPM}/io.f90
+        ${SRC_VPM}/console_io.f90
+        ${SRC_VPM}/file_io.f90
         ${SRC_VPM}/mpi_matrices.f90
         ${SRC_VPM}/parvar.f90
         ${SRC_VPM}/pmgrid.f90
@@ -81,8 +80,14 @@ function(define_vpm_targets)
     target_link_libraries(types PRIVATE constants)
     target_link_libraries(arrays PRIVATE types)
     
-    add_library(io OBJECT ${SRC_VPM}/io.f90)
-    target_link_libraries(io PRIVATE types)
+    add_library(console_io OBJECT ${SRC_VPM}/console_io.f90)
+    target_link_libraries(console_io PRIVATE types)
+
+    add_library(file_io OBJECT ${SRC_VPM}/file_io.f90)
+    target_link_libraries(
+        file_io PRIVATE types console_io pmgrid
+        h5fortran::h5fortran
+    )
 
     message(STATUS "Using MKl implementation: ${USE_MKL}")
     if (USE_MKL)
@@ -99,7 +104,7 @@ function(define_vpm_targets)
     endif()
 
     target_link_libraries(pmlib PRIVATE 
-        io types constants
+        console_io types constants
         $<$<BOOL:${USE_MKL}>:mkl_poisson>               # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>           # Link with Fishpack if USE_MKL is false
     )
@@ -110,27 +115,37 @@ function(define_vpm_targets)
     add_library(mpi_matrices OBJECT ${SRC_VPM}/mpi_matrices.f90)
 
     add_library(parvar OBJECT  ${SRC_VPM}/parvar.f90)
-    target_link_libraries(parvar PRIVATE io)
+    target_link_libraries(parvar PRIVATE console_io)
 
     add_library(pmgrid OBJECT  ${SRC_VPM}/pmgrid.f90)
-    target_link_libraries(pmgrid PRIVATE io)
-
+    target_link_libraries(pmgrid PRIVATE console_io)
 
     add_library(pmproject OBJECT ${SRC_VPM}/pmproject.f90)
 
     add_library(yaps OBJECT ${YAPSLIB_FILES})
-    target_link_libraries(yaps PRIVATE mpi_matrices pmlib pmproject types io)
+    target_link_libraries(yaps PRIVATE mpi_matrices pmlib pmproject types console_io)
 
     add_library(vpm_vars OBJECT ${SRC_VPM}/vpm_vars.f90)
-    target_link_libraries(vpm_vars PRIVATE types io)
+    target_link_libraries(vpm_vars PRIVATE types console_io)
 
     add_library(vpm_size OBJECT ${SRC_VPM}/vpm_size.f90)
-    target_link_libraries(vpm_size PRIVATE types io)
+    target_link_libraries(vpm_size PRIVATE types console_io)
+
+    add_library(vpm_interpolate OBJECT ${SRC_VPM}/vpm_interpolate.f90)
+    target_link_libraries(vpm_interpolate PRIVATE types console_io pmproject vpm_size vpm_vars pmgrid parvar)
+
+    add_library(vpm_gcalc OBJECT ${SRC_VPM}/vpm_gcalc.f90)
+    target_link_libraries(vpm_gcalc PRIVATE types console_io vpm_size vpm_vars)
+
+    add_library(vpm_mpi OBJECT ${SRC_VPM}/vpm_mpi.f90)
+    target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars)
 
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
     target_link_libraries(vpm_lib PRIVATE 
         yaps pmlib pmproject parvar pmgrid  
-        vpm_size vpm_vars io types constants mpi_matrices
+        vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
+        console_io file_io types constants 
+        mpi_matrices
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         h5fortran::h5fortran
@@ -190,7 +205,7 @@ function(define_vpm_targets)
     set_compiler_flags(arrays)
     set_compiler_flags(constants)
     set_compiler_flags(types)
-    set_compiler_flags(io)
+    set_compiler_flags(console_io)
     set_compiler_flags(pmlib)
     set_compiler_flags(mpi_matrices)
     set_compiler_flags(parvar)

@@ -5,7 +5,7 @@ contains
                      NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, neqs, neqf, nc, NBI, NBJ, NBK, nb_i, &
                      nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
-      use io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
+      use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
       use projlib
       use pmlib, only: pmesh
       use MPI

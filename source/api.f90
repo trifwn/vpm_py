@@ -15,10 +15,9 @@ contains
                          ) &
       bind(C, name='init')
 
-      use pmgrid, only: DXpm, DYpm, DZpm, IDVPM
-      use vpm_vars, only: interf_iproj, ncoarse, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
-      use vpm_size, only: NREMESH, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
-      use openmpth, only: OMPTHREADS
+      use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
+      use vpm_vars, only: interf_iproj, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS
+      use vpm_size, only: nremesh, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
       use parvar, only: set_neq
       use MPI
 
@@ -45,23 +44,23 @@ contains
       DYpm = dy_pm
       DZpm = dz_pm
       IDVPM = vol_type
+      ncoarse = num_coarse
 
       ! VPM_VARS
       interf_iproj = proj_type
-      ncoarse = num_coarse
-      IPMWRITE = write_type
       idefine = grid_define
+      IPMWRITE = write_type
       ! Check the IPMWRITE parameter and process accordingly
-      if (IPMWRITE .gt. 10) stop  ! maximum value of writes equal to 10
       if (IPMWRITE .GT. 0) then
          do i = 1, IPMWRITE ! maximum value 10
             IPMWSTART(i) = write_start(i)
             IPMWSTEPS(i) = write_steps(i)
+            if (IPMWRITE .gt. 10) stop  ! maximum value of writes equal to 10
          end do
       end if
 
       ! VPM_SIZE
-      NREMESH = remesh_type
+      nremesh = remesh_type
       iyntree = tree_type
       ilevmax = max_level
       ibctyp = bc_type
@@ -78,7 +77,7 @@ contains
    end subroutine initialize
 
    subroutine set_verbose_level(verbocity_in) bind(C, name='set_verbosity')
-      use io, only: verbocity
+      use console_io, only: verbocity
       implicit none
       integer(c_int), intent(in) :: verbocity_in
       verbocity = verbocity_in
@@ -212,11 +211,11 @@ contains
    End subroutine call_remesh_particles_3d
 
    subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
-      use vpm_lib, only: write_pm_solution
+      use console_io, only: vpm_write_folder, pm_output_file_suffix
+      use file_io, only: write_pm_solution
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
-      use vpm_vars, only: NTIME_pm
+      use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: NN, NN_bl
-      use io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
 
@@ -229,18 +228,18 @@ contains
       endif
 
       if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
-         call write_pm_solution(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
+         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
                                 deformx_pm, deformy_pm, deformz_pm)
       else
-         call write_pm_solution(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
       end if
    End subroutine write_particle_mesh_solution
 
    subroutine write_particles_stored(folder, filename) bind(C, name='write_particles')
-      use vpm_lib, only: write_particles
+      use file_io, only: write_particles
       use parvar, only: XP, QP, UP, GP, NVR, NVR_size
       use vpm_vars, only: neqpm, NTIME_pm
-      use io, only: vpm_write_folder, particle_output_file_suffix
+      use console_io, only: vpm_write_folder, particle_output_file_suffix
       implicit none
       character(kind=c_char), intent(in), optional :: folder(*), filename(*)
 
@@ -255,10 +254,10 @@ contains
    End subroutine write_particles_stored
 
    subroutine write_particles_stored_hdf5(folder, filename) bind(C, name='write_particles_hdf5')
-      use vpm_lib, only: write_particles
+      use file_io, only: write_particles_hdf5
       use parvar, only: XP, QP, UP, GP, NVR, NVR_size
       use vpm_vars, only: neqpm, NTIME_pm
-      use io, only: vpm_write_folder, particle_output_file_suffix
+      use console_io, only: vpm_write_folder, particle_output_file_suffix
       implicit none
       character(kind=c_char), intent(in), optional :: folder(*), filename(*)
       if (present(folder)) then
@@ -271,11 +270,11 @@ contains
    End subroutine write_particles_stored_hdf5
 
    subroutine write_particle_mesh_solution_hdf5(folder, filename) bind(C, name='write_particle_mesh_solution_hdf5')
-      use vpm_lib, only: write_pm_solution
+      use file_io, only: write_pm_solution_hdf5
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
-      use vpm_vars, only: NTIME_pm
+      use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: NN, NN_bl
-      use io, only: vpm_write_folder, pm_output_file_suffix
+      use console_io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
 
@@ -288,10 +287,10 @@ contains
       endif
 
       if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
-         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
                                 deformx_pm, deformy_pm, deformz_pm)
       else
-         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
       end if
    End subroutine write_particle_mesh_solution_hdf5
 
@@ -440,27 +439,27 @@ contains
    !!! FILE I/O !!!
    subroutine set_particle_file_suffix(suffix)  bind(C, name='set_particle_file_suffix')
       use iso_c_binding
-      use io, only: particle_output_file_suffix
+      use console_io, only: particle_output_file_suffix
       character(kind = c_char), dimension(*), intent(in) :: suffix
       call set_string_f_c(particle_output_file_suffix, suffix)
    end subroutine set_particle_file_suffix
 
    subroutine set_pm_file_suffix(suffix)  bind(C, name='set_pm_file_suffix')
       use iso_c_binding
-      use io, only: pm_output_file_suffix
+      use console_io, only: pm_output_file_suffix
       character(kind = c_char), dimension(*), intent(in) :: suffix
       call set_string_f_c(pm_output_file_suffix, suffix)
    end subroutine set_pm_file_suffix
 
    subroutine set_vpm_write_folder(folder)  bind(C, name='set_vpm_write_folder')
       use iso_c_binding
-      use io, only: vpm_write_folder
+      use console_io, only: vpm_write_folder
       character(kind = c_char), dimension(*), intent(in) :: folder
       call set_string_f_c(vpm_write_folder, folder)
    end subroutine set_vpm_write_folder
 
    subroutine print_write_settings() bind(C, name = 'print_write_settings')
-      use io, only: vpm_print, particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder
+      use console_io, only: vpm_print, particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder
       call vpm_print("Particle output file suffix: " // trim(particle_output_file_suffix), NOCOLOR, 1)
       call vpm_print("PM output file suffix: " // trim(pm_output_file_suffix), NOCOLOR, 1)
       call vpm_print("VPM write folder: " // trim(vpm_write_folder), NOCOLOR, 1)

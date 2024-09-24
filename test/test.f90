@@ -11,10 +11,10 @@ end module test_mod
 
 Program test_pm
    use base_types, only: dp
-   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm, IDVPM
-   use vpm_vars, only:  mrem, interf_iproj, ncoarse,  &
-                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS
-   use vpm_size, only:  st, et, NREMESH, iyntree, ilevmax, ibctyp, NBI, &
+   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm,ncoarse, IDVPM
+   use vpm_vars, only:  mrem, interf_iproj,   &
+                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS
+   use vpm_size, only:  st, et, nremesh, iyntree, ilevmax, ibctyp, NBI, &
                         NBJ, NBK, NN,NN_bl, Xbound, DPm
    use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, &
                         QPO, XPO, Qflag, &
@@ -22,9 +22,9 @@ Program test_pm
                         velx, vely, velz
    use test_app, only: hill_assign
    use parvar, only:    NVR
-   use openmpth, only:  OMPTHREADS
-   use vpm_lib, only:   vpm, remesh_particles_3d, write_particles, write_pm_solution
-   use io, only:        vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level
+   use vpm_lib, only:   vpm, remesh_particles_3d
+   use file_io, only:   write_pm_solution_hdf5, write_particles_hdf5 
+   use console_io, only:        vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level
    use MPI
 
    Implicit None
@@ -66,7 +66,7 @@ Program test_pm
    read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
    read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
    read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
-   read (1, *) NREMESH, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
+   read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
    read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
    read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
    read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
