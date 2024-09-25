@@ -179,10 +179,8 @@ class ParticleMesh:
         os.makedirs(folder, exist_ok=True)
 
         if filetype == "h5":
-            print("\tWriting particle mesh solution to HDF5 file")
             self._lib.write_particle_mesh_solution_hdf5(folder_b, filename_b)
         elif filetype == "dat":
-            print("\tWriting particle mesh solution to formatted file")
             self._lib.write_particle_mesh_solution(folder_b, filename_b)
         else:
             raise ValueError(f"Filetype {filetype} not recognized")

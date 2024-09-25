@@ -20,7 +20,7 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 2,
+        verbocity= 0,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1

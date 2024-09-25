@@ -154,19 +154,36 @@ class ParticlePlotter(Plotter):
         if self.is_3d:
             z = plot_data['positions']['z']
             self.plot._offsets3d = (x, y, z)
-            self.ax.set_zlim(1.1 * z.min(), 1.1 * z.max())
+            # Set axis limits with equal scaling
+            x_range = x.max() - x.min()
+            y_range = y.max() - y.min()
+            z_range = z.max() - z.min()
+            max_range = max(x_range, y_range, z_range)
+
+            x_mid = (x.max() + x.min()) * 0.5
+            y_mid = (y.max() + y.min()) * 0.5
+            z_mid = (z.max() + z.min()) * 0.5
+
+            self.ax.set_xlim(x_mid - max_range/2, x_mid + max_range/2)
+            self.ax.set_ylim(y_mid - max_range/2, y_mid + max_range/2)
+            self.ax.set_zlim(z_mid - max_range/2, z_mid + max_range/2)
+
+            # Set equal aspect ratio for 3D plots
+            self.ax.set_box_aspect([1, 1, 1])
         else:
             self.plot.set_offsets(np.c_[x, y])
+            x_range = x.max() - x.min()
+            y_range = y.max() - y.min()
+            max_range = max(x_range, y_range)
+
+            x_mid = (x.max() + x.min()) * 0.5
+            y_mid = (y.max() + y.min()) * 0.5
+
+            self.ax.set_xlim(x_mid - max_range/2, x_mid + max_range/2)
+            self.ax.set_ylim(y_mid - max_range/2, y_mid + max_range/2)
 
         self.plot.set_array(c)
         self.plot.set_clim(c.min(), c.max())
-        self.ax.set_xlim(1.1 * x.min(), 1.1 * x.max())
-        self.ax.set_ylim(1.1 * y.min(), 1.1 * y.max())
-
-        # Set equal aspect ratio for 3D plots
-        if self.is_3d:
-            self.ax.set_box_aspect([1,1,1])
-
         if title:
             self.set_title(title)
         self.update_colorbar()

@@ -150,10 +150,8 @@ class Particles:
 
         # Call the Fortran routine using ctypes
         if filetype == "h5":
-            print(f"\tSaving particles to HDF5 file")
             self._lib_particles.write_particles_hdf5(folder_b, filename_b)
         elif filetype == "dat":
-            print(f"\tSaving particles to formatted file")
             self._lib_particles.write_particles(folder_b, filename_b)
         else:
             raise ValueError(f"Invalid filetype: {filetype}")

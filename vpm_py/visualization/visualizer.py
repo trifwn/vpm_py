@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
+from matplotlib.widgets import Button
+from matplotlib.widgets import TextBox
+
 import numpy as np
 import os
 from tqdm import tqdm
@@ -33,6 +36,7 @@ class Visualizer:
 
         self.mesh_quantities: dict[str, QuantityOfInterest] = {}
         self.particle_quantities: dict[str, QuantityOfInterest] = {}
+        self.current_frame = 0
 
         self.has_mesh = False
         self.has_particles = False
@@ -72,13 +76,134 @@ class Visualizer:
         plt.ion()
         self.fig.show()
 
+    def add_folder(
+        self,
+        folder: str,
+        particle_filename_pattern: str = r'particles.*\.h5',
+        mesh_filename_pattern: str = r'pm_output.*\.h5',
+        show_animation_buttons: bool = True,
+        show_folder_name: bool = True,
+    ):
+        """
+        Adds a folder to the visualizer to animate the results contained in it.
+        Adds buttons to the plot to control the animation.
+
+        Args:
+            folder (str): Folder containing the results.
+            particle_filename_pattern (str, optional): Regex pattern to match particle files. Defaults to r'particles.*\.h5'.
+            mesh_filename_pattern (str, optional): Regex pattern to match mesh files. Defaults to r'pm_output.*\.h5'.
+            show_animation_buttons (bool, optional): Whether to show the animation buttons. Defaults to True.
+            show_folder_name (bool, optional): Whether to show the folder name in the title. Defaults to True.
+        """
+        # Compile the regex patterns for particles and mesh filenames
+        particle_regex = re.compile(particle_filename_pattern)
+        mesh_regex = re.compile(mesh_filename_pattern)
+        
+        # List all files in the folder
+        files = os.listdir(folder)
+        
+        # Filter and sort files based on the regex pattern for particle and mesh files
+        files_vr = sorted([f for f in files if particle_regex.search(f)])
+        files_sol = sorted([f for f in files if mesh_regex.search(f)])
+        print(f"Adding folder: {folder}")
+        print(f"Number of particle files: {len(files_vr)}")
+        print(f"Number of mesh files: {len(files_sol)}")
+
+        # Get the folder name
+        if show_folder_name:
+            folder_name = os.path.basename(folder)
+        else:
+            folder_name = None
+        
+        # Add the animation buttons to the plot and a callback to control the animation
+        if show_animation_buttons:
+            self._add_animation_controls(
+                folder,
+                files_vr,
+                files_sol,
+                folder_name if show_folder_name else None,
+            )
+    
+    def _add_animation_controls(
+        self,
+        folder: str,
+        files_vr: list[str],
+        files_sol: list[str],
+        folder_name: str | None,
+    ):
+        """
+        Add animation buttons to the plot to control the animation.
+
+        Args:
+            folder (str): Folder containing the results.
+            files_vr (list[str]): List of particle files.
+            files_sol (list[str]): List of mesh files.
+            folder_name (str | None): Folder name to show in the title.
+        """
+        def update_frame():
+            print("update frame")
+            frame = self.current_frame
+            # Load the results from disk
+            file_vr = files_vr[frame]
+            file_vr = os.path.join(folder, file_vr)
+            file_pm = files_sol[frame]
+            file_pm = os.path.join(folder, file_pm)
+            self.load_results_from_disk(frame, len(files_vr), file_vr, file_pm)
+            # Update the title with the current frame
+            self.fig.suptitle(f"Frame {frame}, Realtime = {frame* 0.1:.1f}s")
+            self.fig.canvas.draw()
+
+        def next_frame(event):
+            print("next frame")
+            if self.current_frame < len(files_vr) - 1:
+                self.current_frame += 1
+            else:
+                self.current_frame = 0  # Loop back to the first frame
+            update_frame()
+
+        def prev_frame(event):
+            print("prev frame")
+            if self.current_frame > 0:
+                self.current_frame -= 1
+            else:
+                self.current_frame = len(files_vr) - 1  # Loop back to the last frame
+            update_frame()
+
+        def on_key_press(event):
+            """Handle keyboard events to control frames."""
+            print(f"Key pressed: {event.key}")
+            if event.key == 'right':  # Move forward
+                self.on_next(None)
+            elif event.key == 'left':  # Move backward
+                self.on_prev(None)
+
+        # Create the buttons for next/previous frame. Buttons should be placed at the bottom of the plot
+        # On the left and be relatively small
+        axprev = plt.axes((0.1, 0.01, 0.1, 0.05))
+        axnext = plt.axes((0.8, 0.01, 0.1, 0.05))
+        bnext = Button(axnext, '+')
+        bprev = Button(axprev, '-')
+        # Connect the buttons to their callback functions
+        bnext.on_clicked(next_frame)
+        bprev.on_clicked(prev_frame)
+        # Add buttons to self.fig
+        self.fig.canvas.draw()
+        self.fig.canvas.mpl_connect('key_press_event', on_key_press)
+
+        # Set the initial title of the plot
+        if folder_name:
+            self.fig.suptitle(f"{folder_name} - Frame {self.current_frame}, Realtime = 0.0s")
+        else:
+            self.fig.suptitle(f"Frame {self.current_frame}, Realtime = 0.0s")
+
     def load_results_from_disk(
         self, 
         frame: int, 
         total_frames: int,
         file_vr: str,
         file_pm: str,
-        time: float | None = None
+        time: float | None = None,
+        render: bool = True
     ):
         if self.has_particles:
             (
@@ -105,7 +230,9 @@ class Visualizer:
             self._update_figure_title(frame, total_frames, time)
         else:
             self._update_figure_title(frame, total_frames)
-        self._render_plot()
+
+        if render:
+            self._render_plot()
 
     def animate_result_folder(
         self, 
@@ -181,7 +308,7 @@ class Visualizer:
             for qoi in self.mesh_quantities.values():
                 ani_name += f"{qoi.name}_"
             ani_name += f".{format}"
-        ani.save(ani_name, writer='ffmpeg', fps=10, dpi=300)
+        ani.save(ani_name, writer='ffmpeg', fps=10, dpi=200)
 
     def update_all_plots(
         self,

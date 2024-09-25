@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from . import QuantityOfInterest, Slicer, SliceStrategy, Plane
-from typing import Any
+from typing import Any, Literal
 
 class Filter(ABC):
     """
@@ -118,9 +118,11 @@ class ValueFilter(Filter):
         self,
         tolerance: float,
         value: float = 0,
+        type = Literal['greater', 'less', 'equal']
     ):
         self.value = value
         self.tolerance = tolerance
+        self.type = type
 
     def apply(
         self, 
@@ -128,7 +130,13 @@ class ValueFilter(Filter):
         data: dict[str, np.ndarray],
     ):
         quantity = quantity_of_interest.get_quantity(data)
-        mask = (quantity - self.value) < self.tolerance
+
+        if self.type == 'greater':
+            mask = (quantity - self.value) > self.tolerance
+        elif self.type == 'less':
+            mask = (quantity - self.value) < self.tolerance
+        elif self.type == 'equal':
+            mask = np.abs(quantity - self.value) < self.tolerance
         
         masked_data = {}
         for key, value in data.items():

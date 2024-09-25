@@ -66,7 +66,7 @@ class VPM(object):
         variable_volume: bool = True, 
         remesh: bool = True, 
         use_tree: bool = True, 
-        ilevmax: int = 1,
+        ilevmax: int = 4,
         OMPTHREADS: int = 1,
         is_domain_fixed: bool = False, 
         IPMWRITE: int = 0, 
@@ -88,7 +88,7 @@ class VPM(object):
             variable_volume (bool, optional): Variable volume. Defaults to True.
             remesh (bool, optional): Remesh. Defaults to True.
             use_tree (bool, optional): Use tree. Defaults to True.
-            ilevmax (int, optional): Maximum level. Defaults to 1.
+            ilevmax (int, optional): Maximum level. Defaults to 4.
             OMPTHREADS (int, optional): Number of threads. Defaults to 1.
             is_domain_fixed (bool, optional): Is box fixed. Defaults to True.
             IPMWRITE (int, optional): Write IPM. Defaults to 1.
@@ -121,7 +121,6 @@ class VPM(object):
             print(f"\tilevmax= {ilevmax}")
             print(f"\tOMPTHREADS= {OMPTHREADS}")
             print(f"\tidefine= {is_domain_fixed}")
-            print(f"\tiynslice= {slice}")
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
