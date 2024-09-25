@@ -46,8 +46,6 @@ contains
 subroutine vpm_define_problem(                                 &
    NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in       &
 )
-   use pmgrid, only: ND
-   use vpm_vars, only: neqpm
    use parvar, only: NVR
    integer, intent(in) :: NTIME_in, NVR_in, NVR_size_in, neqpm_in
    real(dp), intent(in), dimension(:,:), target :: XP_in, QP_in
@@ -57,12 +55,11 @@ subroutine vpm_define_problem(                                 &
    tab_level = 1
 
    ! Set Input
-   ND = 3
+   ND       = 3
    NTIME_pm = NTIME_in
    neqpm    = neqpm_in
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in)
    if (NVR .eq. 0) return
-   my_block = my_rank + 1
 
    call define_sizes
    call set_pm_velocities_zero
@@ -74,16 +71,16 @@ subroutine vpm_interpolate(                                    &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,  &
    RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr           &
 )
-   use pmgrid, only: ND, RHS_pm
+   use pmgrid, only: RHS_pm
    use parvar, only: NVR
    use MPI
    implicit none
 
-   real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-   integer, intent(inout)           :: NVR_in
-   integer, intent(in)              :: neqpm_in, NVR_size_in
-   real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
+   integer, intent(inout)                    :: NVR_in
+   integer, intent(in)                       :: neqpm_in, NVR_size_in
+   real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
+   real(dp), intent(out), pointer,optional   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
    integer :: ierr, my_rank, np
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -91,10 +88,10 @@ subroutine vpm_interpolate(                                    &
    tab_level = 1
 
    ! Set Input
-   ND = 3
+   ND       =  3
    neqpm    = neqpm_in
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-   call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
    call allocate_sol_and_rhs(my_rank + 1)
    RHS_pm_ptr => RHS_pm
 
@@ -102,7 +99,6 @@ subroutine vpm_interpolate(                                    &
       print *, 'No particles to interpolate'
       return
    end if
-   my_block = my_rank + 1
 
    ! SOL_pm AND RHS_pm ARE 0 BOTH ON THE BL AND PM
    ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
@@ -121,16 +117,15 @@ subroutine vpm_diffuse(                                         &
    NI_in                                                        &
 )
    use MPI
-   use pmgrid, only: ND, RHS_pm
-   use vpm_vars, only: NTIME_pm, neqpm, NI
+   use pmgrid, only: RHS_pm
    use parvar, only: NVR
    implicit none
-   real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-   integer, intent(inout)           :: NVR_in
-   integer, intent(in)              :: neqpm_in, NVR_size_in
-   real(dp), intent(in)             :: NI_in
-   real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
+   integer, intent(inout)                    :: NVR_in
+   integer, intent(in)                       :: neqpm_in, NVR_size_in
+   real(dp), intent(in)                      :: NI_in
+   real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
+   real(dp), intent(out), pointer, optional  :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
    integer :: ierr, my_rank, np
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -142,7 +137,7 @@ subroutine vpm_diffuse(                                         &
    neqpm    = neqpm_in
    NI       = NI_in
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-   call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   if(present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
    call allocate_sol_and_rhs(my_rank + 1)
    RHS_pm_ptr => RHS_pm
 
@@ -150,7 +145,6 @@ subroutine vpm_diffuse(                                         &
       print *, 'No particles to interpolate'
       return
    end if
-   my_block = my_rank + 1
 
    ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
    call project_particles_parallel
@@ -172,7 +166,7 @@ subroutine vpm_project_and_solve(                              &
    RHS_pm_ptr                                                  &
 )
    use MPI
-   use pmgrid, only: ND, RHS_pm
+   use pmgrid, only: RHS_pm
    use parvar, only: NVR
    implicit none
    real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :)
@@ -186,6 +180,7 @@ subroutine vpm_project_and_solve(                              &
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
    ! Set Input
+   tab_level= 1
    ND = 3
    NTIME_pm = NTIME_in
    neqpm    = neqpm_in
@@ -197,7 +192,6 @@ subroutine vpm_project_and_solve(                              &
       print *, 'No particles to interpolate'
       return
    end if
-   my_block = my_rank + 1
 
    ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
    call project_particles_parallel
@@ -248,12 +242,12 @@ subroutine vpm_solve_velocity_delatation(                      &
 )
    use MPI
    implicit none
-   real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-   integer, intent(inout)           :: NVR_in
-   integer, intent(in)              :: neqpm_in, NVR_size_in
-   real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer   :: velx_ptr(:,:,:), vely_ptr(:,:,:), velz_ptr(:,:,:), &
-                                       deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(inout), target            :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
+   integer, intent(inout)                     :: NVR_in
+   integer, intent(in)                        :: neqpm_in, NVR_size_in
+   real(dp), intent(out), pointer             :: RHS_pm_ptr(:, :, :, :)
+   real(dp), intent(out), pointer             :: velx_ptr(:,:,:), vely_ptr(:,:,:), velz_ptr(:,:,:)
+   real(dp), intent(out), pointer, optional   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
    integer, intent(in)              :: NTIME_in
    
    integer :: ierr, my_rank, np
@@ -262,7 +256,7 @@ subroutine vpm_solve_velocity_delatation(                      &
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
    call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
    call associate_velocities(velx_ptr, vely_ptr, velz_ptr)
-   call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
    
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
    if (my_rank .eq. 0) then
@@ -275,6 +269,17 @@ subroutine vpm_solve_velocity_delatation(                      &
    call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
 end subroutine vpm_solve_velocity_delatation
 
+#ifdef USE_INTEL
+   subroutine set_num_threads()
+      if (SOLVER .eq. 1) then
+         call mkl_set_num_threads(OMPTHREADS)
+      end if
+   end subroutine set_num_threads
+#else
+   subroutine set_num_threads()
+   end subroutine set_num_threads
+#endif
+
 subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr, NTIME_in, NI_in, NVR_size_in,&
                deformx_ptr, deformy_ptr, deformz_ptr)
@@ -282,8 +287,7 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                            print_particle_info, print_particle_positions, associate_particles
       use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm,  &
                            deformx_pm, deformy_pm, deformz_pm,       &
-                           NXpm_coarse, NYpm_coarse, NZpm_coarse,    &
-                           Nblocks, ND, SOL_pm, IDVPM,               &
+                           SOL_pm, IDVPM,                            &
                            print_velocity_stats, set_pm_velocities_zero, &
                            set_pm_deformations_zero, associate_velocities, &
                            associate_deformations 
@@ -306,61 +310,37 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-      call print_arguements
-      tab_level = 1
-
-#ifdef USE_INTEL
-   if (SOLVER .eq. 1) then
-      call mkl_set_num_threads(OMPTHREADS)
-   end if
-#endif
-      ND = 3
+      call set_num_threads()
+      if (my_rank .eq. 0) call print_arguements
+      ! We set these input for compatibility with old version
+      ! In the new modular approach we do not need to set these
+      ND       = 3
       NTIME_pm = NTIME_in
       neqpm    = neqpm_in
       NI       = NI_in
       call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
       if (NVR .eq. 0) return
-      if (associated(RHS_pm_ptr))   nullify (RHS_pm_ptr)
+      if (associated(RHS_pm_ptr)) nullify (RHS_pm_ptr)
       call associate_velocities(velx_ptr, vely_ptr, velz_ptr)
-      if (present(deformx_ptr)) then
-         call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
-      end if
+      if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
 
       select case(WhatToDo)
          case (DEFINE_PROBLEM)
-            print *, '----------------'
-            print *, 'VPM: Define Problem'
-            print *, '----------------'
             call vpm_define_problem(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in)
          case (SOLVE_VELOCITY)
-            print *, '----------------'
-            print *, 'VPM: Solve Velocity'
-            print *, '----------------'
             call vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,        &
                                  neqpm_in, RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr)
          case (SOLVE_VELOCITY_DELATATION)
-            print *, '----------------'
-            print *, 'VPM: Solve Velocity and Delatation'
-            print *, '----------------'
             call vpm_solve_velocity_delatation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in,          &
                                  NVR_size_in, neqpm_in, RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr,     &
                                  deformx_ptr, deformy_ptr, deformz_ptr)
          case (PROJECT_AND_SOLVE)
-            print *, '----------------'
-            print *, 'VPM: Project Particles and Solve PM'
-            print *, '----------------'
             call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in,         &
                                  RHS_pm_ptr)
          case (INTERPOLATE)
-            print *, '----------------'
-            print *, 'VPM: Interpolate from PM to particles'
-            print *, '----------------'
             call vpm_interpolate(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,           &
                                  RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr)
          case (DIFFUSE)
-            print *, '----------------'
-            print *, 'VPM: Diffuse Particle vorticity'
-            print *, '----------------'
             call vpm_diffuse(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,               &
                                  RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr, NI_in)
       end select
@@ -403,50 +383,52 @@ end subroutine vpm
 
 
    subroutine allocate_sol_and_rhs(n_block)
-      use pmgrid, only: SOL_pm, RHS_pm
+      use pmgrid, only: SOL_pm, RHS_pm, SOL_pm_bl, RHS_pm_bl
       implicit none
       integer, intent(in) :: n_block
+      integer, dimension(3) :: NN_block
       ! neqpm        : is the number of equations to be solved
       ! NN           : is the number of cells in each direction
       ! NN_tmp       : is the number of cells in each direction (block cells)
       ! NN_bl_tmp    : is the start and finish of the cells in each direction
       ! Xbound       : is the boundary of the domain
-      NN_tmp(1:3) = NN_block(1:3, n_block)
+      NN_block(1:3) = block_grids(n_block)%NN(1:3)
 
       ! SOL_pm block
       if (allocated(SOL_pm_bl)) then
          deallocate (SOL_pm_bl)
       end if
-      allocate (SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3)))
+      allocate (SOL_pm_bl(neqpm, NN_block(1), NN_block(2), NN_block(3)))
       SOL_pm_bl = 0.d0
 
       ! RHS_pm block
       if (allocated(RHS_pm_bl)) then
          deallocate (RHS_pm_bl)
       end if 
-      allocate (RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3)))
+      allocate (RHS_pm_bl(neqpm, NN_block(1), NN_block(2), NN_block(3)))
       RHS_pm_bl = 0.d0
 
       ! RHS_pm
       if (allocated(RHS_pm)) then
          deallocate (RHS_pm)
       end if
-      allocate (RHS_pm(neqpm, NN(1), NN(2), NN(3))) 
+      allocate (RHS_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))) 
       RHS_pm = 0.d0
       
       ! SOL_pm
       if (allocated(SOL_pm)) then
          deallocate (SOL_pm)
       end if
-      allocate (SOL_pm(neqpm, NN(1), NN(2), NN(3)))
+      allocate (SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
       SOL_pm = 0.d0
    end subroutine allocate_sol_and_rhs
    
    subroutine solve_problem
-      use pmgrid, only: RHS_pm, print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero
-      use vpm_mpi, only: rhsbcast, rhsscat_3d
+      use pmgrid, only: RHS_pm, RHS_pm_bl, print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero
+      use vpm_mpi, only: rhsbcast, rhsscat
       implicit none
       integer :: my_rank, ierr
+      type(grid) :: my_block_grid
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
       if (my_rank .eq. 0) then
@@ -465,30 +447,37 @@ end subroutine vpm
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") 'Domain information'
          call vpm_print(dummy_string, blue, 1)
-         write (dummy_string, "(A,I5)") achar(9)//'Number of blocks:', BLOCKS
-         call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3I5)") achar(9)//'Size of the fine domain:', NN(1), NN(2), NN(3)
-         call vpm_print(dummy_string, yellow, 1)
          write (dummy_string, "(A)") achar(9)//'Bounds of the fine domain:'
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3F8.3)") achar(9)//'X:', Xbound(1), Xbound(4)
+         write (dummy_string, "(A,3F8.3)") achar(9)//'X:', fine_grid%Xbound(1), fine_grid%Xbound(4)
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3F8.3)") achar(9)//'Y:', Xbound(2), Xbound(5)
+         write (dummy_string, "(A,3F8.3)") achar(9)//'Y:', fine_grid%Xbound(2), fine_grid%Xbound(5)
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3F8.3)") achar(9)//'Z:', Xbound(3), Xbound(6)
+         write (dummy_string, "(A,3F8.3)") achar(9)//'Z:', fine_grid%Xbound(3), fine_grid%Xbound(6)
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3I5)") achar(9)//'Size of the coarse domain:', NN_coarse(1), NN_coarse(2), NN_coarse(3)
+         write (dummy_string, "(A,3I5)") achar(9)//'Size of the fine domain:', fine_grid%NN(1), &
+                                                                               fine_grid%NN(2), &
+                                                                               fine_grid%NN(3) 
+         call vpm_print(dummy_string, yellow, 1)
+         write (dummy_string, "(A,3I5)") achar(9)//'Size of the coarse domain:', coarse_grid%NN(1), & 
+                                                                                 coarse_grid%NN(2), & 
+                                                                                 coarse_grid%NN(3)
+         call vpm_print(dummy_string, yellow, 1)
+         write (dummy_string, "(A,3I5)") achar(9)//'Size of the block domains:', block_grids(1)%NN(1), &
+                                                                                 block_grids(1)%NN(2), &
+                                                                                 block_grids(1)%NN(3)
+         write (dummy_string, "(A,I5)") achar(9)//'Number of blocks:', NBlocks
          call vpm_print(dummy_string, yellow, 1)
       end if
 
       !call diffuse_vort_3d
       
       ! SCATTER PROBLEM TO ALL PROCESSORS
-      call rhsbcast(RHS_pm, NN, neqpm) ! RHS PM -> TO ALL PROCESSORS -> RHS_pm_BL
+      call rhsbcast(RHS_pm, fine_grid%NN, neqpm) ! RHS PM -> TO ALL PROCESSORS -> RHS_pm_BL
       IF (SOLVER .ne. 0) then
-         my_block = my_rank + 1
-         NN_tmp(1:3) = NN_block(1:3, my_block)
-         call rhsscat_3d(BLOCKS, NN_tmp, NN_block, NN_bl_block, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl) !
+         my_block_idx = my_rank + 1
+         my_block_grid = block_grids(my_block_idx)
+         call rhsscat(fine_grid, RHS_pm, my_block_grid, RHS_pm_bl, nb_i, nb_j, nb_k)
       end if
 
       if (my_rank .eq. 0) then
@@ -518,15 +507,21 @@ end subroutine vpm
    end subroutine solve_problem
 
    subroutine pmesh_solve !
-      use pmgrid, only: ncoarse, SOL_pm, RHS_pm, ND
+      use pmgrid, only: ncoarse, SOL_pm, RHS_pm, SOL_pm_bl, RHS_pm_bl
       use parvar, only: XP, QP, NVR
       use pmlib, only:  pmesh
+      use pmgrid, only: XMAX_pm, XMIN_pm, YMAX_pm, YMIN_pm, ZMAX_pm, ZMIN_pm
       use yaps, only:   yaps3d
-      use vpm_mpi, only: solget_3d, velbcast_3d
+      use vpm_mpi, only: solget, velbcast
       implicit none
-      integer :: my_rank, ierr, np
-      integer :: eq_num
-      integer :: Nblocks
+      integer    :: my_rank, ierr, np
+      integer    :: eq_num
+      integer    :: i
+      type(grid) :: my_block_grid
+      ! LOCAL ARGUEMENTS DUE TO LEGACY YAPS NOT ACCEPTING GRID TYPE
+      integer    ::  NN_coarse(3), NN_bl_coarse(6), NN_block(3, NBlocks), NN_bl_block(6, NBlocks)
+      real(dp)   ::  Xbound_coarse(6), Dpm_coarse(3), Xbound_block(6, NBlocks), Xbound(6), Dpm_fine(3)
+                 
       !Yaps or Serial Pmesh
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -543,9 +538,9 @@ end subroutine vpm
             SOL_pm(1:neqpm, :, :, :) = 0.0
             itree = iyntree
             iynbc = 1   !for infinite domain bc
-            Nblocks = 1
-            call pmesh(SOL_pm, RHS_pm, QP, XP, Xbound, DPm, NN, NN_bl, ND, Nblocks, ibctyp, 1, neqpm, &
-                       iynbc, NVR, itree, ilevmax)
+            call pmesh(SOL_pm, RHS_pm, QP, XP, &
+                       fine_grid%Xbound, fine_grid%DPm, fine_grid%NN, fine_grid%NN_bl, &
+                       ND, ibctyp, 1, neqpm, iynbc, NVR, itree, ilevmax)
             ! call calc_velocity_serial_3d(1)
          end if
          !--------------------------------------------
@@ -558,16 +553,32 @@ end subroutine vpm
          endif
 
          iret = 0
-         call yaps3d(SOL_pm_bl, RHS_pm_bl, Xbound_block, Xbound_coarse, Dpm, Dpm_coarse, NN_block, NN_bl_block, &
-                     NN_coarse, NN_bl_coarse, ND, BLOCKS, ibctyp, 1, neqpm, ncoarse, NBI, NBJ, NBK, nb_i, nb_j, nb_k, &
+         
+         ! Coarse Grid
+         Dpm_coarse(1:3)    = coarse_grid%Dpm(1:3)
+         Xbound_coarse(1:6) = coarse_grid%Xbound(1:6)
+         NN_coarse(1:3)     = coarse_grid%NN(1:3)
+         NN_bl_coarse(1:6)  = coarse_grid%NN_bl(1:6)
+         
+         ! Block Grid
+         do i = 1, NBlocks 
+            NN_bl_block(1:6, i)  = block_grids(i)%NN_bl(1:6)
+            Xbound_block(1:6, i) = block_grids(i)%Xbound(1:6)
+            NN_block(1:3, i)     = block_grids(i)%NN
+         end do
+
+         ! FINE
+         Dpm_fine(1:3)    = fine_grid%Dpm(1:3)
+         Xbound(1:6) = fine_grid%Xbound(1:6)
+
+         call yaps3d(SOL_pm_bl, RHS_pm_bl, Xbound_block, Xbound_coarse, Dpm_fine, Dpm_coarse, NN_block, NN_bl_block, &
+                     NN_coarse, NN_bl_coarse, ND, NBlocks, ibctyp, 1, neqpm, ncoarse, NBI, NBJ, NBK, nb_i, nb_j, nb_k, &
                      iret, iyntree, ilevmax, neqpm)
 
          ! GATHER SOLUTION
-         my_block = my_rank + 1
-         NN_tmp(1:3) = NN_block(1:3, my_block)
-         call solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NN_block, NN_bl_block, NN_bl, SOL_pm_bl) 
-         !if (my_rank.eq.0) call calc_velocity_serial_3d(1)
-         ! call velbcast_3d
+         my_block_idx = my_rank + 1
+         my_block_grid = block_grids(my_block_idx)
+         call solget(NBlocks, NBI, NBJ, NBK, my_block_grid, block_grids, fine_grid, SOL_pm, SOL_pm_bl) 
 
          if (my_rank .eq. 0) then
             write (dummy_string, "(A)") 'Final PM solution values'
@@ -598,7 +609,7 @@ end subroutine vpm
    end subroutine convect_first_order
 
    subroutine project_particles_parallel
-      use pmgrid, only:    RHS_pm, SOL_pm, IDVPM, ND
+      use pmgrid, only:    RHS_pm, SOL_pm, IDVPM
       use parvar, only:    NVR, XP, QP, XP_scatt, QP_scatt, NVR_projtype_scatt, NVR_p
       use projlib, only:   projlibinit, project_particles_3D, project_vol3d
       use vpm_mpi, only:   particles_scat, proj_gath
@@ -643,7 +654,7 @@ end subroutine vpm
          call vpm_print(dummy_string, blue, 1) 
       endif
 
-      call projlibinit(Xbound, Dpm, NN, NN_bl, IDVPM, ND)
+      call projlibinit(fine_grid%Xbound, fine_grid%Dpm, fine_grid%NN, fine_grid%NN_bl, IDVPM, ND)
 
       ! PROJECT PARTICLES TO PM
       st = MPI_WTIME()
@@ -661,7 +672,7 @@ end subroutine vpm
          call vpm_print(dummy_string, blue, 1) 
       endif
 
-      call proj_gath(NN) ! RHS IS NOW FILLED
+      call proj_gath(fine_grid%NN) ! RHS IS NOW FILLED
 
       tab_level = tab_level - 1
       if (my_rank .eq. 0) then
@@ -688,7 +699,7 @@ end subroutine vpm
       use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm, &
                            deformx_pm, deformy_pm, deformz_pm, SOL_pm
       use vpm_interpolate, only: back_to_particles_3D
-      use vpm_mpi, only:   rhsbcast, particles_scat, particles_gath, velbcast_3d, defbcast_3d
+      use vpm_mpi, only:   rhsbcast, particles_scat, particles_gath, velbcast, defbcast
 
       integer, intent(in)               :: itypeb
       integer, allocatable              :: ieq(:)
@@ -701,10 +712,10 @@ end subroutine vpm
       if (my_rank .eq. 0) st = MPI_WTIME()
 
       ! BROADCASTING
-      call rhsbcast(RHS_pm, NN, neqpm)
-      call rhsbcast(SOL_pm, NN, neqpm)
-      if (itypeb .eq. 1) call velbcast_3d
-      if (itypeb .eq. 2) call defbcast_3d
+      call rhsbcast(RHS_pm, fine_grid%NN, neqpm)
+      call rhsbcast(SOL_pm, fine_grid%NN, neqpm)
+      if (itypeb .eq. 1) call velbcast
+      if (itypeb .eq. 2) call defbcast
       call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
       ! ALLOCATE

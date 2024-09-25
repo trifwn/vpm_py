@@ -15,24 +15,26 @@ contains
       ! TODO: MAKE FLAGS FOR CALC U AND CALC G
       use projlib, only: projection_fun
       use base_types, only: dp
-      use vpm_size, only: NN, XBound, Dpm
+      use vpm_size, only: fine_grid
       use vpm_vars, only: neqpm, OMPTHREADS
       Implicit None
       integer, intent(in)     :: NVR, iproj, NVRM, itype
-      real(dp), intent(in)    :: velvrx_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: velvry_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: velvrz_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: deformx_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: deformy_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: deformz_pm(NN(1), NN(2), NN(3))
-      real(dp), intent(in)    :: SOL_pm(neqpm, NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: velvrx_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: velvry_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: velvrz_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: deformx_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: deformy_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: deformz_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(inout) :: QP(neqpm+1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
 
       real(dp)         :: fx, fy, fz, f, x, y, z
       integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf
+      real(dp)         :: XBound(6), Dpm(3)
 
-      
+      Xbound = fine_grid%XBound
+      Dpm = fine_grid%Dpm
       if (iproj .eq. 2) then
          ips = 0
          ipf = 1
@@ -54,9 +56,9 @@ contains
          knode = int((XP(3, nv) - XBound(3))/Dpm(3)) + 1
          ! Stop the program if the nodes are outside the domain bounds
          if (                                             &
-            inode - ips < 1 .or. inode + ipf > NN(1) .or. &
-            jnode - ips < 1 .or. jnode + ipf > NN(2) .or. &
-            knode - ips < 1 .or. knode + ipf > NN(3)      &
+            inode - ips < 1 .or. inode + ipf > fine_grid%NN(1) .or. &
+            jnode - ips < 1 .or. jnode + ipf > fine_grid%NN(2) .or. &
+            knode - ips < 1 .or. knode + ipf > fine_grid%NN(3)      &
          ) then
             write(*,*) 'Particle outside domain bounds'
             write(*,*) 'inode, jnode, knode = ', inode, jnode, knode
@@ -110,16 +112,20 @@ contains
    subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj, NVR_size)
       use projlib, only: projection_fun
       use base_types, only: dp
-      use vpm_size, only: NN, XBound, Dpm
+      use vpm_size, only: fine_grid!NN, XBound, Dpm
       use vpm_vars, only: neqpm, OMPTHREADS
       Implicit None
       integer, intent(in)     :: NVR, iproj, NVR_size
-      real(dp), intent(in)    :: Q_pm(neqpm, NN(1), NN(2), NN(3))
+      real(dp), intent(in)    :: Q_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(in)    :: XP(3, NVR_size)
       real(dp), intent(out)   :: QP(neqpm+1, NVR_size)
       
       real(dp)                :: fx, fy, fz, f, x, y, z
       integer                 :: inode, jnode, knode, i, j, k, nv, ips, ipf
+      real(dp)                :: Xbound(6), Dpm(3)
+
+      Xbound = fine_grid%XBound
+      Dpm = fine_grid%Dpm
 
       if (iproj .eq. 2) then
          ips = 0

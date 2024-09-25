@@ -11,11 +11,11 @@ end module test_mod
 
 Program test_pm
    use base_types, only: dp
-   use pmgrid, only:    XMIN_pm, NXs_coarse_bl, DXpm, DYpm, DZpm, set_RHS_pm,ncoarse, IDVPM
+   use pmgrid, only:    XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm,ncoarse, IDVPM
    use vpm_vars, only:  mrem, interf_iproj,   &
-                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS
-   use vpm_size, only:  st, et, nremesh, iyntree, ilevmax, ibctyp, NBI, &
-                        NBJ, NBK, NN,NN_bl, Xbound, DPm
+                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, nremesh, iyntree,&
+                        ilevmax, ibctyp, NBI, NBJ, NBK
+   use vpm_size, only:  st, et, fine_grid
    use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, &
                         QPO, XPO, Qflag, &
                         QP_in, XP_in, RHS_pm_in, &
@@ -32,28 +32,10 @@ Program test_pm
                                     XMIN, XMAX, UINF(3)
    integer                       :: NVR_MAX
    integer                       :: my_rank, np, ierr, i, neq, j, TMAX, ncell_rem
-   ! integer                       :: debug_switch
-   ! external                      :: sleep
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-
-
-   ! ! DEBUG SWITCH USED TO ATTACH TO DEBUGGER
-   ! debug_switch = 0
-   ! ! While loop for debugging
-   ! do while (debug_switch .eq. 0)
-   !    if (my_rank .eq. 0) then
-   !       print *, 'Debugging'
-   !    end if
-   !    call sleep(1)
-   !    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-   !    call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-   ! end do
-   ! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-   ! call MPI_BCAST(debug_switch, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-   ! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
@@ -61,7 +43,6 @@ Program test_pm
    open (1, file='pm.inp')
    read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
    read (1, *) interf_iproj         ! INTERFACE PROJECTION FUNCTION 1 , 2, 3 , 4
-   !NOTE PEZEI NA EINAI GIA DOMAIN CIZE
    read (1, *) ibctyp               ! 1 - PERIODIC, 2 - INFLOW, 3 - OUTFLOW, 4 - WALL
    read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
    read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
@@ -163,8 +144,8 @@ Program test_pm
       write (dummy_string, "(A)") 'Hill Vortex Initialization'
       call vpm_print(dummy_string, red, 1)
    end if
-   allocate (RHS_pm_in(neq, NN(1), NN(2), NN(3)))
-   call hill_assign(NN, NN_bl, Xbound, Dpm, RHS_pm_in, neq)
+   allocate (RHS_pm_in(neq, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+   call hill_assign(fine_grid%NN, fine_grid%NN_bl, fine_grid%Xbound, fine_grid%Dpm, RHS_pm_in, neq)
    call set_RHS_pm(RHS_pm_in,size(RHS_pm_in,1), size(RHS_pm_in,2), size(RHS_pm_in,3), size(RHS_pm_in,4))
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
@@ -200,7 +181,7 @@ Program test_pm
       QPO = QPR
       XPO = XPR
       
-      XMIN = XMIN_pm + (NXs_coarse_bl + 4 - 1)*DXpm
+      XMIN = XMIN_pm + (NXs_fine_bl + 4 - 1)*DXpm
       XMAX = maxval(XPO(1, :))
       XPO(1, :) = XPO(1, :) - (XMAX - XMIN)
       
@@ -241,6 +222,8 @@ Program test_pm
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       tab_level = 0
       
+      call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
+      ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,velx, vely, velz)
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") "Convection of Particles"
@@ -317,8 +300,8 @@ end Program test_pm
 subroutine find_par_out
    use base_types, only: dp
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm, &
-                     NXf_coarse_bl, NXs_coarse_bl, NYf_coarse_bl, NYs_coarse_bl, NZf_coarse_bl, NZs_coarse_bl, &
-                     NXpm_coarse, NYpm_coarse, NZpm_coarse
+                     NXf_fine_bl, NXs_fine_bl, NYf_fine_bl, NYs_fine_bl, NZf_fine_bl, NZs_fine_bl, &
+                     NXpm_fine, NYpm_fine, NZpm_fine
    use vpm_vars, only: interf_iproj, neqpm, mrem
    use test_mod, only: NVR_ext, XPR, QPR
 
@@ -335,12 +318,12 @@ subroutine find_par_out
    EPSX = 0.01*DXpm
    EPSY = 0.01*DYpm
    EPSZ = 0.01*DZpm
-   XMAX = XMIN_pm + (NXf_coarse_bl - (interf_iproj/2 + 1) - 1)*DXpm - EPSX
-   XMIN = XMIN_pm + (NXs_coarse_bl + (interf_iproj/2 + 1) - 1)*DXpm + EPSX
-   YMAX = YMIN_pm + (NYf_coarse_bl - (interf_iproj/2 + 1) - 1)*DYpm - EPSY
-   YMIN = YMIN_pm + (NYs_coarse_bl + (interf_iproj/2 + 1) - 1)*DYpm + EPSY
-   ZMAX = ZMIN_pm + (NZf_coarse_bl - (interf_iproj/2 + 1) - 1)*DZpm - EPSZ
-   ZMIN = ZMIN_pm + (NZs_coarse_bl + (interf_iproj/2 + 1) - 1)*DZpm + EPSZ
+   XMAX = XMIN_pm + (NXf_fine_bl - (interf_iproj/2 + 1) - 1)*DXpm - EPSX
+   XMIN = XMIN_pm + (NXs_fine_bl + (interf_iproj/2 + 1) - 1)*DXpm + EPSX
+   YMAX = YMIN_pm + (NYf_fine_bl - (interf_iproj/2 + 1) - 1)*DYpm - EPSY
+   YMIN = YMIN_pm + (NYs_fine_bl + (interf_iproj/2 + 1) - 1)*DYpm + EPSY
+   ZMAX = ZMIN_pm + (NZf_fine_bl - (interf_iproj/2 + 1) - 1)*DZpm - EPSZ
+   ZMIN = ZMIN_pm + (NZs_fine_bl + (interf_iproj/2 + 1) - 1)*DZpm + EPSZ
    xc = 0.5d0*(XMAX + XMIN)
    yc = 0.5d0*(YMAX + YMIN)
    zc = 0.5d0*(ZMAX + ZMIN)
@@ -368,7 +351,7 @@ subroutine find_par_out
    ! enddo
 
    neq = neqpm+1
-   NVR_out_max = (2*NXpm_coarse*NYpm_coarse + 2*NYpm_coarse*NZpm_coarse + 2*NZpm_coarse*NXpm_coarse)*3*mrem**2
+   NVR_out_max = (2*NXpm_fine*NYpm_fine + 2*NYpm_fine*NZpm_fine + 2*NZpm_fine*NXpm_fine)*3*mrem**2
    allocate (XP_out(1:3, NVR_out_max), QP_out(1:neq, NVR_out_max), NVR_projout(NVR_out_max))
    allocate (XP_tmp(1:3, NVR_ext), QP_tmp(1:neq, NVR_ext))
    NVR_projout = 2!interf_iproj
@@ -410,7 +393,7 @@ subroutine find_par_in(T_in, U)
    use base_types, only: dp
    use vpm_vars, only: neqpm, mrem
    use test_mod, only: Qflag, QPO, QP_in, XPO, XP_in, NVR_ext, XPR, QPR, NVR_ext_init
-   use pmgrid, only: XMIN_pm, NXs_coarse_bl, DXpm, NXpm_coarse, NYpm_coarse, NZpm_coarse
+   use pmgrid, only: XMIN_pm, NXs_fine_bl, DXpm, NXpm_fine, NYpm_fine, NZpm_fine
 
    !
    ! This subroutine moves the particles in and out of the domain
@@ -425,7 +408,7 @@ subroutine find_par_in(T_in, U)
    real(dp), allocatable   :: XP_tmp(:, :), QP_tmp(:, :)
 
    ! Find the inflow particles
-   XMIN = XMIN_pm + (NXs_coarse_bl + 4 - 1)*DXpm
+   XMIN = XMIN_pm + (NXs_fine_bl + 4 - 1)*DXpm
    XO = XMIN
    
    ! Q flag is used to determine if a particle is inflow or not
@@ -439,7 +422,7 @@ subroutine find_par_in(T_in, U)
    neq = neqpm+1
 
    ! Max number of particles that can enter the domain
-   NVR_in_max = (2*NXpm_coarse*NYpm_coarse + 2*NYpm_coarse*NZpm_coarse + 2*NZpm_coarse*NXpm_coarse)*3*mrem**2
+   NVR_in_max = (2*NXpm_fine*NYpm_fine + 2*NYpm_fine*NZpm_fine + 2*NZpm_fine*NXpm_fine)*3*mrem**2
    allocate (XP_tmp(3, NVR_ext + NVR_in_max), QP_tmp(neq, NVR_ext + NVR_in_max))
    
    XP_tmp(1:3, 1:NVR_ext) = XPR(1:3, 1:NVR_ext)
@@ -492,8 +475,8 @@ subroutine move_par_out(DT)
    use base_types, only: dp
    use vpm_vars, only: interf_iproj
    use test_mod, only: NVR_ext, XPR, UPR
-   use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, NXf_coarse_bl, NXs_coarse_bl, &
-                     YMIN_pm, NYf_coarse_bl, NYs_coarse_bl, NZf_coarse_bl, NZs_coarse_bl, ZMIN_pm
+   use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, NXf_fine_bl, NXs_fine_bl, &
+                     YMIN_pm, NYf_fine_bl, NYs_fine_bl, NZf_fine_bl, NZs_fine_bl, ZMIN_pm
 
    ! subroutine to move particles out of the domain
    ! It moves the particles out of the domain if they are outside the domain
@@ -509,12 +492,12 @@ subroutine move_par_out(DT)
    EPSX = 0.01*DXpm
    EPSY = 0.01*DYpm
    EPSZ = 0.01*DZpm
-   XMAX = XMIN_pm + (NXf_coarse_bl - (interf_iproj/2 + 1) - 1)*DXpm - EPSX
-   XMIN = XMIN_pm + (NXs_coarse_bl + (interf_iproj/2 + 1) - 1)*DXpm + EPSX
-   YMAX = YMIN_pm + (NYf_coarse_bl - (interf_iproj/2 + 1) - 1)*DYpm - EPSY
-   YMIN = YMIN_pm + (NYs_coarse_bl + (interf_iproj/2 + 1) - 1)*DYpm + EPSY
-   ZMAX = ZMIN_pm + (NZf_coarse_bl - (interf_iproj/2 + 1) - 1)*DZpm - EPSZ
-   ZMIN = ZMIN_pm + (NZs_coarse_bl + (interf_iproj/2 + 1) - 1)*DZpm + EPSZ
+   XMAX = XMIN_pm + (NXf_fine_bl - (interf_iproj/2 + 1) - 1)*DXpm - EPSX
+   XMIN = XMIN_pm + (NXs_fine_bl + (interf_iproj/2 + 1) - 1)*DXpm + EPSX
+   YMAX = YMIN_pm + (NYf_fine_bl - (interf_iproj/2 + 1) - 1)*DYpm - EPSY
+   YMIN = YMIN_pm + (NYs_fine_bl + (interf_iproj/2 + 1) - 1)*DYpm + EPSY
+   ZMAX = ZMIN_pm + (NZf_fine_bl - (interf_iproj/2 + 1) - 1)*DZpm - EPSZ
+   ZMIN = ZMIN_pm + (NZs_fine_bl + (interf_iproj/2 + 1) - 1)*DZpm + EPSZ
    xc = 0.5d0*(XMAX + XMIN)
    yc = 0.5d0*(YMAX + YMIN)
    zc = 0.5d0*(ZMAX + ZMIN)

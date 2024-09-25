@@ -73,9 +73,8 @@ contains
          end if
          call MPI_Barrier(MPI_COMM_WORLD, ierr)
       end do
-      ! 1 is the Nblocks not needed needs fix
-      call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-               Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+      call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP,  &
+                 Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") 'YAPS3D Block (Infinite Domain) got solution'
@@ -355,7 +354,7 @@ contains
       end do
 
       call pmesh(SOL_pm_coarse, RHS_pm_coarse, QP, XP, &
-               Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+               Xbound_coarse, DPm_coarse, NN_coarse, NN_bl_coarse, ND, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") 'YAPS3D Coarse got Solution'
@@ -530,7 +529,7 @@ contains
       end do
 
       call pmesh(SOL_pm_bl, RHS_pm_bl, QP, XP, &
-               Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, 1, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
+               Xbound_tmp, Dpm_fine, NN_tmp, NN_bl_tmp, ND, ibctyp_c, neqs, neqf, iynbc, 0, itree, lmax)
 
       if (my_rank .eq. 0) then
          write (dummy_string, "(A)") 'YAPS3D Block (defined bc) got Solution'

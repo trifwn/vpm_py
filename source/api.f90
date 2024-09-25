@@ -16,8 +16,8 @@ contains
       bind(C, name='init')
 
       use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
-      use vpm_vars, only: interf_iproj, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS
-      use vpm_size, only: nremesh, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
+      use vpm_vars, only: interf_iproj, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, &
+                          nremesh, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
       use parvar, only: set_neq
       use MPI
 
@@ -215,9 +215,10 @@ contains
       use file_io, only: write_pm_solution
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm, neqpm
-      use vpm_size, only: NN, NN_bl
+      use vpm_size, only: fine_grid 
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
+      integer :: NN(3), NN_bl(6)
 
       if (present(folder)) then
          call set_string_f_c(vpm_write_folder, folder)
@@ -227,6 +228,8 @@ contains
          call set_string_f_c(pm_output_file_suffix, filename)
       endif
 
+      NN = fine_grid%NN
+      NN_bl = fine_grid%NN_bl
       if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
          call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
                                 deformx_pm, deformy_pm, deformz_pm)
@@ -273,10 +276,11 @@ contains
       use file_io, only: write_pm_solution_hdf5
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm, neqpm
-      use vpm_size, only: NN, NN_bl
+      use vpm_size, only: fine_grid
       use console_io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
+      integer :: NN(3), NN_bl(6)
 
       if (present(folder)) then
          call set_string_f_c(vpm_write_folder, folder)
@@ -286,6 +290,8 @@ contains
          call set_string_f_c(pm_output_file_suffix, filename)
       endif
 
+      NN = fine_grid%NN
+      NN_bl = fine_grid%NN_bl
       if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
          call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
                                 deformx_pm, deformy_pm, deformz_pm)

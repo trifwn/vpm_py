@@ -19,8 +19,8 @@ contains
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, RHS_pm,     &
                         deformx_pm, deformy_pm, deformz_pm,          &
                         DXpm, DYpm, DZpm,                            &
-                        NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
-                        NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
+                        NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, &
+                        NXf_fine_bl, NYf_fine_bl, NZf_fine_bl, &
                         SOL_pm
       use vpm_vars, only: neqpm
       use console_io, only: vpm_print, blue, yellow, dummy_string
@@ -47,9 +47,9 @@ contains
          st = MPI_WTIME()
          write (*, *) ""
          if (idcalc .eq. 0) then
-            write (*, *) "Calculating Velocities on PM using FD"
+            write (dummy_string, "(A)") "Calculating Velocities on PM using FD"
          else if (idcalc .gt. 0) then
-            write (*, *) "Calculating Velocities and Deformations on PM using FD"
+            write (dummy_string, "(A)") "Calculating Velocities and Deformations on PM using FD"
          else
             write (dummy_string, "(A)") 'Calculating Deformations on PM using FD'
          end if
@@ -65,9 +65,9 @@ contains
          !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
          !!$omp          num_threads(OMPTHREADS)
          !$omp do
-         do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
-            do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
-               do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
+         do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+            do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+               do i = NXs_fine_bl + 1, NXf_fine_bl - 1
 
                   !--> dpsi(x,y,z) / d(xyz)
                   dpsidx(1:3) = (SOL_pm(1:3, i + 1, j, k) - SOL_pm(1:3, i - 1, j, k))/DXpm2
@@ -89,9 +89,9 @@ contains
             !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
             !!$omp num_threads(OMPTHREADS)
             !$omp do
-            do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
-               do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
-                  do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
+            do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+               do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+                  do i = NXs_fine_bl + 1, NXf_fine_bl - 1
 
                      !--> dpsi(x,y,z)d(xyz)
                      dpsidx(1) = (SOL_pm(4, i + 1, j, k) - SOL_pm(4, i - 1, j, k))/DXpm2
@@ -126,9 +126,9 @@ contains
          !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,RHS_pm,SOL_pm,deformx_pm,deformy_pm,deformz_pm)
          !!$omp   num_threads(OMPTHREADS)
          !$omp do
-         do k = NZs_coarse_bl + 2, NZf_coarse_bl - 2
-            do j = NYs_coarse_bl + 2, NYf_coarse_bl - 2
-               do i = NXs_coarse_bl + 2, NXf_coarse_bl - 2
+         do k = NZs_fine_bl + 2, NZf_fine_bl - 2
+            do j = NYs_fine_bl + 2, NYf_fine_bl - 2
+               do i = NXs_fine_bl + 2, NXf_fine_bl - 2
                   ! velxp = velvrx_pm(i + 1, j, k)
                   ! velxm = velvrx_pm(i - 1, j, k)
 
@@ -200,8 +200,8 @@ contains
       use vpm_vars, only: OMPTHREADS, neqpm, NI
       use pmgrid, only: RHS_pm, deformx_pm, deformy_pm, deformz_pm, &
                         DXpm, DYpm, DZpm,                            &
-                        NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
-                        NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl
+                        NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, &
+                        NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
       Implicit None
       real(dp) ::  dwxdx, dwydy, dwzdz, VIS
       real(dp) ::  DXpm2, DYpm2, DZpm2 
@@ -216,9 +216,9 @@ contains
       !$omp parallel private(i,j,k,dwxdx,dwydy,dwzdz,VIS) shared(RHS_pm,deformx_pm,deformy_pm,deformz_pm)
       !!$omp num_threads(OMPTHREADS)
       !$omp do
-      do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
-         do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
-            do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
+      do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+         do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+            do i = NXs_fine_bl + 1, NXf_fine_bl - 1
                if (neqpm .eq. 3) then
                   VIS = NI
                else
@@ -278,25 +278,25 @@ contains
       use pmgrid, only: RHS_pm, SOL_pm,                              &
                         deformx_pm, deformy_pm, deformz_pm,          &
                         DXpm, DYpm, DZpm,                            &
-                        NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
-                        NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
-                        NXpm_coarse, NYpm_coarse, NZpm_coarse
+                        NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, &
+                        NXf_fine_bl, NYf_fine_bl, NZf_fine_bl, &
+                        NXpm_fine, NYpm_fine, NZpm_fine
       Implicit None
       real(dp)                ::  dwxdx, dwydy, dwzdz, Ct
       real(dp)                ::  DXpm2, DYpm2, DZpm2
       integer                 :: i, j, k
       real(dp), allocatable   :: laplvort(:, :, :, :)
 
-      allocate (laplvort(3, NXpm_coarse, NYpm_coarse, NZpm_coarse))
+      allocate (laplvort(3, NXpm_fine, NYpm_fine, NZpm_fine))
       laplvort = 0.d0
       DXpm2 = DXpm**2
       DYpm2 = DYpm**2
       DZpm2 = DZpm**2
       Sol_pm = 0.d0
       Ct = 6.8*DXpm**2/4
-      do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
-         do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
-            do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
+      do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+         do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+            do i = NXs_fine_bl + 1, NXf_fine_bl - 1
                !--> Remember that RHS = -w
                dwxdx = -(RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
                         + RHS_pm(1, i - 1, j, k))/DXpm2
@@ -328,9 +328,9 @@ contains
          end do
       end do
 
-      do k = NZs_coarse_bl + 1, NZf_coarse_bl - 1
-         do j = NYs_coarse_bl + 1, NYf_coarse_bl - 1
-            do i = NXs_coarse_bl + 1, NXf_coarse_bl - 1
+      do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+         do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+            do i = NXs_fine_bl + 1, NXf_fine_bl - 1
                !Minus because of (-w) has been included in laplvort
                dwxdx = (laplvort(1, i + 1, j, k) - 2*laplvort(1, i, j, k) &
                         + laplvort(1, i - 1, j, k))/DXpm2

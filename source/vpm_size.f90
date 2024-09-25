@@ -1,41 +1,40 @@
 Module vpm_size
    use base_types, only: dp      
    use console_io, only: dp_1d_array_info, i_1d_array_info, dp_2d_alloc_info, i_2d_alloc_info, &
-                     dp_1d_alloc_info
+                         dp_1d_alloc_info
+
+   type  :: grid 
+      real(dp) :: Xbound(6) ! Domain boundaries
+      real(dp) :: Dpm(3)    ! Grid spacing
+      integer  :: NN(3)     ! Number of nodes in each direction
+      integer  :: NN_bl(6)  ! Indices of the domain that do not include the dummy cells (start finish)
+   end type grid
 
    ! Fine grid
-   real(dp), save              :: Xbound(6), Dpm(3)
-   integer, save               :: NN_bl(6), NN(3)
+   type(grid)                 :: fine_grid
+   type(grid), allocatable    :: block_grids(:)
+   type(grid)                 :: coarse_grid
+   integer                    :: my_block_idx
 
    ! Block grid 
-   real(dp), allocatable       :: SOL_pm_bl(:, :, :, :), RHS_pm_bl(:, :, :, :)
-   !Blcok info 1st dimension is the block number, after that the same as fine grid
-   real(dp), allocatable, save :: Xbound_block(:, :)
-   integer, allocatable, save  :: NN_block(:, :), NN_bl_block(:, :) 
-   integer                     :: my_block
-
-   ! Coarse grid
-   real(dp), save              :: Xbound_coarse(6), Dpm_coarse(3)
-   integer, save               :: NN_coarse(3), NN_bl_coarse(6)
-   
-   integer, save               :: NN_tmp(3)
-   integer, save               :: nb_i, nb_j, nb_k, BLOCKS, NXB, NYB, NZB, ndumcell_coarse, ndumcell_bl
+   integer, save               :: nb_i, nb_j, nb_k, NBlocks, ndumcell_coarse, ndumcell_bl
    real(dp)                    :: st, et
-   integer, save               :: iynbc, iret, NBI, NBJ, NBK, nremesh, &
-                                  iyntree, ilevmax, itree, ibctyp
 
-   public :: print_vpm_size_info, get_NN_bl, get_NN, get_Xbound
+   public :: grid
+   public :: fine_grid, block_grids, coarse_grid, my_block_idx
+   public :: print_vpm_size_info, define_sizes, get_domain_bounds_from_particles, get_fine_NN, get_fine_NNbl, &
+              get_fine_Xbound, print_grid_info
 
 contains
    !> Defines Coarse and Fine GRID
    subroutine define_sizes
-      use vpm_vars, only:  interf_iproj, idefine, NTIME_PM
+      use vpm_vars, only:  interf_iproj, idefine, NTIME_PM, ilevmax, NBI, NBJ, NBK, ND
       use pmgrid, only:    XMIN_pm, YMIN_pm, ZMIN_pm, &
                            XMAX_pm, YMAX_pm, ZMAX_pm, &
-                           NXs_coarse_bl, NXf_coarse_bl, NYs_coarse_bl, &
-                           NYf_coarse_bl, NZs_coarse_bl, NZf_coarse_bl, &
-                           NXpm_coarse, NYpm_coarse, NZpm_coarse, DVPM, &
-                           DXpm, DYpm, DZpm, ND, ndumcell, ncoarse
+                           NXs_fine_bl, NXf_fine_bl, NYs_fine_bl, &
+                           NYf_fine_bl, NZs_fine_bl, NZf_fine_bl, &
+                           NXpm_fine, NYpm_fine, NZpm_fine, DVPM, &
+                           DXpm, DYpm, DZpm, ndumcell, ncoarse
       use pmlib, only: definepm
       use parvar, only: XP
       use console_io, only: dummy_string, vpm_print, nocolor, blue, yellow, red, tab_level
@@ -44,9 +43,8 @@ contains
       Implicit None
       integer    :: nsiz(3), nsiz_bl(3)
       integer    :: i, j, k, np, my_rank, ierr, nb, istep, lev
-      real(dp)   :: Xbound_tmp(6)
       integer    :: redifine_pm
-      integer    :: NN_bl_tmp(6), NXbl, NYbl, NZbl 
+      integer    :: NN_bl_tmp(6), NXbl, NYbl, NZbl, NXB, NYB, NZB
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -69,7 +67,6 @@ contains
       tab_level = tab_level + 1
 
       if (my_rank .eq. 0) then
-         print *, "minval X" , minval(XP(1, :))
          if (redifine_pm.eq.1) then
             call get_domain_bounds_from_particles
             write (dummy_string, '(A)') 'The computational domain bounds are recalculated from the particle positions'
@@ -113,16 +110,16 @@ contains
       call MPI_BCAST(ZMAX_pm, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
       
       ! CREATE THE BOUNDING BOX
-      Xbound(1) = XMIN_pm
-      Xbound(2) = YMIN_pm
-      Xbound(3) = ZMIN_pm
-      Xbound(4) = XMAX_pm 
-      Xbound(5) = YMAX_pm 
-      Xbound(6) = ZMAX_pm
+      fine_grid%Xbound(1) = XMIN_pm
+      fine_grid%Xbound(2) = YMIN_pm
+      fine_grid%Xbound(3) = ZMIN_pm
+      fine_grid%Xbound(4) = XMAX_pm 
+      fine_grid%Xbound(5) = YMAX_pm 
+      fine_grid%Xbound(6) = ZMAX_pm
       
-      Dpm(1) = DXpm
-      Dpm(2) = DYpm
-      Dpm(3) = DZpm
+      fine_grid%Dpm(1) = DXpm
+      fine_grid%Dpm(2) = DYpm
+      fine_grid%Dpm(3) = DZpm
       
       nsiz(1) = NBI*ncoarse
       nsiz(2) = NBJ*ncoarse
@@ -146,31 +143,31 @@ contains
       ! thats why ndumcell=0
       ndumcell = 0
       if (redifine_pm .eq. 1) then
-         call definepm(3, Xbound, Dpm, ND, ndumcell, nsiz, NN, NN_bl)
+         call definepm(3, fine_grid%Xbound, fine_grid%Dpm, ND, ndumcell, nsiz, fine_grid%NN, fine_grid%NN_bl)
       endif
 
       ! THE new extended domain is defined
-      XMIN_pm = Xbound(1)
-      YMIN_pm = Xbound(2)
-      ZMIN_pm = Xbound(3)
-      XMAX_pm = Xbound(4)
-      YMAX_PM = Xbound(5)
-      ZMAX_pm = Xbound(6)
+      XMIN_pm = fine_grid%Xbound(1)
+      YMIN_pm = fine_grid%Xbound(2)
+      ZMIN_pm = fine_grid%Xbound(3)
+      XMAX_pm = fine_grid%Xbound(4)
+      YMAX_PM = fine_grid%Xbound(5)
+      ZMAX_pm = fine_grid%Xbound(6)
 
-      NXpm_coarse = NN(1)
-      NYpm_coarse = NN(2)
-      NZpm_coarse = NN(3)
+      NXpm_fine = fine_grid%NN(1)
+      NYpm_fine = fine_grid%NN(2)
+      NZpm_fine = fine_grid%NN(3)
 
-      NXs_coarse_bl = NN_bl(1)
-      NYs_coarse_bl = NN_bl(2)
-      NZs_coarse_bl = NN_bl(3)
-      NXf_coarse_bl = NN_bl(4)
-      NYf_coarse_bl = NN_bl(5)
-      NZf_coarse_bl = NN_bl(6)
+      NXs_fine_bl = fine_grid%NN_bl(1)
+      NYs_fine_bl = fine_grid%NN_bl(2)
+      NZs_fine_bl = fine_grid%NN_bl(3)
+      NXf_fine_bl = fine_grid%NN_bl(4)
+      NYf_fine_bl = fine_grid%NN_bl(5)
+      NZf_fine_bl = fine_grid%NN_bl(6)
 
-      DXpm = Dpm(1)
-      DYpm = Dpm(2)
-      DZpm = Dpm(3)
+      DXpm = fine_grid%Dpm(1)
+      DYpm = fine_grid%Dpm(2)
+      DZpm = fine_grid%Dpm(3)
 
       DVpm = DXpm*DYpm
       if (ND .eq. 3) then
@@ -194,21 +191,21 @@ contains
                   achar(9)//'DZ='//achar(9), DZpm
          call vpm_print(dummy_string,nocolor,2)
          write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'Nodes X= ', NXpm_coarse, &
-                  achar(9)//achar(9)//'Nodes Y= ', NYpm_coarse, &
-                  achar(9)//achar(9)//'Nodes Z= ', NZpm_coarse
+                  achar(9)//'Nodes X= ', NXpm_fine, &
+                  achar(9)//achar(9)//'Nodes Y= ', NYpm_fine, &
+                  achar(9)//achar(9)//'Nodes Z= ', NZpm_fine
          call vpm_print(dummy_string,nocolor,2)
          write (dummy_string, "(A)") "The indexes of the coarse grid that do not include the dummy cells are:"
          call vpm_print(dummy_string,nocolor,2)
          write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'NXs_coarse=', NXs_coarse_bl, &
-                  achar(9)//'NYs_coarse=', NYs_coarse_bl, &
-                  achar(9)//'NZs_coarse=', NZs_coarse_bl
+                  achar(9)//'NXs_coarse=', NXs_fine_bl, &
+                  achar(9)//'NYs_coarse=', NYs_fine_bl, &
+                  achar(9)//'NZs_coarse=', NZs_fine_bl
          call vpm_print(dummy_string,nocolor,2)
          write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'NXf_coarse=', NXf_coarse_bl, &
-                  achar(9)//'NYf_coarse=', NYf_coarse_bl, &
-                  achar(9)//'NZf_coarse=', NZf_coarse_bl
+                  achar(9)//'NXf_coarse=', NXf_fine_bl, &
+                  achar(9)//'NYf_coarse=', NYf_fine_bl, &
+                  achar(9)//'NZf_coarse=', NZf_fine_bl
          call vpm_print(dummy_string,nocolor,2)
          write (dummy_string, '(A, F8.5)') achar(9) // 'DV=', DVpm
          call vpm_print(dummy_string,nocolor,2)
@@ -217,15 +214,19 @@ contains
       ! define block grids
       ! so they are divided by ncoarse and ilevmax
       ! so as to have the coarse information at the boundaries exactly.
-      BLOCKS = np
-      if (.not. allocated(Xbound_block)) then
-         allocate (Xbound_block(6, BLOCKS), NN_block(3, BLOCKS), NN_bl_block(6, BLOCKS))
+      NBlocks = np
+      if (.not. allocated(block_grids)) then
+         ! allocate (Xbound_block(6, BLOCKS), NN_block(3, BLOCKS), NN_bl_block(6, BLOCKS))
+         allocate(block_grids(NBlocks))
       end if
       
       ! DEVIDE THE DOMAIN INTO EQUAL BLOCKS 
-      NXB = int(nint(((Xbound(4) - Xbound(1))/Dpm(1)))) ! NUMBER OF CELLS IN A BLOCK IN X DIRECTION 
-      NYB = int(nint(((Xbound(5) - Xbound(2))/Dpm(2)))) ! NUMBER OF CELLS IN A BLOCK IN Y DIRECTION
-      NZB = int(nint(((Xbound(6) - Xbound(3))/Dpm(3)))) ! NUMBER OF CELLS IN A BLOCK IN Z DIRECTION
+      ! NUMBER OF CELLS IN A BLOCK IN X DIRECTION 
+      NXB = int(nint(((fine_grid%Xbound(4) - fine_grid%Xbound(1))/fine_grid%Dpm(1)))) 
+      ! NUMBER OF CELLS IN A BLOCK IN Y DIRECTION
+      NYB = int(nint(((fine_grid%Xbound(5) - fine_grid%Xbound(2))/fine_grid%Dpm(2)))) 
+      ! NUMBER OF CELLS IN A BLOCK IN Z DIRECTION
+      NZB = int(nint(((fine_grid%Xbound(6) - fine_grid%Xbound(3))/fine_grid%Dpm(3)))) 
       NXbl = NXB / NBI
       NYbl = NYB / NBJ
       NZbl = NZB / NBK
@@ -239,13 +240,13 @@ contains
          write(dummy_string, '(A)') achar(9) // 'The number of cells in each direction for the block grid'
          call vpm_print(dummy_string,nocolor,2)
          write(dummy_string, '(A, I5, A, I5, A, I5)') achar(9) // &
-                  achar(9)//'Total Num Cells:'//                   &
+                  achar(9)//'Total Num Cells:'//                  &
                   achar(9)//'X='//achar(9), NXB,                  &
                   achar(9)//'Y='//achar(9), NYB,                  &
                   achar(9)//'Z='//achar(9), NZB       
          call vpm_print(dummy_string,nocolor,2)                          
          write(dummy_string, '(A, I5, A, I5, A, I5)') achar(9) // &
-                  achar(9)// 'Cells per Block:'//                  &
+                  achar(9)// 'Cells per Block:'//                 &
                   achar(9)//'X='//achar(9), NXbl,                 &
                   achar(9)//'Y='//achar(9), NYbl,                 &
                   achar(9)//'Z='//achar(9), NZbl
@@ -261,52 +262,24 @@ contains
          do j = 1, NBJ
             do i = 1, NBI
                nb = (k - 1)*NBJ*NBI + (j - 1)*NBI + i
-               Xbound_block(1, nb) = Xbound(1) + (i - 1)*(NXbl)*Dpm(1)
-               Xbound_block(4, nb) = Xbound(1) + (i)*(NXbl)*Dpm(1)
+               block_grids(nb)%Xbound(1) = fine_grid%Xbound(1) + (i - 1)*(NXbl)*fine_grid%Dpm(1)
+               block_grids(nb)%Xbound(4) = fine_grid%Xbound(1) + (i)*(NXbl)*fine_grid%Dpm(1)
                
-               Xbound_block(2, nb) = Xbound(2) + (j - 1)*(NYbl)*Dpm(2)
-               Xbound_block(5, nb) = Xbound(2) + (j)*(NYbl)*Dpm(2)
+               block_grids(nb)%Xbound(2) = fine_grid%Xbound(2) + (j - 1)*(NYbl)*fine_grid%Dpm(2)
+               block_grids(nb)%Xbound(5) = fine_grid%Xbound(2) + (j)*(NYbl)*fine_grid%Dpm(2)
                
-               Xbound_block(3, nb) = Xbound(3) + (k - 1)*(NZbl)*Dpm(3)
-               Xbound_block(6, nb) = Xbound(3) + (k)*(NZbl)*Dpm(3)
-               Xbound_tmp(1:6) = Xbound_block(1:6, nb)
-               call definepm(1, Xbound_tmp, Dpm, ND, ndumcell_bl, nsiz_bl, NN_tmp, NN_bl_tmp)
+               block_grids(nb)%Xbound(3) = fine_grid%Xbound(3) + (k - 1)*(NZbl)*fine_grid%Dpm(3)
+               block_grids(nb)%Xbound(6) = fine_grid%Xbound(3) + (k)*(NZbl)*fine_grid%Dpm(3)
                
-               Xbound_block(1:6, nb)   = Xbound_tmp(1:6)  ! Block domain boundaries
-               NN_block(1:3, nb)        = NN_tmp(1:3)      ! Block number of nodes
-               NN_bl_block(1:6, nb)     = NN_bl_tmp(1:6)   ! Indices of the block domain that do not include the dummy cells
-               
+               block_grids(nb)%Dpm(1:3) = fine_grid%Dpm(1:3)
+
+               call definepm(1, block_grids(nb)%Xbound, block_grids(nb)%Dpm, ND, ndumcell_bl, nsiz_bl, &
+                                block_grids(nb)%NN, block_grids(nb)%NN_bl                              )
+
                if (my_rank .eq. 0) then
                   write (dummy_string, '(A,I3,A,3I3,A)') achar(9)//'Block ', nb, " = (", i, j, k, ")"
                   call vpm_print(dummy_string,blue,2)
-                  write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') achar(9)//&
-                           achar(9)//'XMIN= '//achar(9), Xbound_block(1, nb), &
-                           achar(9)//'YMIN= '//achar(9), Xbound_block(2, nb), &
-                           achar(9)//'ZMIN= '//achar(9), Xbound_block(3, nb)
-                  call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, '(A, F10.5, A, F10.5, A, F10.5)') achar(9)// &
-                           achar(9)//'XMAX= '//achar(9), Xbound_block(4, nb), &
-                           achar(9)//'YMAX= '//achar(9), Xbound_block(5, nb), &
-                           achar(9)//'ZMAX= '//achar(9), Xbound_block(6, nb)
-                  call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, '(A, I5, A, I5, A, I5)') achar(9)//achar(9)//&
-                           "Cells X:"//achar(9), NN_block(1, nb),      &
-                           achar(9)//"Y:"//achar(9), NN_block(2, nb),      &
-                           achar(9)//"Z:"//achar(9), NN_block(3, nb)
-                  call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, "(A)") achar(9) // achar(9) // &
-                           "Real Cells (not dummy):"
-                  call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, '(A, I5, A, I5, A, I5)') achar(9)//achar(9)//&
-                           achar(9)//'Xs:'//achar(9), NN_bl_block(1, nb), &
-                           achar(9)//'Ys:'//achar(9), NN_bl_block(2, nb), &
-                           achar(9)//'Zs:'//achar(9), NN_bl_block(3, nb)
-                  call vpm_print(dummy_string,nocolor,2)
-                  write (dummy_string, '(A, I5, A, I5, A, I5)') achar(9)//achar(9)//&
-                           achar(9)//'Xf:'//achar(9), NN_bl_block(4, nb), &
-                           achar(9)//'Yf:'//achar(9), NN_bl_block(5, nb), &
-                           achar(9)//'Zf:'//achar(9), NN_bl_block(6, nb)
-                  call vpm_print(dummy_string,nocolor,2)
+                  call print_grid_info(block_grids(nb))
                end if
 
                if (nb .eq. my_rank + 1) then
@@ -323,55 +296,23 @@ contains
       end if
 
       !define coarse grid must cover block grids
-      Xbound(1) = XMIN_pm!minval(Xbound_bl(1,:))
-      Xbound(2) = YMIN_pm!minval(Xbound_bl(2,:))
-      Xbound(3) = ZMIN_pm!minval(Xbound_bl(3,:))
-      Xbound(4) = XMAX_pm!maxval(Xbound_bl(4,:))
-      Xbound(5) = YMAX_pm!maxval(Xbound_bl(5,:))
-      Xbound(6) = ZMAX_pm!maxval(Xbound_bl(6,:))
-      Xbound_coarse = Xbound
-      Dpm_coarse = ncoarse*Dpm
+      fine_grid%Xbound(1) = XMIN_pm!minval(Xbound_bl(1,:))
+      fine_grid%Xbound(2) = YMIN_pm!minval(Xbound_bl(2,:))
+      fine_grid%Xbound(3) = ZMIN_pm!minval(Xbound_bl(3,:))
+      fine_grid%Xbound(4) = XMAX_pm!maxval(Xbound_bl(4,:))
+      fine_grid%Xbound(5) = YMAX_pm!maxval(Xbound_bl(5,:))
+      fine_grid%Xbound(6) = ZMAX_pm!maxval(Xbound_bl(6,:))
+
+      coarse_grid%Xbound(1:6) = fine_grid%Xbound(1:6)
+      coarse_grid%Dpm(1:3)    = ncoarse* fine_grid%Dpm(1:3)
       ndumcell_coarse = 4!2**ilevmax
       nsiz_bl = 2**ilevmax
-      call definepm(1, Xbound_coarse, Dpm_coarse, ND, ndumcell_coarse, nsiz_bl, NN_coarse, NN_bl_coarse)
+      call definepm(1, coarse_grid%Xbound, coarse_grid%Dpm, ND, ndumcell_coarse, nsiz_bl, coarse_grid%NN, coarse_grid%NN_bl)
 
       if (my_rank .eq. 0) then
          write (dummy_string, '(A)') 'The extended coarse domain is redefined (with dummy cells)'
          call vpm_print(dummy_string,red, 2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
-                  achar(9)//'XMIN='//achar(9), Xbound_coarse(1), &
-                  achar(9)//'YMIN='//achar(9), Xbound_coarse(2), &
-                  achar(9)//'ZMIN='//achar(9), Xbound_coarse(3)
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
-                  achar(9)//'XMAX='//achar(9), Xbound_coarse(4), &
-                  achar(9)//'YMAX='//achar(9), Xbound_coarse(5), &
-                  achar(9)//'ZMAX='//achar(9), Xbound_coarse(6)
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
-                  achar(9)//'DX='//achar(9), DXpm, &
-                  achar(9)//'DY='//achar(9), DYpm, &
-                  achar(9)//'DZ='//achar(9), DZpm
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'Nodes X= ',           NN_coarse(1), &
-                  achar(9)//achar(9)//'Nodes Y= ', NN_coarse(2), &
-                  achar(9)//achar(9)//'Nodes Z= ', NN_coarse(3)
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, "(A)") "The indexes of the coarse grid that do not include the dummy cells are:"
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'NXs_coarse=', NN_bl_coarse(1), &
-                  achar(9)//'NYs_coarse=', NN_bl_coarse(2), &
-                  achar(9)//'NZs_coarse=', NN_bl_coarse(3)
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, I5, A, I5, A, I5)') &
-                  achar(9)//'NXf_coarse=', NN_bl_coarse(4), &
-                  achar(9)//'NYf_coarse=', NN_bl_coarse(5), &
-                  achar(9)//'NZf_coarse=', NN_bl_coarse(6)
-         call vpm_print(dummy_string,nocolor,2)
-         write (dummy_string, '(A, F8.5)') achar(9) // 'DV=', DVpm
-         call vpm_print(dummy_string,nocolor,2)
+         call print_grid_info(coarse_grid)
       end if
       
       ! CALCULATE THE NUMBER OF LEVELS
@@ -380,16 +321,16 @@ contains
             istep = 2**lev
             !!!!!!!!if not divided exactly dummy cell
             if (ND .eq. 2) then
-               if (int((NN_bl_block(4, 1) - NN_bl_block(1, 1))/istep) .eq. 0 .or. &
-               int((NN_bl_block(5, 1) - NN_bl_block(2, 1))/istep) .eq. 0) then
+               if (int((block_grids(1)%NN_bl(4) - block_grids(1)%NN_bl(1))/istep) .eq. 0 .or. &
+               int((block_grids(1)%NN_bl(5) - block_grids(1)%NN_bl(2))/istep) .eq. 0) then
                   ilevmax = lev - 1
                   print *, 'Changing number of levels', ilevmax
                   exit
                end if
             else
-               if (  int((NN_bl_block(4, 1) - NN_bl_block(1, 1))/istep) .eq. 0 .or. &
-                     int((NN_bl_block(5, 1) - NN_bl_block(2, 1))/istep) .eq. 0 .or. &
-                     int((NN_bl_block(6, 1) - NN_bl_block(3, 1))/istep) .eq. 0) then
+               if (  int((block_grids(1)%NN_bl(4) - block_grids(1)%NN_bl(1))/istep) .eq. 0 .or. &
+                     int((block_grids(1)%NN_bl(5) - block_grids(1)%NN_bl(2))/istep) .eq. 0 .or. &
+                     int((block_grids(1)%NN_bl(6) - block_grids(1)%NN_bl(3))/istep) .eq. 0) then
                   ilevmax = lev - 1
                   print *, 'Changing number of levels', ilevmax
                   exit
@@ -454,63 +395,85 @@ contains
       end if
    end subroutine get_domain_bounds_from_particles
 
-   subroutine get_NN(NN_out) bind(C, name='get_NN') 
+   subroutine get_fine_NN(NN_out) bind(C, name='get_NN') 
       use iso_c_binding
       implicit none
       integer(c_int), dimension(3) :: NN_out
 
-      NN_out = NN
-   End subroutine get_NN
+      NN_out = fine_grid%NN 
+   End subroutine get_fine_NN
 
-   subroutine get_NN_bl(NN_bl_out) bind(C, name='get_NN_bl') 
+   subroutine get_fine_NNbl(NN_bl_out) bind(C, name='get_NN_bl') 
       use iso_c_binding
       implicit none
       integer(c_int), dimension(6) :: NN_bl_out
-      NN_bl_out = NN_bl
-   End subroutine get_NN_bl
+      NN_bl_out = fine_grid%NN_bl
+   End subroutine get_fine_NNbl
 
-   subroutine get_Xbound(Xbound_out) bind(C, name='get_Xbound') 
+   subroutine get_fine_Xbound(Xbound_out) bind(C, name='get_Xbound') 
       use iso_c_binding
       implicit none
       real(c_double), dimension(6) :: Xbound_out      
-      Xbound_out = Xbound
-   End subroutine get_Xbound
+      Xbound_out = fine_grid%Xbound
+   End subroutine get_fine_Xbound
+
+   subroutine print_grid_info(grid_in)
+      use console_io, only: dummy_string, vpm_print, nocolor, blue, yellow, red, tab_level
+      use vpm_vars, only: ND
+      implicit none
+      type(grid) :: grid_in
+      real(dp)    :: DV
+      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+               achar(9)//'XMIN='//achar(9), grid_in%Xbound(1), &
+               achar(9)//'YMIN='//achar(9), grid_in%Xbound(2), &
+               achar(9)//'ZMIN='//achar(9), grid_in%Xbound(3)
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+               achar(9)//'XMAX='//achar(9), grid_in%Xbound(4), &
+               achar(9)//'YMAX='//achar(9), grid_in%Xbound(5), &
+               achar(9)//'ZMAX='//achar(9), grid_in%Xbound(6)
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+               achar(9)//'DX='//achar(9), grid_in%Dpm(1), &
+               achar(9)//'DY='//achar(9), grid_in%Dpm(2), &
+               achar(9)//'DZ='//achar(9), grid_in%Dpm(3)
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, '(A, I5, A, I5, A, I5)') &
+               achar(9)//'Nodes X= ',           grid_in%NN(1), &
+               achar(9)//achar(9)//'Nodes Y= ', grid_in%NN(2), &
+               achar(9)//achar(9)//'Nodes Z= ', grid_in%NN(3)
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, "(A)") "The indexes of the coarse grid that do not include the dummy cells are:"
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, '(A, I5, A, I5, A, I5)') &
+               achar(9)//'NXs=', grid_in%NN_bl(1), &
+               achar(9)//'NYs=', grid_in%NN_bl(2), &
+               achar(9)//'NZs=', grid_in%NN_bl(3)
+      call vpm_print(dummy_string,nocolor,2)
+      write (dummy_string, '(A, I5, A, I5, A, I5)') &
+               achar(9)//'NXf=', grid_in%NN_bl(4), &
+               achar(9)//'NYf=', grid_in%NN_bl(5), &
+               achar(9)//'NZf=', grid_in%NN_bl(6)
+      call vpm_print(dummy_string,nocolor,2)
+      DV = grid_in%Dpm(1)*grid_in%Dpm(2) 
+      if (ND .eq. 3) then
+         DV = DV*grid_in%Dpm(3)
+      end if
+      write (dummy_string, '(A, F8.5)') achar(9) // 'DV=', DV
+      call vpm_print(dummy_string,nocolor,2)
+   end subroutine print_grid_info
 
    subroutine print_vpm_size_info()
 
       print *, "VPM_SIZE INFO"
       print *, "============"
       print *, ""
-      call dp_1d_array_info("Xbound", Xbound, 6)
-      call dp_1d_array_info("Dpm", Dpm, 3)
-      call i_1d_array_info("NN_bl", NN_bl, 6)
-      call i_1d_array_info("NN", NN, 3)
-      call dp_2d_alloc_info("Xbound_bl", Xbound_block)
-      call i_2d_alloc_info("NNbl_bl", NN_bl_block)
-      call i_2d_alloc_info("NNbl", NN_block)
-      call dp_1d_array_info("Xbound_coarse", Xbound_coarse, 6)
-      call dp_1d_array_info("Dpm_coarse", Dpm_coarse, 3)
-      call i_1d_array_info("NN_tmp", NN_tmp, 3)
-      call i_1d_array_info("NN_coarse", NN_coarse, 3)
-      call i_1d_array_info("NN_bl_coarse", NN_bl_coarse, 6)
       print *, achar(9)//"nb_i", " = ", nb_i
       print  *, achar(9)//"nb_j", " = ", nb_j
       print  *, achar(9)//"nb_k", " = ", nb_k
-      print  *, achar(9)//"BLOCKS", " = ", BLOCKS
-      print  *, achar(9)//"NXB", " = ", NXB
-      print  *, achar(9)//"NYB", " = ", NYB
-      print  *, achar(9)//"NZB", " = ", NZB
+      print  *, achar(9)//"BLOCKS", " = ", NBlocks
       print  *, achar(9)//"ndumcell_coarse", " = ", ndumcell_coarse
       print  *, achar(9)//"ndumcell_bl", " = ", ndumcell_bl
-      print  *, achar(9)//"iynbc", " = ", iynbc
-      print  *, achar(9)//"iret", " = ", iret
-      print  *, achar(9)//"NBI", " = ", NBI
-      print  *, achar(9)//"NBJ", " = ", NBJ
-      print  *, achar(9)//"NBK", " = ", NBK
-      print  *, achar(9)//"NREMESH", " = ", nremesh
-      print  *, achar(9)//"iyntree", " = ", iyntree
-      print  *, achar(9)//"ilevmax", " = ", ilevmax
-      print  *, achar(9)//"itree", " = ", itree
-      print  *, achar(9)//"ibctyp", " = ", ibctyp
+
    end subroutine print_vpm_size_info
 End Module vpm_size

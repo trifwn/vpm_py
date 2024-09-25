@@ -180,6 +180,12 @@ contains
         end if
         call h5f%open(trim(filout1), action='w', comp_lvl = comp_level)
 
+        ! Write attributes to the HDF5 file
+        call h5f%writeattr('/','NTIME', NTIME)
+        call h5f%writeattr('/','NVR', NVR)
+        call h5f%writeattr('/','neq', neq)
+        call h5f%writeattr('/','NVR_size', NVR_size)
+
         ! Write XPR (Particle positions) to the HDF5 file
         call h5f%write('/XPR', XPR)
 
@@ -238,7 +244,7 @@ contains
                                             deformy_pm(NN_in(1), NN_in(2), NN_in(3)), &
                                             deformz_pm(NN_in(1), NN_in(2), NN_in(3))
         integer, optional                :: compression 
-        integer                          :: comp_level = 1
+        integer                          :: comp_level = 4
         
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
         character(len=50)                :: filout
@@ -269,6 +275,11 @@ contains
         end if
         ! Open HDF5 file
         call h5f%open(trim(filout), action='w', comp_lvl= comp_level)
+        ! Write Attributes
+        call h5f%writeattr('/','NTIME', NTIME)
+        call h5f%writeattr('/','neqpm', neqpm)
+        call h5f%writeattr('/','NN_in', NN_in)
+        call h5f%writeattr('/','NNbl_in', NNbl_in)
 
         ! Create datasets for each variable
         call h5f%create('/X', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
@@ -278,20 +289,6 @@ contains
         call h5f%create('/U', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%create('/V', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%create('/W', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-
-        call h5f%create('/VORTX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/VORTY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/VORTZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-
-        call h5f%create('/PSI1', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/PSI2', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/PSI3', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-
-        if (present(deformx_pm)) then
-            call h5f%create('/DEFORMX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%create('/DEFORMY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%create('/DEFORMZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        end if
 
         ! Iterate over the 3D grid and write data to HDF5 file
         do k = NZs, NZf
@@ -320,7 +317,12 @@ contains
         call h5f%write('/U', velx(NXs:NXf, NYs:NYf, NZs:NZf))
         call h5f%write('/V', vely(NXs:NXf, NYs:NYf, NZs:NZf))
         call h5f%write('/W', velz(NXs:NXf, NYs:NYf, NZs:NZf))
+
         if (present(deformx_pm)) then
+            call h5f%create('/DEFORMX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+            call h5f%create('/DEFORMY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+            call h5f%create('/DEFORMZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+
             call h5f%write('/DEFORMX', deformx_pm(NXs:NXf, NYs:NYf, NZs:NZf))
             call h5f%write('/DEFORMY', deformy_pm(NXs:NXf, NYs:NYf, NZs:NZf))
             call h5f%write('/DEFORMZ', deformz_pm(NXs:NXf, NYs:NYf, NZs:NZf))

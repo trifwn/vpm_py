@@ -16,9 +16,9 @@ submodule(vpm_lib) vpm_remesh
    module subroutine remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out, cutoff_value)
       use pmgrid, only:    XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, &
                            YMAX_pm, XMAX_pm, ZMAX_pm, DVpm,             &
-                           NXpm_coarse, NYpm_coarse, NZpm_coarse,       &
-                           NXs_coarse_bl, NYs_coarse_bl, NZs_coarse_bl, &
-                           NXf_coarse_bl, NYf_coarse_bl, NZf_coarse_bl, &
+                           NXpm_fine, NYpm_fine, NZpm_fine,       &
+                           NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, &
+                           NXf_fine_bl, NYf_fine_bl, NZf_fine_bl, &
                            RHS_pm
       use vpm_vars, only:  mrem, neqpm, interf_iproj, V_ref 
       use vpm_interpolate, only: interpolate_particle_Q
@@ -83,16 +83,16 @@ submodule(vpm_lib) vpm_remesh
       Xbound(5) = YMAX_pm;
       Xbound(6) = ZMAX_pm
 
-      NN(1) = NXpm_coarse
-      NN(2) = NYpm_coarse
-      NN(3) = NZpm_coarse
+      NN(1) = NXpm_fine
+      NN(2) = NYpm_fine
+      NN(3) = NZpm_fine
       
-      NN_bl(1) = NXs_coarse_bl
-      NN_bl(2) = NYs_coarse_bl
-      NN_bl(3) = NZs_coarse_bl
-      NN_bl(4) = NXf_coarse_bl
-      NN_bl(5) = NYf_coarse_bl
-      NN_bl(6) = NZf_coarse_bl
+      NN_bl(1) = NXs_fine_bl
+      NN_bl(2) = NYs_fine_bl
+      NN_bl(3) = NZs_fine_bl
+      NN_bl(4) = NXf_fine_bl
+      NN_bl(5) = NYf_fine_bl
+      NN_bl(6) = NZf_fine_bl
       
       NN = NN * mrem
       NN_bl = NN_bl * mrem
@@ -260,7 +260,7 @@ submodule(vpm_lib) vpm_remesh
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, *) achar(9), 'Volume of a cell', DVpm
          call vpm_print(dummy_string, nocolor, 2)
-         write (dummy_string, *) achar(9), 'Number of cells', NXpm_coarse, NYpm_coarse, NZpm_coarse
+         write (dummy_string, *) achar(9), 'Number of cells', NXpm_fine, NYpm_fine, NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, *) achar(9), 'Size of XP', size(XP,1) , size(XP,2)
          call vpm_print(dummy_string, nocolor, 2)

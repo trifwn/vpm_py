@@ -4,17 +4,18 @@ module pmgrid
    real(dp), allocatable, target, save :: deformx_pm(:, :, :), deformy_pm(:, :, :), deformz_pm(:, :, :)
    real(dp), allocatable, target, save :: RHS_pm(:, :, :, :)
    real(dp), allocatable, target, save :: SOL_pm(:, :, :, :) 
+   real(dp), allocatable, target       :: SOL_pm_bl(:, :, :, :)  
+   real(dp), allocatable, target       :: RHS_pm_bl(:, :, :, :)
 
-   real(dp), save                      :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
-   real(dp), save                      :: DXpm, DYpm, DZpm, DVpm
-   
-   integer, save                       :: NXpm_coarse, NYpm_coarse, NZpm_coarse
-   integer, save                       :: NXs_coarse_bl, NYs_coarse_bl, NXf_coarse_bl,&
-                                          NYf_coarse_bl, NZs_coarse_bl, NZf_coarse_bl
-   integer, save                       :: NBlocks
+   ! FINE GRID CHARACTERISTICS 
+   real(dp), save                      :: XMIN_pm,     YMIN_pm,     ZMIN_pm,           &
+                                          XMAX_pm,     YMAX_pm,     ZMAX_pm
+   real(dp), save                      :: DXpm,        DYpm,        DZpm,        DVpm
+   integer, save                       :: NXpm_fine,   NYpm_fine,   NZpm_fine
+   integer, save                       :: NXs_fine_bl, NYs_fine_bl, NXf_fine_bl,       &
+                                          NYf_fine_bl, NZs_fine_bl, NZf_fine_bl
 
    !! PMESH PARAMETERS
-   integer                             :: ND
    integer, save                       :: nbound, ndumcell, ncoarse, IDVPM
 
 
@@ -50,16 +51,16 @@ contains
    subroutine set_pm_velocities_zero
       if (allocated(velvrx_pm)) then
          deallocate (velvrx_pm, velvry_pm, velvrz_pm)
-         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (velvrx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(velvry_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(velvrz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
          velvrx_pm = 0.d0; 
          velvry_pm = 0.d0; 
          velvrz_pm = 0.d0
       else
-         allocate (velvrx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(velvry_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(velvrz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (velvrx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(velvry_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(velvrz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
          velvrx_pm = 0.d0; 
          velvry_pm = 0.d0; 
          velvrz_pm = 0.d0
@@ -69,16 +70,16 @@ contains
    subroutine set_pm_deformations_zero
       if (allocated(deformx_pm)) then
          deallocate (deformx_pm, deformy_pm, deformz_pm)
-         allocate (deformx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(deformy_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(deformz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (deformx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(deformy_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(deformz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
          deformx_pm = 0.d0; 
          deformy_pm = 0.d0; 
          deformz_pm = 0.d0
       else
-         allocate (deformx_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(deformy_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
-         allocate(deformz_pm(NXpm_coarse, NYpm_coarse, NZpm_coarse))
+         allocate (deformx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(deformy_pm(NXpm_fine, NYpm_fine, NZpm_fine))
+         allocate(deformz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
          deformx_pm = 0.d0; 
          deformy_pm = 0.d0; 
          deformz_pm = 0.d0
@@ -94,21 +95,21 @@ contains
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NX_pm_out
-      NX_pm_out = NXpm_coarse
+      NX_pm_out = NXpm_fine
    End subroutine get_NXpm_coarse
 
    subroutine get_NYpm_coarse(NY_pm_out) bind(C, name='get_NY_pm_coarse') 
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NY_pm_out
-      NY_pm_out = NYpm_coarse
+      NY_pm_out = NYpm_fine
    End subroutine get_NYpm_coarse
 
    subroutine get_NZpm_coarse(NZ_pm_out) bind(C, name='get_NZ_pm_coarse') 
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NZ_pm_out
-      NZ_pm_out = NZpm_coarse
+      NZ_pm_out = NZpm_fine
    End subroutine get_NZpm_coarse
 
 
@@ -149,21 +150,19 @@ contains
       print *, achar(9), "YMAX_pm: ", YMAX_pm
       print *, achar(9), "ZMIN_pm: ", ZMIN_pm
       print *, achar(9), "ZMAX_pm: ", ZMAX_pm
-      print *, achar(9), "DXpm: ", DXpm
-      print *, achar(9), "DYpm: ", DYpm
-      print *, achar(9), "DZpm: ", DZpm
-      print *, achar(9), "DVpm: ", DVpm
-      print *, achar(9), "NXpm: ", NXpm_coarse
-      print *, achar(9), "NYpm: ", NYpm_coarse
-      print *, achar(9), "NZpm: ", NZpm_coarse
-      print *, achar(9), "NXs_bl", NXs_coarse_bl
-      print *, achar(9), "NYs_bl", NYs_coarse_bl
-      print *, achar(9), "NXf_bl", NXf_coarse_bl
-      print *, achar(9), "NYf_bl", NYf_coarse_bl
-      print *, achar(9), "NZs_bl", NZs_coarse_bl
-      print *, achar(9), "NZf_bl", NZf_coarse_bl
-      print *, achar(9), "NBlocks: ", NBlocks
-      print '(A,I6)',    achar(9)//"ND        =", ND
+      print *, achar(9), "DXpm (fine): ", DXpm
+      print *, achar(9), "DYpm (fine): ", DYpm
+      print *, achar(9), "DZpm (fine): ", DZpm
+      print *, achar(9), "DVpm (fine): ", DVpm
+      print *, achar(9), "NXpm (fine): ", NXpm_fine
+      print *, achar(9), "NYpm (fine): ", NYpm_fine
+      print *, achar(9), "NZpm (fine): ", NZpm_fine
+      print *, achar(9), "NXs_bl (fine)", NXs_fine_bl
+      print *, achar(9), "NYs_bl (fine)", NYs_fine_bl
+      print *, achar(9), "NXf_bl (fine)", NXf_fine_bl
+      print *, achar(9), "NYf_bl (fine)", NYf_fine_bl
+      print *, achar(9), "NZs_bl (fine)", NZs_fine_bl
+      print *, achar(9), "NZf_bl (fine)", NZf_fine_bl
       print '(A,I6)',    achar(9)//"nbound    =", nbound
       print '(A,I6)',    achar(9)//"ndumcell  =", ndumcell
       print '(A,I6)',    achar(9)//"IDVPM     =", IDVPM
@@ -185,26 +184,26 @@ contains
             achar(9)//"X:", &
             achar(9)//"Max:", maxval(velvrx_pm), &
             achar(9)//"Min:", minval(velvrx_pm), &
-            achar(9)//"Mean:", sum(velvrx_pm)/NXpm_coarse/NYpm_coarse/NZpm_coarse
+            achar(9)//"Mean:", sum(velvrx_pm)/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"Y:", &
             achar(9)//"Max:", maxval(velvry_pm), &
             achar(9)//"Min:", minval(velvry_pm), &
-            achar(9)//"Mean:", sum(velvry_pm)/NXpm_coarse/NYpm_coarse/NZpm_coarse
+            achar(9)//"Mean:", sum(velvry_pm)/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"Z:", &
             achar(9)//"Max:", maxval(velvrz_pm), &
             achar(9)//"Min:", minval(velvrz_pm), &
-            achar(9)//"Mean:", sum(velvrz_pm)/NXpm_coarse/NYpm_coarse/NZpm_coarse
+            achar(9)//"Mean:", sum(velvrz_pm)/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          ! CHeck for nan values
          if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
             ! Print Velx
-            do i = 1, NXpm_coarse
-               do j = 1, NYpm_coarse
-                  do k = 1, NZpm_coarse
+            do i = 1, NXpm_fine
+               do j = 1, NYpm_fine
+                  do k = 1, NZpm_fine
                      if (isnan(velvrx_pm(i, j, k)) .or. isnan(velvry_pm(i, j, k)) .or. isnan(velvrz_pm(i, j, k))) then
                         write (*, "(A, I3, A, I3, A, I3)") &
                               achar(9)//"I:", i, achar(9)//"J:", j, achar(9)//"K:", k, achar(9)

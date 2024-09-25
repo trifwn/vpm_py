@@ -3,6 +3,14 @@ module vpm_mpi
    implicit none
    ! Create interfaces for all module procedures
 contains
+   !> @brief Broadcasts the RHS_pm array to all processes.
+   !>
+   !> This subroutine is responsible for broadcasting the RHS_pm array, which 
+   !> contains the right-hand side values.
+   !>
+   !> @param RHS_pm The array containing the right-hand side values to be broadcasted.
+   !> @param NN The grid size of the RHS_pm array.
+   !> @param neq The number of equations.
    subroutine rhsbcast(RHS_pm, NN, neq)
       use MPI
       use mpi_matrices, only: mpimat4
@@ -22,191 +30,83 @@ contains
       !-----------------------------------
    end subroutine rhsbcast
 
-   subroutine rhsscat(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, RHS_pm_bl)
+   subroutine rhsscat(fine_grid, RHS_pm, block_grid, RHS_pm_bl, nb_i, nb_j, nb_k)
       use vpm_vars, only: neqpm
-      use pmgrid, only: RHS_pm
+      use vpm_size, only: grid 
       use MPI
       Implicit None
-      integer, intent(in)     :: BLOCKS, nb_i, nb_j
-      integer, intent(in)     :: NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NN_bl(6), NN_tmp(3)
-      real(dp), intent(out)   :: RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      integer :: my_rank, ierr
-      integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, NN(3)
-
-      call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
-
-      RHS_pm_bl = 0
-      nb = my_rank + 1
-      NN(1:3) = NNbl(1:3, nb)
-      NXs = NNbl_bl(1, nb)
-      NXf = NNbl_bl(4, nb)
-
-      NYs = NNbl_bl(2, nb)
-      NYf = NNbl_bl(5, nb)
-      ixs = (nb_i - 1)*(NXf - NXs) + NN_bl(1)
-      jxs = (nb_j - 1)*(NYf - NYs) + NN_bl(2)
-
-      ixf = ixs + (NXf - NXs + 1) - 1
-      jxf = jxs + (NYf - NYs + 1) - 1
-
-      RHS_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, 1) = RHS_pm(1:neqpm, ixs:ixf, jxs:jxf, 1)
-      if (nb_i .gt. 1) RHS_pm_bl(:, NXs, :, :) = 0.d0
-      if (nb_j .gt. 1) RHS_pm_bl(:, :, NYs, :) = 0.d0
-
-   end subroutine rhsscat
-
-   subroutine solget(BLOCKS, NBI, NBJ, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
-      ! use pmgrid
-      use vpm_vars, only: neqpm
-      use pmgrid, only: SOL_pm
-      use mpi_matrices, only: mpimat4
-      use MPI
-      Implicit None
-      integer, intent(in) ::BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NN_bl(6), NN_tmp(3)
-      ! real(dp), dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
-      real(dp), intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      !f2py depend(neqpm, NN_tmp) :: SOL_pm(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      real(dp), allocatable :: SOL_pm_tmp(:, :, :, :)
-      integer :: my_rank, ierr, source, dest, status(MPI_STATUS_SIZE), mat4
-      integer :: ixs, jxs, ixf, jxf, nb, NXs, NXf, NYs, NYf, j, NN_block(3), i, nbs
-
-      call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
-
-      nb = my_rank + 1
-      if (my_rank .eq. 0) then
-         j = 1
-         i = 1
-         NXs = NNbl_bl(1, 1)
-         NXf = NNbl_bl(4, 1)
-
-         NYs = NNbl_bl(2, 1)
-         NYf = NNbl_bl(5, 1)
-         ixs = (i - 1)*(NXf - NXs) + NN_bl(1)
-         jxs = (j - 1)*(NYf - NYs) + NN_bl(2)
-
-         ixf = ixs + (NXf - NXs + 1) - 1
-         jxf = jxs + (NYf - NYs + 1) - 1
-
-         SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, 1) = SOL_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, 1)
-         !-->Assign
-         do j = 1, NBJ
-            do i = 1, NBI
-               nbs = (j - 1)*NBI + i
-               if (nbs .eq. 1) cycle
-               NN_block(1:3) = NNbl(1:3, nbs)
-               allocate (SOL_pm_tmp(neqpm, NN_block(1), NN_block(2), NN_block(3)))
-               NXs = NNbl_bl(1, nbs)
-               NXf = NNbl_bl(4, nbs)
-
-               NYs = NNbl_bl(2, nbs)
-               NYf = NNbl_bl(5, nbs)
-               ixs = (i - 1)*(NXf - NXs) + NN_bl(1)
-               jxs = (j - 1)*(NYf - NYs) + NN_bl(2)
-
-               ixf = ixs + (NXf - NXs + 1) - 1
-               jxf = jxs + (NYf - NYs + 1) - 1
-               call mpimat4(mat4, neqpm, NN_block(1), NN_block(2), NN_block(3))
-               source = nbs - 1
-               call MPI_RECV(SOL_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
-               SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, 1) = SOL_pm_tmp(1:neqpm, NXs:NXf, NYs:NYf, 1)
-               call MPI_TYPE_FREE(mat4, ierr)
-               deallocate (SOL_pm_tmp)
-            end do
-         end do
-      else
-         dest = 0
-         call mpimat4(mat4, neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-         call MPI_SEND(SOL_pm_bl, 1, mat4, dest, 1, MPI_COMM_WORLD, ierr)
-         call MPI_TYPE_FREE(mat4, ierr)
-      end if
-
-   end subroutine solget
-
-   subroutine rhsscat_3d(BLOCKS, NN_tmp, NNbl, NNbl_bl, NN_bl, nb_i, nb_j, nb_k, RHS_pm_bl)
-      use vpm_vars, only: neqpm
-      use pmgrid, only: RHS_pm
-      use vpm_size, only: NBI, NBJ, NBK
-      use MPI
-      Implicit None
-      integer, intent(in)     :: nb_i, nb_j, nb_k, BLOCKS
-      integer, intent(in)     :: NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS),  NN_bl(6), NN_tmp(3)
-      real(dp), intent(out)   :: RHS_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+      type(grid), intent(in)  :: fine_grid, block_grid   
+      real(dp), intent(out)   :: RHS_pm_bl(neqpm, block_grid%NN(1), block_grid%NN(2), block_grid%NN(3))
+      real(dp), intent(in)    :: RHS_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      integer, intent(in)     :: nb_i, nb_j, nb_k
 
       integer :: my_rank, ierr, i, np
       integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf
 
-      call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
-      call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-
       RHS_pm_bl = 0
-      nb = my_rank + 1
+      NXs = block_grid%NN_bl(1)
+      NYs = block_grid%NN_bl(2)
+      NZs = block_grid%NN_bl(3)
+      NXf = block_grid%NN_bl(4)
+      NYf = block_grid%NN_bl(5)
+      NZf = block_grid%NN_bl(6)
 
-      NXs = NNbl_bl(1,nb)
-      NXf = NNbl_bl(4,nb)
-
-      NYs = NNbl_bl(2,nb)
-      NYf = NNbl_bl(5,nb)
-
-      NZs = NNbl_bl(3,nb)
-      NZf = NNbl_bl(6,nb)
-
-      ixs=(nb_i-1)*(NXf-NXs) +NN_bl(1)
-      jxs=(nb_j-1)*(NYf-NYs) +NN_bl(2)
-      kxs=(nb_k-1)*(NZf-NZs) +NN_bl(3)
+      ixs=(nb_i-1)*(NXf-NXs) +fine_grid%NN_bl(1)
+      jxs=(nb_j-1)*(NYf-NYs) +fine_grid%NN_bl(2)
+      kxs=(nb_k-1)*(NZf-NZs) +fine_grid%NN_bl(3)
 
       ! ixf= NN_bl(4) - (NBI - nb_i)*(NXf-NXs)
       ! jxf= NN_bl(5) - (NBJ - nb_j)*(NYf-NYs)
       ! kxf= NN_bl(6) - (NBK - nb_k)*(NZf-NZs)
-      ixf = NN_bl(1) + (nb_i)*(NXf-NXs)
-      jxf = NN_bl(2) + (nb_j)*(NYf-NYs)
-      kxf = NN_bl(3) + (nb_k)*(NZf-NZs)
+      ixf = fine_grid%NN_bl(1) + (nb_i)*(NXf-NXs)
+      jxf = fine_grid%NN_bl(2) + (nb_j)*(NYf-NYs)
+      kxf = fine_grid%NN_bl(3) + (nb_k)*(NZf-NZs)
 
       RHS_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf) = RHS_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf)
       if (nb_i .gt. 1) RHS_pm_bl(:, NXs, :, :) = 0.d0
       if (nb_j .gt. 1) RHS_pm_bl(:, :, NYs, :) = 0.d0
       if (nb_k .gt. 1) RHS_pm_bl(:, :, :, NZs) = 0.d0
 
-   end subroutine rhsscat_3d
+   end subroutine rhsscat
 
-   subroutine solget_3d(BLOCKS, NBI, NBJ, NBK, NN_tmp, NNbl, NNbl_bl, NN_bl, SOL_pm_bl)
+   subroutine solget(BLOCKS, NBI, NBJ, NBK, my_block, all_blocks, fine_grid, SOL_pm, SOL_pm_bl)
       use vpm_vars, only: neqpm
-      use pmgrid, only: SOL_pm
+      use vpm_size, only: grid
       use mpi_matrices, only: mpimat4
       use console_io, only: vpm_print, blue
       use MPI
+
       Implicit None
-      integer, intent(in)           :: BLOCKS, NNbl(3, BLOCKS), NNbl_bl(6, BLOCKS), NBI, NBJ, NBK, NN_bl(6), NN_tmp(3)
-      ! real(dp), dimension(:,:,:,:), intent(in)  :: SOL_pm_bl
-      real(dp), intent(in)  :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      ! f2py depend(neqpm, NN_tmp) :: SOL_pm_bl(neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
-      real(dp), allocatable :: SOL_pm_tmp(:, :, :, :)
-      integer :: my_rank, ierr, source, dest, status(MPI_STATUS_SIZE), mat4
-      integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf, j, k, NN_block(3), i, nbs
+      integer, intent(in)     :: BLOCKS, NBI, NBJ, NBK
+      type(grid), intent(in)  :: my_block, all_blocks(BLOCKS), fine_grid
+      real(dp), intent(in)    :: SOL_pm_bl(neqpm, my_block%NN(1), my_block%NN(2), my_block%NN(3)) 
+      real(dp), intent(out)   :: SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+
+      ! Local variables
+      real(dp), allocatable   :: SOL_pm_tmp(:, :, :, :)
+      integer                 :: my_rank, ierr, source, dest, status(MPI_STATUS_SIZE), mat4
+      integer                 :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf, j, k, NN_block(3), i, nbs
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
-      if (my_rank .eq. 0) call vpm_print( 'Assembling Solution',blue, 1)
-      ! (*, *) achar(9), achar(27)//'[1;34m', 'Assembling Solution', achar(27)//'[0m'
-      
-
+      if (my_rank .eq. 0) call vpm_print('Assembling Solution',blue, 1)
       nb = my_rank + 1
 
       if (my_rank .eq. 0) then
          j = 1
          i = 1
          k = 1
-         NXs = NNbl_bl(1, nb)
-         NXf = NNbl_bl(4, nb)
 
-         NYs = NNbl_bl(2, nb)
-         NYf = NNbl_bl(5, nb)
+         NXs = my_block%NN_bl(1)
+         NYs = my_block%NN_bl(2)
+         NZs = my_block%NN_bl(3)
+         NXf = my_block%NN_bl(4)
+         NYf = my_block%NN_bl(5)
+         NZf = my_block%NN_bl(6)
 
-         NZs = NNbl_bl(3, nb)
-         NZf = NNbl_bl(6, nb)
-
-         ixs = (i - 1)*(NXf - NXs) + NN_bl(1)
-         jxs = (j - 1)*(NYf - NYs) + NN_bl(2)
-         kxs = (k - 1)*(NZf - NZs) + NN_bl(3)
+         ixs = (i - 1)*(NXf - NXs) + fine_grid%NN_bl(1)
+         jxs = (j - 1)*(NYf - NYs) + fine_grid%NN_bl(2)
+         kxs = (k - 1)*(NZf - NZs) + fine_grid%NN_bl(3)
 
          ixf = ixs + (NXf - NXs + 1) - 1
          jxf = jxs + (NYf - NYs + 1) - 1
@@ -219,30 +119,31 @@ contains
                do i = 1, NBI
                   nbs = (k - 1)*NBI*NBJ + (j - 1)*NBI + i
                   if (nbs .eq. 1) cycle
-                  NN_block(1:3) = NNbl(1:3, nbs)
-                  allocate (SOL_pm_tmp(neqpm, NN_block(1), NN_block(2), NN_block(3)))
-                  NXs = NNbl_bl(1, nbs)
-                  NXf = NNbl_bl(4, nbs)
+                  
+                  NN_block(1:3) = all_blocks(nbs)%NN(1:3)
+                  NXs = all_blocks(nbs)%NN_bl(1)
+                  NYs = all_blocks(nbs)%NN_bl(2)
+                  NZs = all_blocks(nbs)%NN_bl(3)
+                  NXf = all_blocks(nbs)%NN_bl(4)
+                  NYf = all_blocks(nbs)%NN_bl(5)
+                  NZf = all_blocks(nbs)%NN_bl(6)
+                  
+                  ixs = (i - 1)*(NXf - NXs) + fine_grid%NN_bl(1)
+                  jxs = (j - 1)*(NYf - NYs) + fine_grid%NN_bl(2)
+                  kxs = (k - 1)*(NZf - NZs) + fine_grid%NN_bl(3)
 
-                  NYs = NNbl_bl(2, nbs)
-                  NYf = NNbl_bl(5, nbs)
-
-                  NZs = NNbl_bl(3, nbs)
-                  NZf = NNbl_bl(6, nbs)
-
-                  ixs = (i - 1)*(NXf - NXs) + NN_bl(1)
-                  jxs = (j - 1)*(NYf - NYs) + NN_bl(2)
-                  kxs = (k - 1)*(NZf - NZs) + NN_bl(3)
-
-                  ixs = (i - 1)*(NXf - NXs) + NN_bl(1)
-                  jxs = (j - 1)*(NYf - NYs) + NN_bl(2)
-                  kxs = (k - 1)*(NZf - NZs) + NN_bl(3)
-
+                  ixs = (i - 1)*(NXf - NXs) + fine_grid%NN_bl(1)
+                  jxs = (j - 1)*(NYf - NYs) + fine_grid%NN_bl(2)
+                  kxs = (k - 1)*(NZf - NZs) + fine_grid%NN_bl(3)
+                  
                   ixf = ixs + (NXf - NXs + 1) - 1
                   jxf = jxs + (NYf - NYs + 1) - 1
                   kxf = kxs + (NZf - NZs + 1) - 1
-
+                  
+                  ! Allocate and create Dtype
+                  allocate (SOL_pm_tmp(neqpm, NN_block(1), NN_block(2), NN_block(3)))
                   call mpimat4(mat4, neqpm, NN_block(1), NN_block(2), NN_block(3))
+
                   source = nbs - 1
                   call MPI_RECV(SOL_pm_tmp, 1, mat4, source, 1, MPI_COMM_WORLD, status, ierr)
                   SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf) = SOL_pm_tmp(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf)
@@ -253,16 +154,16 @@ contains
          end do
       else
          dest = 0
-         call mpimat4(mat4, neqpm, NN_tmp(1), NN_tmp(2), NN_tmp(3))
+         call mpimat4(mat4, neqpm, my_block%NN(1), my_block%NN(2), my_block%NN(3)) 
          call MPI_SEND(SOL_pm_bl, 1, mat4, dest, 1, MPI_COMM_WORLD, ierr)
          call MPI_TYPE_FREE(mat4, ierr)
       end if
 
-   end subroutine solget_3d
+   end subroutine solget
 
-   subroutine velbcast_3d
+   subroutine velbcast
       use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm,&
-                        NXpm_coarse, NYpm_coarse, NZpm_coarse
+                        NXpm_fine, NYpm_fine, NZpm_fine
       use mpi_matrices, only: mpimat3_pm
       use MPI
       Implicit None
@@ -272,17 +173,17 @@ contains
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       !---------------------------------------------
-      call mpimat3_pm(mat3, NXpm_coarse, NYpm_coarse, NZpm_coarse)
+      call mpimat3_pm(mat3, NXpm_fine, NYpm_fine, NZpm_fine)
       call MPI_BCAST(velvrx_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_BCAST(velvry_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_BCAST(velvrz_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_TYPE_FREE(mat3, ierr)
       !--------------------------------------------
-   end subroutine velbcast_3d
+   end subroutine velbcast
 
-   subroutine defbcast_3d
+   subroutine defbcast
       use pmgrid, only: deformx_pm, deformy_pm, deformz_pm, &
-                        NXpm_coarse, NYpm_coarse, NZpm_coarse
+                        NXpm_fine, NYpm_fine, NZpm_fine
       use mpi_matrices, only: mpimat3_pm
       use MPI
       Implicit None
@@ -292,13 +193,13 @@ contains
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       !---------------------------------------------
-      call mpimat3_pm(mat3, NXpm_coarse, NYpm_coarse, NZpm_coarse)
+      call mpimat3_pm(mat3, NXpm_fine, NYpm_fine, NZpm_fine)
       call MPI_BCAST(deformx_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_BCAST(deformy_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_BCAST(deformz_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
       call MPI_TYPE_FREE(mat3, ierr)
       !--------------------------------------------
-   end subroutine defbcast_3d
+   end subroutine defbcast
 
    subroutine particles_scat
       use vpm_vars, only: neqpm
@@ -517,8 +418,8 @@ contains
    end subroutine proj_gath
 
    subroutine proj_gath_new(NN)
-      use vpm_vars, only: interf_iproj, neqpm, neqpm
-      use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, ND
+      use vpm_vars, only: interf_iproj, neqpm, neqpm, ND
+      use pmgrid, only: RHS_pm, XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
       use parvar, only: XP_scatt 
       use mpi_matrices, only: mpimat4
       use MPI

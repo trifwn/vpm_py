@@ -30,12 +30,9 @@ module pmlib
    integer,  allocatable, save   :: nbound_lev(:), ilev_t(:, :, :)
 
    private :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm, DXpm, DYpm, DZpm
-   
    private :: NVR, NXpm, NYpm, NZPm, ND
    private :: NXs_bl, NYs_bl, NXf_bl, NYf_bl, NZs_bl, NZf_bl
-
    private :: itree, ibctyp
-   
    private :: SOL_pm, RHS_pm, QP, XP
    private :: SOL_0_pm, source_bound, x_s, y_s, z_s, d_s
    private :: source_bound_lev, xs_lev, ys_lev, zs_lev, ds_lev
@@ -137,13 +134,12 @@ contains
    !>This is the main subroutine of the Poisson solver library
    !>The input of the subroutine is DSOL_pm,DRHS_pm,DQP,DXP and d velocities.These variables are assigned the
    !>specified pointers.What is also needed is
-   !> Dpm,NN,NN_bl,Nblocks,Xbound which define the grid
+   !> Dpm,NN,NN_bl,,Xbound which define the grid
    !> Dpm(3)   is DX,DY,DZ
    !> NN(3)    is the size of extend domain which coincides with the size of DSOL_pm,DRHS_pm
    !> NN_bl(6) is the size of the original grid (smaller domain) in which the poisson problem will be solved
    !>          (NN_bl(1:3),the starting nodes of the grid(X,Y,Z) with respect to the extended domain)
    !>          (NN_bl(4:6),the last nodes of the grid(X,Y,Z)  with respect to the extended domain)
-   !>Nblocks is deprecated
    !>Xbound(6) Xmin,Ymin,Zmin,Xmax,Ymax,Zmax of the extended domain
    !>ibctyp (1 for bio savart law) (2 for infinite domain boundary conditions)
    !>neqs,neqf is an option if we want to solve more than one equation.neqs,neqf shoud coresspond to
@@ -163,7 +159,7 @@ contains
    !>@param [in]
    !>@param [out]
    !>--------------------------------------------------------------------------------
-   subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND_in, Nblocks_in, ibctyp_in, &
+   subroutine pmesh(DSOL_pm, DRHS_pm, DQP, DXP, Xbound, Dpm, NN, NN_bl, ND_in, ibctyp_in, &
                     neqs, neqf, iynbc, NVR_in, itree_in, levmax_in)
       ! use parvar, only : XP, QP
       use MPI
@@ -171,7 +167,7 @@ contains
       real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
       integer, intent(in)              :: ibctyp_in, itree_in, NVR_in, levmax_in, iynbc, neqs, neqf
       real(dp), intent(in)             :: Xbound(6), Dpm(3)
-      integer, intent(in)              :: NN_bl(6), NN(3), ND_in, Nblocks_in
+      integer, intent(in)              :: NN_bl(6), NN(3), ND_in
       ! Local variables
       integer                          ::  nb, NXs, NYs, NXf, NYf, NZs, NZf, neq
 
@@ -211,8 +207,8 @@ contains
       !Assign the pointers to the external data
       SOL_pm => DSOL_pm
       RHS_pm => DRHS_pm
-      !QP => DQP;
-      !XP => DXP
+      QP => DQP;
+      XP => DXP
 
       !iynbc 1 normal poisson solve.(Calculation of bc's is done here)
       if (iynbc .eq. 1) then
