@@ -45,12 +45,6 @@ contains
 
       !-->Set Boundary Conditions
       !---> XMIN,XMAX
-
-      !    Psiz_pm2(1:5,:)  = 0.d0
-      !    Psiz_pm2(NX:NX-5,:) = 0.d0
-      !    Psiz_pm2(:,1:5)  = 0.d0
-      !    Psiz_pm2(:,NY:NY-5) = 0.d0
-
       NN = NY
       allocate (bd_ax(NN), bd_bx(NN))
       do j = 1, NY
@@ -99,7 +93,7 @@ contains
          end do
       end do
 
-   End subroutine solve_eq!_i
+   End subroutine solve_eq
 
    module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
       Implicit None
@@ -136,12 +130,6 @@ contains
 
       !-->Set Boundary Conditions
       !---> XMIN,XMAX
-
-      !    Psiz_pm2(1:5,:)  = 0.d0
-      !    Psiz_pm2(NX:NX-5,:) = 0.d0
-      !    Psiz_pm2(:,1:5)  = 0.d0
-      !    Psiz_pm2(:,NY:NY-5) = 0.d0
-
       NN = NY
       allocate (bd_ax(NN), bd_bx(NN))
       bd_ax = 0.d0; bd_bx = 0.d0; !  SOL_pm(NXs,j + NYs -1,nb,neq)
@@ -191,15 +179,15 @@ contains
 
    module subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
       Implicit None
-      integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-      integer            :: i, j, k, NX, NY, NZ
-      real(dp)   :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
-      integer              :: ipar(128), stat
-      integer              :: dim, dim1, dim2, dim3, nod
-      real(dp), allocatable ::dpar(:)
-      real(dp), allocatable, dimension(:):: f
-      real(dp), allocatable, dimension(:):: bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz
-      type(DFTI_DESCRIPTOR), pointer   :: xhandle, yhandle
+      integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+      integer                 :: i, j, k, NX, NY, NZ
+      real(dp)                :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
+      integer                 :: ipar(128), stat
+      integer                 :: dim, dim1, dim2, dim3, nod
+      real(dp), allocatable   ::dpar(:)
+      real(dp), allocatable, dimension(:) :: f
+      real(dp), allocatable, dimension(:) :: bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz
+      type(DFTI_DESCRIPTOR), pointer      :: xhandle, yhandle
 
       !--> Assignment of Boundary Values
       ipar = 0
@@ -261,7 +249,8 @@ contains
       end do
 
       allocate (dpar(int(5*(NX - 1 + NY - 1)/2) + 9))
-      call d_init_Helmholtz_3D(XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,'DDDDDD',0.d0,ipar,dpar,stat)
+      call d_init_Helmholtz_3D(XminCalc,XmaxCalc,YminCalc,YmaxCalc,ZminCalc,ZmaxCalc,NX-1,NY-1,NZ-1,&
+                              'DDDDDD',0.d0,ipar,dpar,stat)
       if (stat .ne. 0) then
          write(*,*) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
          stop
@@ -295,7 +284,7 @@ contains
          end do
       end do
 
-   End subroutine solve_eq_3d
+   end subroutine solve_eq_3d
 
    module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
 

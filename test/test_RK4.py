@@ -27,7 +27,7 @@ vpm = VPM(
 )
 
 if rank == 0:
-    plotter = StandardVisualizer(plot_particles=("charge", 'magnitude'))
+    plotter = StandardVisualizer(plot_particles=("charge", 'magnitude'))#, plot_mesh=("velocity", "magnitude"))
 
 # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
 print_blue(f"Number of processes: {np_procs}", rank)
@@ -165,6 +165,11 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
             particle_velocities=UPR,
             particle_deformations=GPR,
         )
+        # plotter.update_mesh_plots(
+        #     iteration=i,
+        #     mesh_velocity=vpm.particle_mesh.
+        #     mesh_vorticity=vpm.particle_mesh.
+        # )
     else:
         UPR = vpm.particles.particle_velocities
         GPR = vpm.particles.particle_deformations
@@ -223,8 +228,8 @@ def timestep(
             XPR[:, j] = XPR[:, j] + U_mean[:,j] * DT
 
         print_IMPORTANT(f"Saving to file", rank)
-        vpm.particles.save_to_file(filename=f"{i:05d}particles.h5")
-        vpm.particle_mesh.save_to_file(filename=f"{i:05d}particle_mesh.h5")
+        vpm.particles.save_to_file(filename=f"particles")
+        vpm.particle_mesh.save_to_file(filename=f"particle_mesh")
 
     print_IMPORTANT(f"Redefine Bounds", rank)
     vpm.vpm(

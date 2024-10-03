@@ -208,7 +208,7 @@ def main():
                 particle_deformations= GPR[:,:]
             )
             vpm.particles.save_to_file(filename= f"particles_test", folder="results_test")
-            vpm.particle_mesh.save_to_file(filename= f"pm_test", folder="results_test")
+            vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="results_test")
 
         sleep(0.5)
         print_IMPORTANT(f"Redefine Bounds", rank)

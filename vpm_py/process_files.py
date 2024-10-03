@@ -13,14 +13,18 @@ def process_particle_output_file_h5(filename: str, folder: str | None= None):
     with h5py.File(filename, 'r') as f:
         # Read the dataset groups
 
-        # Concatenate particle positions into a single array of shape (3, N)
-        particle_positions = f['XPR'][:].T
-        # Concatenate particle velocities into a single array of shape (3, N)
-        particle_velocities = f['UPR'][:].T
-        # Concatenate particle vorticity into a single array of shape (3, N)
-        particle_charges = f['QPR'][:].T
-        # Create a placeholder for particle deformations, as the original code assumes this array
-        particle_deformations = f['GPR'][:].T
+        try:
+            # Concatenate particle positions into a single array of shape (3, N)
+            particle_positions = f['XPR'][:].T
+            # Concatenate particle velocities into a single array of shape (3, N)
+            particle_velocities = f['UPR'][:].T
+            # Concatenate particle vorticity into a single array of shape (3, N)
+            particle_charges = f['QPR'][:].T
+            # Create a placeholder for particle deformations, as the original code assumes this array
+            particle_deformations = f['GPR'][:].T
+        except KeyError:
+            print('Error reading the dataset groups for file: ', filename)
+            return None
 
     return particle_positions, particle_velocities, particle_charges, particle_deformations
 
@@ -37,31 +41,35 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
         UXS = f['U'][:]
         UYS = f['V'][:]
         UZS = f['W'][:]
-        QXS = f['VORTX'][:]
-        QYS = f['VORTY'][:]
-        QZS = f['VORTZ'][:]
-        # SOL = f['SOL'][:]
-        # DEFORM = f['DEFORMX'][:]
-        # DEFORMY = f['DEFORMY'][:]
-        # DEFORMZ = f['DEFORMZ'][:]
+        RHS = f['RHS'][:]
+        SOL = f['SOL'][:]
+
+        try:
+            DEFORM = f['DEFORMX'][:]
+            DEFORMY = f['DEFORMY'][:]
+            DEFORMZ = f['DEFORMZ'][:]
+        except KeyError:
+            pass 
+
         XS = np.moveaxis(XS, [0, 1, 2], [2, 1, 0])
         YS = np.moveaxis(YS, [0, 1, 2], [2, 1, 0])
         ZS = np.moveaxis(ZS, [0, 1, 2], [2, 1, 0])
         UXS = np.moveaxis(UXS, [0, 1, 2], [2, 1, 0])
         UYS = np.moveaxis(UYS, [0, 1, 2], [2, 1, 0])
         UZS = np.moveaxis(UZS, [0, 1, 2], [2, 1, 0])
-        QXS = np.moveaxis(QXS, [0, 1, 2], [2, 1, 0])
-        QYS = np.moveaxis(QYS, [0, 1, 2], [2, 1, 0])
-        QZS = np.moveaxis(QZS, [0, 1, 2], [2, 1, 0])
+        RHS = np.moveaxis(RHS, [0, 1, 2, 3], [3, 2, 1, 0])
+        SOL = np.moveaxis(SOL, [0, 1, 2, 3], [3, 2, 1, 0])
 
     # Mesh grid needs to have shape adjusted (as done in the original function)
+    neq = RHS.shape[0]
     mesh_positions = np.array([XS, YS, ZS])
     mesh_velocities = np.array([UXS, UYS, UZS])
-    mesh_charges = np.array([QXS, QYS, QZS])
+    mesh_charges = np.array(RHS)
+    mesh_solution = np.array(SOL)
     # Create a placeholder for mesh deformations, as the original code assumes this array
     mesh_deformations = np.zeros_like(mesh_positions)
 
-    return mesh_positions, mesh_velocities, mesh_charges, mesh_deformations
+    return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution
 
 def process_particle_ouput_file_dat(filename: str , folder: str | None = None):
     """Process a single particle file and return the data arrays."""

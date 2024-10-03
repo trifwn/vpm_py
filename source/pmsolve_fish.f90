@@ -9,10 +9,10 @@ contains
    subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
       use fishpack
       Implicit None
-      integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-      Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-      real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-      real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
+      integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+      Integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
+      real(dp)             :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+      real(dp), allocatable::SOL_tmp(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
       !--> Assignment of Boundary Values
 
@@ -28,7 +28,7 @@ contains
       NX = NXf - NXs + 1 - 2
       NY = NYf - NYs + 1 - 2
       NZ = NZf - NZs + 1 - 2
-      allocate (SOL_pm2(NX, NY, NZ))
+      allocate (SOL_tmp(NX, NY, NZ))
       allocate (Apois(NZ), Bpois(NZ), Cpois(NZ))
 
       CX = 1.d0/DXpm**2
@@ -40,7 +40,7 @@ contains
       Apois(1) = 0.d0
       Cpois(NZ) = 0.d0
       !-->Set Right hand Side term (except for boundary conditions)
-      SOL_pm2(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
+      SOL_tmp(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
       !-->Set Boundary Conditions
       !---> XMIN,XMAX
 
@@ -50,28 +50,28 @@ contains
       !    Psiz_pm2(:,NY:NY-5) = 0.d0
       do k = 1, NZ
          do j = 1, NY
-            SOL_pm2(1, j, k) = SOL_pm2(1, j, k) - CX*SOL_pm(neq,NXs, j + NYs - 1 + 1, k + NZs - 1 + 1)
-            SOL_pm2(NX, j, k) = SOL_pm2(NX, j, k) - CX*SOL_pm(neq,NXf, j + NYs - 1 + 1, k + NZs - 1 + 1)
+            SOL_tmp(1, j, k) = SOL_tmp(1, j, k) - CX*SOL_pm(neq,NXs, j + NYs - 1 + 1, k + NZs - 1 + 1)
+            SOL_tmp(NX, j, k) = SOL_tmp(NX, j, k) - CX*SOL_pm(neq,NXf, j + NYs - 1 + 1, k + NZs - 1 + 1)
          end do
       end do
       !---> YMIN,YMAX
       do k = 1, NZ
          do i = 1, NX
-            SOL_pm2(i, 1, k) = SOL_pm2(i, 1, k) - CY*SOL_pm(neq,i + NXs - 1 + 1, NYs, k + NZs - 1 + 1)
-            SOL_pm2(i, NY, k) = SOL_pm2(i, NY, k) - CY*SOL_pm(neq,i + NXs - 1 + 1, NYf, k + NZs - 1 + 1)
+            SOL_tmp(i, 1, k) = SOL_tmp(i, 1, k) - CY*SOL_pm(neq,i + NXs - 1 + 1, NYs, k + NZs - 1 + 1)
+            SOL_tmp(i, NY, k) = SOL_tmp(i, NY, k) - CY*SOL_pm(neq,i + NXs - 1 + 1, NYf, k + NZs - 1 + 1)
          end do
       end do
 
       do j = 1, NY
          do i = 1, NX
-            SOL_pm2(i, j, 1) = SOL_pm2(i, j, 1) - CZ*SOL_pm(neq,i + NXs - 1 + 1, j + NYs - 1 + 1, NZs)
-            SOL_pm2(i, j, NZ) = SOL_pm2(i, j, NZ) - CZ*SOL_pm(neq,i + NXs - 1 + 1, j + NYs - 1 + 1, NZf)
+            SOL_tmp(i, j, 1) = SOL_tmp(i, j, 1) - CZ*SOL_pm(neq,i + NXs - 1 + 1, j + NYs - 1 + 1, NZs)
+            SOL_tmp(i, j, NZ) = SOL_tmp(i, j, NZ) - CZ*SOL_pm(neq,i + NXs - 1 + 1, j + NYs - 1 + 1, NZf)
          end do
       end do
 
       call POIS3D(1, NX, CX, 1, NY, CY, 1, NZ, Apois, Bpois, Cpois, &
-                  NX, NY, Sol_pm2, IERROR)
-      SOL_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
+                  NX, NY, SOL_tmp, IERROR)
+      SOL_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_tmp(1:NX, 1:NY, 1:NZ)
       if (IERROR .ne. 0) then 
          write (*, *) 'POISSON SOLVER ERROR', ierror
          STOP
@@ -81,10 +81,10 @@ contains
    subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
       use fishpack 
       Implicit None
-      integer, intent(in) :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-      Integer            :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-      real(dp)   :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
-      real(dp), allocatable::SOL_pm2(:, :, :), Apois(:), Bpois(:), Cpois(:)
+      integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
+      Integer                 :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
+      real(dp)                :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+      real(dp), allocatable   :: SOL_tmp(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
       !--> Assignment of Boundary Values
 
@@ -100,7 +100,7 @@ contains
       NX = NXf - NXs + 1 - 2
       NY = NYf - NYs + 1 - 2
       NZ = NZf - NZs + 1 - 2
-      allocate (SOL_pm2(NX, NY, NZ))
+      allocate (SOL_tmp(NX, NY, NZ))
       allocate (Apois(NZ), Bpois(NZ), Cpois(NZ))
 
       CX = 1.d0/DXpm**2
@@ -113,19 +113,14 @@ contains
       Cpois(NZ) = 0.d0
       !-->Set Right hand Side term (except for boundary conditions)
 
-      SOL_pm2(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
+      SOL_tmp(1:NX, 1:NY, 1:NZ) = RHS_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1)
       !-->Set Boundary Conditions
       !---> XMIN,XMAX
 
-      !    Psiz_pm2(1:5,:)  = 0.d0
-      !    Psiz_pm2(NX:NX-5,:) = 0.d0
-      !    Psiz_pm2(:,1:5)  = 0.d0
-      !    Psiz_pm2(:,NY:NY-5) = 0.d0
-
       call POIS3D(1, NX, CX, 1, NY, CY, 1, NZ, Apois, Bpois, Cpois, &
-                  NX, NY, Sol_pm2, IERROR)
+                  NX, NY, SOL_tmp, IERROR)
 
-      SOL_0_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_pm2(1:NX, 1:NY, 1:NZ)
+      SOL_0_pm(neq, NXs + 1:NXf - 1, NYs + 1:NYf - 1, NZs + 1:NZf - 1) = SOL_tmp(1:NX, 1:NY, 1:NZ)
 
       if (IERROR .ne. 0) then 
          write (*, *) 'POISSON SOLVER ERROR', ierror

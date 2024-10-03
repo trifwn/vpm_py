@@ -72,16 +72,19 @@ class ParticleDataAdapter(DataAdapter):
         }
 
 class MeshDataAdapter(DataAdapter):
-    def _preprocess(self, pm_positions, pm_charges, pm_velocities, pm_deformations):
+    def _preprocess(
+        self, 
+        neq, 
+        pm_positions, 
+        pm_charges, 
+        pm_velocities, 
+        pm_deformations, 
+        pm_solutions = None
+    ):
         positions = {
             'x': pm_positions[0,:, :, :],
             'y': pm_positions[1,:, :, :],
             'z': pm_positions[2,:, :, :]
-        }
-        charges = {
-            'x': pm_charges[0,:, : , :],
-            'y': pm_charges[1,:, : , :],
-            'z': pm_charges[2,:, : , :]
         }
         velocities = {
             'x': pm_velocities[0,:, :, :],
@@ -93,11 +96,27 @@ class MeshDataAdapter(DataAdapter):
             'y': pm_deformations[1,:, :, :],
             'z': pm_deformations[2,:, :, :]
         }
+        charges = {
+            'x': pm_charges[0,:, : , :],
+            'y': pm_charges[1,:, : , :],
+            'z': pm_charges[2,:, : , :]
+        }
+        if pm_solutions is not None:
+            solution = {
+                'x': pm_solutions[0],
+                'y': pm_solutions[1],
+                'z': pm_solutions[2]
+            }
+        else:
+            solution = None
+            
         data = {
+            "neq": neq,
             'position': positions,
             'charge': charges,
             'velocity': velocities,
-            'deformation': deformations
+            'deformation': deformations,
+            "solution": solution
         }
         return data
     

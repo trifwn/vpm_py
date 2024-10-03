@@ -174,6 +174,8 @@ contains
 
         ! Create the filename for the output
         write(filout1, '(A,I5.5,A)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix) // ".h5" 
+        write (dummy_string, "(A)") achar(9)//'Writing particles to HDF5 file: '//trim(filout1)
+        call vpm_print(dummy_string, nocolor, 2)
         ! Open the HDF5 file for writing
         if (present(compression)) then
             comp_level = compression

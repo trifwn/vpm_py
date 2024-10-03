@@ -56,10 +56,10 @@ contains
          call vpm_print(dummy_string, blue, 1)
       end if
 
+      DXpm2 = 2*DXpm
+      DYpm2 = 2*DYpm
+      DZpm2 = 2*DZpm
       if (caluclate_velocity) then
-         DXpm2 = 2*DXpm
-         DYpm2 = 2*DYpm
-         DZpm2 = 2*DZpm
          !$omp parallel  &
          !$omp private(i,j,k,dpsidx,dpsidy,dpsidz)  &
          !$omp shared(velvrx_pm,velvry_pm,velvrz_pm,SOL_pm)
@@ -69,11 +69,12 @@ contains
             do j = NYs_fine_bl + 1, NYf_fine_bl - 1
                do i = NXs_fine_bl + 1, NXf_fine_bl - 1
 
-                  !--> dpsi(x,y,z) / d(xyz)
+                  !--> dpsi(x,y,z) / d(xyz) the rotational (solenoidal) part of the velocity
                   dpsidx(1:3) = (SOL_pm(1:3, i + 1, j, k) - SOL_pm(1:3, i - 1, j, k))/DXpm2
                   dpsidy(1:3) = (SOL_pm(1:3, i, j + 1, k) - SOL_pm(1:3, i, j - 1, k))/DYpm2
                   dpsidz(1:3) = (SOL_pm(1:3, i, j, k + 1) - SOL_pm(1:3, i, j, k - 1))/DZpm2
-                  ! U = grad x psi
+                  
+                  ! U = grad x psi 
                   velvrx_pm(i, j, k) = velvrx_pm(i, j, k) + dpsidy(3) - dpsidz(2)
                   velvry_pm(i, j, k) = velvry_pm(i, j, k) - (dpsidx(3) - dpsidz(1))
                   velvrz_pm(i, j, k) = velvrz_pm(i, j, k) + dpsidx(2) - dpsidy(1)
@@ -93,11 +94,11 @@ contains
                do j = NYs_fine_bl + 1, NYf_fine_bl - 1
                   do i = NXs_fine_bl + 1, NXf_fine_bl - 1
 
-                     !--> dpsi(x,y,z)d(xyz)
+                     !--> dphi(x,y,z) / d(xyz) We add the irrotational part of the velocity
                      dpsidx(1) = (SOL_pm(4, i + 1, j, k) - SOL_pm(4, i - 1, j, k))/DXpm2
                      dpsidy(1) = (SOL_pm(4, i, j + 1, k) - SOL_pm(4, i, j - 1, k))/DYpm2
                      dpsidz(1) = (SOL_pm(4, i, j, k + 1) - SOL_pm(4, i, j, k - 1))/DZpm2
-                     ! U = grad x psi
+                     
                      velvrx_pm(i, j, k) = velvrx_pm(i, j, k) + dpsidx(1)
                      velvry_pm(i, j, k) = velvry_pm(i, j, k) + dpsidy(1)
                      velvrz_pm(i, j, k) = velvrz_pm(i, j, k) + dpsidz(1)
@@ -110,11 +111,8 @@ contains
       end if!
 
       if (calculate_deformation) then
-      
-         !Sol of vorticity is no longer need thus we use it for storing deformation OLD NOW WE HAVE VAR
-         ! SOL_pm = 0.d0
          !REMEMBER VORTICITY CARRIED IS -OMEGA and the quantity transfered is -OMEGA thus
-         !deformation = - omega*\grad u
+         !deformation = (-omega*\grad) u
          deformx_pm = 0.d0
          deformy_pm = 0.d0
          deformz_pm = 0.d0
@@ -129,15 +127,6 @@ contains
          do k = NZs_fine_bl + 2, NZf_fine_bl - 2
             do j = NYs_fine_bl + 2, NYf_fine_bl - 2
                do i = NXs_fine_bl + 2, NXf_fine_bl - 2
-                  ! velxp = velvrx_pm(i + 1, j, k)
-                  ! velxm = velvrx_pm(i - 1, j, k)
-
-                  ! velyp = velvry_pm(i, j + 1, k)
-                  ! velym = velvry_pm(i, j - 1, k)
-
-                  ! velzp = velvrz_pm(i, j, k + 1)
-                  ! velzm = velvrz_pm(i, j, k - 1)
-
                   upi = velvrx_pm(i + 1, j, k)
                   upj = velvrx_pm(i, j + 1, k)
                   upk = velvrx_pm(i, j, k + 1)
@@ -204,12 +193,12 @@ contains
                         NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
       Implicit None
       real(dp) ::  dwxdx, dwydy, dwzdz, VIS
-      real(dp) ::  DXpm2, DYpm2, DZpm2 
+      real(dp) ::  DXpm_sq, DYpm_sq, DZpm_sq 
       integer  :: i, j, k
 
-      DXpm2 = DXpm**2
-      DYpm2 = DYpm**2
-      DZpm2 = DZpm**2
+      DXpm_sq = DXpm**2
+      DYpm_sq = DYpm**2
+      DZpm_sq = DZpm**2
       deformx_pm = 0.d0
       deformy_pm = 0.d0
       deformz_pm = 0.d0
@@ -226,29 +215,29 @@ contains
                end if
                !--> Remember that RHS = -w
                dwxdx = (RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i - 1, j, k))/DXpm2
+                        + RHS_pm(1, i - 1, j, k))/DXpm_sq
                dwydy = (RHS_pm(1, i, j + 1, k) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i, j - 1, k))/DYpm2
+                        + RHS_pm(1, i, j - 1, k))/DYpm_sq
                dwzdz = (RHS_pm(1, i, j, k + 1) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i, j, k - 1))/DZpm2
+                        + RHS_pm(1, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformx_pm(i, j, k) = -VIS*(dwxdx + dwydy + dwzdz) ! because RHS=-w
 
                dwxdx = (RHS_pm(2, i + 1, j, k) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i - 1, j, k))/DXpm2
+                        + RHS_pm(2, i - 1, j, k))/DXpm_sq
                dwydy = (RHS_pm(2, i, j + 1, k) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i, j - 1, k))/DYpm2
+                        + RHS_pm(2, i, j - 1, k))/DYpm_sq
                dwzdz = (RHS_pm(2, i, j, k + 1) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i, j, k - 1))/DZpm2
+                        + RHS_pm(2, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformy_pm(i, j, k) = -VIS*(dwxdx + dwydy + dwzdz) ! because RHS=-w
 
                dwxdx = (RHS_pm(3, i + 1, j, k) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i - 1, j, k))/DXpm2
+                        + RHS_pm(3, i - 1, j, k))/DXpm_sq
                dwydy = (RHS_pm(3, i, j + 1, k) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i, j - 1, k))/DYpm2
+                        + RHS_pm(3, i, j - 1, k))/DYpm_sq
                dwzdz = (RHS_pm(3, i, j, k + 1) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i, j, k - 1))/DZpm2
+                        + RHS_pm(3, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformz_pm( i, j, k) = -VIS*(dwxdx + dwydy + dwzdz) ! because RHS=-w
             end do
@@ -257,21 +246,20 @@ contains
       !$omp enddo
       !$omp endparallel
 
-      !!$omp parallel private(i,j,k) num_threads(OMPTHREADS)
-      !!$omp do
-      !do k = NZs_bl + 1, NZf_bl- 1
-      !    do j = NYs_bl + 1, NYf_bl(1 )- 1
-      !       do i = NXs_bl + 1, NXf_bl - 1
-
-      !            !--> Remember that RHS = -w
-      !            RHS_pm(1, i, j, k) = RHS_pm(1, i, j, k) - NI * deformx_pm(i, j, k)
-      !            RHS_pm(2, i, j, k) = RHS_pm(2, i, j, k) - NI * deformy_pm(i, j, k)
-      !            RHS_pm(3, i, j, k) = RHS_pm(3, i, j, k) - NI * deformz_pm(i, j, k)
-      !        enddo
-      !    enddo
-      !enddo
-      !!$omp enddo
-      !!$omp endparallel
+      !$omp parallel private(i,j,k) num_threads(OMPTHREADS)
+      !$omp do
+      do k = NZs_fine_bl + 1, NZf_fine_bl- 1
+         do j = NYs_fine_bl + 1, NYf_fine_bl- 1
+            do i = NXs_fine_bl + 1, NXf_fine_bl - 1
+                 !--> Remember that RHS = -w
+                 RHS_pm(1, i, j, k) = RHS_pm(1, i, j, k) - NI * deformx_pm(i, j, k)
+                 RHS_pm(2, i, j, k) = RHS_pm(2, i, j, k) - NI * deformy_pm(i, j, k)
+                 RHS_pm(3, i, j, k) = RHS_pm(3, i, j, k) - NI * deformz_pm(i, j, k)
+             enddo
+         enddo
+      enddo
+      !$omp enddo
+      !$omp endparallel
    end subroutine diffuse_vort_3d
 
    module subroutine calc_antidiffusion
@@ -283,15 +271,15 @@ contains
                         NXpm_fine, NYpm_fine, NZpm_fine
       Implicit None
       real(dp)                ::  dwxdx, dwydy, dwzdz, Ct
-      real(dp)                ::  DXpm2, DYpm2, DZpm2
+      real(dp)                ::  DXpm_sq, DYpm_sq, DZpm_sq
       integer                 :: i, j, k
       real(dp), allocatable   :: laplvort(:, :, :, :)
 
       allocate (laplvort(3, NXpm_fine, NYpm_fine, NZpm_fine))
       laplvort = 0.d0
-      DXpm2 = DXpm**2
-      DYpm2 = DYpm**2
-      DZpm2 = DZpm**2
+      DXpm_sq = DXpm**2
+      DYpm_sq = DYpm**2
+      DZpm_sq = DZpm**2
       Sol_pm = 0.d0
       Ct = 6.8*DXpm**2/4
       do k = NZs_fine_bl + 1, NZf_fine_bl - 1
@@ -299,29 +287,29 @@ contains
             do i = NXs_fine_bl + 1, NXf_fine_bl - 1
                !--> Remember that RHS = -w
                dwxdx = -(RHS_pm(1, i + 1, j, k) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i - 1, j, k))/DXpm2
+                        + RHS_pm(1, i - 1, j, k))/DXpm_sq
                dwydy = -(RHS_pm(1, i, j + 1, k) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i, j - 1, k))/DYpm2
+                        + RHS_pm(1, i, j - 1, k))/DYpm_sq
                dwzdz = -(RHS_pm(1, i, j, k + 1) - 2*RHS_pm(1, i, j, k) &
-                        + RHS_pm(1, i, j, k - 1))/DZpm2
+                        + RHS_pm(1, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                laplvort(1, i, j, k) = dwxdx + dwydy + dwzdz
 
                dwxdx = -(RHS_pm(2, i + 1, j, k) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i - 1, j, k))/DXpm2
+                        + RHS_pm(2, i - 1, j, k))/DXpm_sq
                dwydy = -(RHS_pm(2, i, j + 1, k) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i, j - 1, k))/DYpm2
+                        + RHS_pm(2, i, j - 1, k))/DYpm_sq
                dwzdz = -(RHS_pm(2, i, j, k + 1) - 2*RHS_pm(2, i, j, k) &
-                        + RHS_pm(2, i, j, k - 1))/DZpm2
+                        + RHS_pm(2, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                laplvort(2, i, j, k) = dwxdx + dwydy + dwzdz
 
                dwxdx = -(RHS_pm(3, i + 1, j, k) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i - 1, j, k))/DXpm2
+                        + RHS_pm(3, i - 1, j, k))/DXpm_sq
                dwydy = -(RHS_pm(3, i, j + 1, k) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i, j - 1, k))/DYpm2
+                        + RHS_pm(3, i, j - 1, k))/DYpm_sq
                dwzdz = -(RHS_pm(3, i, j, k + 1) - 2*RHS_pm(3, i, j, k) &
-                        + RHS_pm(3, i, j, k - 1))/DZpm2
+                        + RHS_pm(3, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                laplvort(3, i, j, k) = dwxdx + dwydy + dwzdz
             end do
@@ -333,29 +321,29 @@ contains
             do i = NXs_fine_bl + 1, NXf_fine_bl - 1
                !Minus because of (-w) has been included in laplvort
                dwxdx = (laplvort(1, i + 1, j, k) - 2*laplvort(1, i, j, k) &
-                        + laplvort(1, i - 1, j, k))/DXpm2
+                        + laplvort(1, i - 1, j, k))/DXpm_sq
                dwydy = (laplvort(1, i, j + 1, k) - 2*laplvort(1, i, j, k) &
-                        + laplvort(1, i, j - 1, k))/DYpm2
+                        + laplvort(1, i, j - 1, k))/DYpm_sq
                dwzdz = (laplvort(1, i, j, k + 1) - 2*laplvort(1, i, j, k) &
-                        + laplvort(1, i, j, k - 1))/DZpm2
+                        + laplvort(1, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformx_pm(i, j, k) = deformx_pm(i, j, k) + Ct*dwxdx + dwydy + dwzdz
 
                dwxdx = (laplvort(2, i + 1, j, k) - 2*laplvort(2, i, j, k) &
-                        + laplvort(2, i - 1, j, k))/DXpm2
+                        + laplvort(2, i - 1, j, k))/DXpm_sq
                dwydy = (laplvort(2, i, j + 1, k) - 2*laplvort(2, i, j, k) &
-                        + laplvort(2, i, j - 1, k))/DYpm2
+                        + laplvort(2, i, j - 1, k))/DYpm_sq
                dwzdz = (laplvort(2, i, j, k + 1) - 2*laplvort(2, i, j, k) &
-                        + laplvort(2, i, j, k - 1))/DZpm2
+                        + laplvort(2, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformy_pm(i, j, k) = deformy_pm(i, j, k) + Ct*dwxdx + dwydy + dwzdz
 
                dwxdx = (laplvort(3, i + 1, j, k) - 2*laplvort(3, i, j, k) &
-                        + laplvort(3, i - 1, j, k))/DXpm2
+                        + laplvort(3, i - 1, j, k))/DXpm_sq
                dwydy = (laplvort(3, i, j + 1, k) - 2*laplvort(3, i, j, k) &
-                        + laplvort(3, i, j - 1, k))/DYpm2
+                        + laplvort(3, i, j - 1, k))/DYpm_sq
                dwzdz = (laplvort(3, i, j, k + 1) - 2*laplvort(3, i, j, k) &
-                        + RHS_pm(3, i, j, k - 1))/DZpm2
+                        + RHS_pm(3, i, j, k - 1))/DZpm_sq
                ! U = grad x psi
                deformz_pm(i, j, k) = deformz_pm(i, j, k) + Ct*dwxdx + dwydy + dwzdz
             end do

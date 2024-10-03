@@ -1,6 +1,6 @@
 from . import Visualizer, ResultPlot, SliceFilter_3D, SliceStrategy
 
-class StandardVisualizer:
+class StandardVisualizer(Visualizer):
     def __new__(
         self,
         plot_particles: tuple[str, str] | None = None,

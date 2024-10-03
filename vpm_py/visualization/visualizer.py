@@ -218,13 +218,15 @@ class Visualizer:
         
         if self.has_mesh:
             (
-                mesh_positions, mesh_velocities, mesh_charges, mesh_deformations
+                neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solutions
             ) = process_pm_output_file(file_pm)
             self._update_mesh_plots(
                 mesh_positions,
                 mesh_charges,
                 mesh_velocities,
                 mesh_deformations,
+                mesh_solutions,
+                neq
             )
         if time:
             self._update_figure_title(frame, total_frames, time)
@@ -321,6 +323,8 @@ class Visualizer:
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray,
+        pm_solutions: np.ndarray | None = None,
+        neq: int = 3,
     ):
 
         if self.has_particles:
@@ -337,6 +341,8 @@ class Visualizer:
                 pm_charges,
                 pm_velocities,
                 pm_deformations,
+                pm_solutions,
+                neq
             )
         self._update_figure_title(iteration)
         self._render_plot()
@@ -363,11 +369,13 @@ class Visualizer:
         pm_positions: np.ndarray, 
         pm_charges: np.ndarray, 
         pm_velocities: np.ndarray, 
-        pm_deformations: np.ndarray
+        pm_deformations: np.ndarray,
+        pm_solutions: np.ndarray | None = None,
+        neq: int = 3,
     ):
         for key, qoi in self.mesh_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
-                pm_positions, pm_charges, pm_velocities, pm_deformations
+                neq, pm_positions, pm_charges, pm_velocities, pm_deformations, pm_solutions
             )
             title = f"Mesh {qoi.quantity_name.capitalize()}"
             if qoi.component:
@@ -399,12 +407,16 @@ class Visualizer:
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray,
+        neq: int = 3,
+        pm_solutions: np.ndarray | None = None,
     ):
         self._update_mesh_plots(
             pm_positions,
             pm_charges,
             pm_velocities,
             pm_deformations,
+            pm_solutions,
+            neq,
         )
         self._update_figure_title(iteration)
         self._render_plot()

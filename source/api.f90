@@ -3,7 +3,7 @@ Module api
    use vpm_lib
    use vpm_vars
    use vpm_size
-   use openmpth
+   ! use openmpth
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
    integer, parameter :: MAX_STRING_LENGTH = 256
