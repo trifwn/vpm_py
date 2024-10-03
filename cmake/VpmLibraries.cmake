@@ -59,6 +59,8 @@ function(define_vpm_targets)
         # Other VPM files
         ${SRC_VPM}/base_types.f90
         ${SRC_VPM}/constants.f90
+        ${SRC_VPM}/data_mpi_communication.f90
+        ${SRC_VPM}/operators_serial.f90
         ${SRC_VPM}/arrays.f90
         ${SRC_VPM}/console_io.f90
         ${SRC_VPM}/file_io.f90
@@ -82,6 +84,9 @@ function(define_vpm_targets)
     
     add_library(console_io OBJECT ${SRC_VPM}/console_io.f90)
     target_link_libraries(console_io PRIVATE types)
+
+    add_library(pmgrid OBJECT  ${SRC_VPM}/pmgrid.f90)
+    target_link_libraries(pmgrid PRIVATE console_io)
 
     add_library(file_io OBJECT ${SRC_VPM}/file_io.f90)
     target_link_libraries(
@@ -114,11 +119,11 @@ function(define_vpm_targets)
 
     add_library(mpi_matrices OBJECT ${SRC_VPM}/mpi_matrices.f90)
 
+    add_library(operators_serial OBJECT ${SRC_VPM}/operators_serial.f90)
+    add_library(data_mpi OBJECT ${SRC_VPM}/data_mpi_communication.f90)
+
     add_library(parvar OBJECT  ${SRC_VPM}/parvar.f90)
     target_link_libraries(parvar PRIVATE console_io)
-
-    add_library(pmgrid OBJECT  ${SRC_VPM}/pmgrid.f90)
-    target_link_libraries(pmgrid PRIVATE console_io)
 
     add_library(pmproject OBJECT ${SRC_VPM}/pmproject.f90)
 
@@ -129,7 +134,7 @@ function(define_vpm_targets)
     target_link_libraries(vpm_vars PRIVATE types console_io)
 
     add_library(vpm_size OBJECT ${SRC_VPM}/vpm_size.f90)
-    target_link_libraries(vpm_size PRIVATE types console_io)
+    target_link_libraries(vpm_size PRIVATE types console_io pmlib)
 
     add_library(vpm_interpolate OBJECT ${SRC_VPM}/vpm_interpolate.f90)
     target_link_libraries(vpm_interpolate PRIVATE types console_io pmproject vpm_size vpm_vars pmgrid parvar)
@@ -141,23 +146,29 @@ function(define_vpm_targets)
     target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars)
 
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
-    target_link_libraries(vpm_lib PRIVATE 
+    target_link_libraries(vpm_lib 
+    PUBLIC 
         yaps pmlib pmproject parvar pmgrid  
         vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
         console_io file_io types constants 
-        mpi_matrices
+        mpi_matrices operators_serial data_mpi 
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         h5fortran::h5fortran
     )
 
     if (BUILD_STATIC)
-        add_library(vpm STATIC ${ALL_VPM_OBJECTS_SRC}) 
+        add_library(vpm STATIC) 
     else()
-        add_library(vpm SHARED ${ALL_VPM_OBJECTS_SRC})
+        add_library(vpm SHARED)
     endif()
-    
-    target_link_libraries(vpm PRIVATE 
+    target_link_libraries(vpm 
+    PUBLIC 
+        vpm_lib yaps pmlib pmproject parvar pmgrid  
+        vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
+        console_io file_io types constants 
+        mpi_matrices operators_serial data_mpi 
+    PRIVATE 
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         h5fortran::h5fortran
@@ -198,28 +209,45 @@ function(define_vpm_targets)
     # # -------------------------------------------------------------------------------------------------
     add_executable(test_arrays_exe ${SRC_TEST}/test_arrays.f90)
     add_dependencies(test_arrays_exe arrays)
-    set_compiler_flags(test_arrays_exe)
     target_link_libraries(test_arrays_exe PRIVATE arrays)
+
+    # -------------------------------------------------------------------------------------------------
+    #                                           Operator Test Executable
+    # -------------------------------------------------------------------------------------------------
+
+    add_executable(test_operators ${SRC_TEST}/test_operators.f90)
+    target_link_libraries(test_operators PRIVATE data_mpi operators_serial)
+
+    # -------------------------------------------------------------------------------------------------
+    #                                          Compiler Flags
+    # -------------------------------------------------------------------------------------------------
 
     # Set Fortran compiler flags for all targets
     set_compiler_flags(arrays)
-    set_compiler_flags(constants)
     set_compiler_flags(types)
+    set_compiler_flags(constants)
     set_compiler_flags(console_io)
+    set_compiler_flags(pmgrid)
+    set_compiler_flags(file_io)
+    if(USE_MKL)
+        set_compiler_flags(mkl_poisson)
+    endif()
     set_compiler_flags(pmlib)
     set_compiler_flags(mpi_matrices)
+    set_compiler_flags(operators_serial)
+    set_compiler_flags(data_mpi)
     set_compiler_flags(parvar)
-    set_compiler_flags(pmgrid)
     set_compiler_flags(pmproject)
     set_compiler_flags(yaps)
     set_compiler_flags(vpm_vars)
     set_compiler_flags(vpm_size)
-    set_compiler_flags(vpm)
+    set_compiler_flags(vpm_interpolate)
+    set_compiler_flags(vpm_gcalc)
+    set_compiler_flags(vpm_mpi)
     set_compiler_flags(vpm_lib)
+    set_compiler_flags(vpm)
     set_compiler_flags(${EXE})
     set_compiler_flags(${EXE}_exe)
     set_compiler_flags(test_arrays_exe)
-    if(USE_MKL)
-        set_compiler_flags(mkl_poisson)
-    endif()
+    set_compiler_flags(test_operators)
 endfunction()

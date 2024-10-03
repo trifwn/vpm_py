@@ -111,6 +111,13 @@ subroutine vpm_interpolate(                                    &
    call interpolate_particles_parallel(1)
 end subroutine vpm_interpolate
 
+!> @brief Diffuses the particle vorticity through the PM grid
+!>
+!> @details
+!>     The subroutine performs the following steps:
+!>     - Project the particles to the PM grid
+!>     - Diffuse the vorticity on the PM using D(RHS_PM) = NI \nabla^2 RHS_PM
+!>     - Interpolate the PM grid to the particles
 subroutine vpm_diffuse(                                         &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,   &
    RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr,           & 
@@ -424,10 +431,13 @@ end subroutine vpm
    end subroutine allocate_sol_and_rhs
    
    subroutine solve_problem
-      use pmgrid, only: RHS_pm, RHS_pm_bl, print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero
+      use pmgrid, only: RHS_pm, SOL_pm, RHS_pm_bl, DXpm, DYpm, DZpm, &
+                        print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero 
       use vpm_mpi, only: rhsbcast, rhsscat
+      use serial_vector_field_operators, only: divergence, laplacian
       implicit none
-      integer :: my_rank, ierr
+      integer :: my_rank, ierr, i
+      real(dp), allocatable :: div_wmega(:, :, :, :), laplace_LHS_pm(:, :, :, :)
       type(grid) :: my_block_grid
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
@@ -499,7 +509,50 @@ end subroutine vpm
                int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
          call vpm_print(dummy_string, blue, 1)
       end if
-      tab_level = tab_level - 1
+
+      if (my_rank .eq. 0) then
+         ! We need to write the residuals of the solution
+         call divergence(RHS_pm, DXpm , DYpm, DZpm, div_wmega)
+         call laplacian(SOL_pm, DXpm, DYpm, DZpm, laplace_LHS_pm)
+         ! Print the mean, max and min div_u
+         write (*, *) ""
+         write (dummy_string, "(A)") 'Divergence of the Psi field'
+         call vpm_print(dummy_string, yellow, 1)
+         write (dummy_string, "(A, E10.4, A,E10.4, A, E10.4)") "ΔPsi"// &
+               achar(9)//" min : ", minval(div_wmega), &
+               achar(9)//" max : ", maxval(div_wmega), &
+               achar(9)//" mean: ", sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+         call vpm_print(dummy_string, blue, 1)
+
+         write (dummy_string, "(A)") 'Residuals of the solution'
+         call vpm_print(dummy_string, yellow, 1)
+         do i = 1,neqpm
+            ! For each equation write the laplacian - RHS_pm
+            write (dummy_string, "(A, I3, A)") '   Equation =', i, "Δf = RHS"
+            call vpm_print(dummy_string, blue, 1)
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Forcing (RHS)'//     &
+                  achar(9)//'min : ', minval(RHS_pm(i,:,:,:)),                                     &
+                  achar(9)//'max : ', maxval(RHS_pm(i,:,:,:)),                                     &
+                  achar(9)//'mean: ', sum(RHS_pm(i,:,:,:))/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+            call vpm_print(dummy_string, nocolor, 1)                                                   
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//"Solution"//          &
+                  achar(9)//'min : ', minval(SOL_pm(i,:,:,:)),                                     &
+                  achar(9)//'max : ', maxval(SOL_pm(i,:,:,:)),                                     &
+                  achar(9)//'mean: ', sum(SOL_pm(i,:,:,:))/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3)) 
+            call vpm_print(dummy_string, nocolor, 1)
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Res:=Δf-RHS'//  &
+                  achar(9)//'min : ', minval(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:)),            &
+                  achar(9)//'max : ', maxval(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:)),            &
+                  achar(9)//'mean: ', sum(laplace_LHS_pm(i,:,:,:) - RHS_PM(i,:,:,:))               &
+                                             /(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+            call vpm_print(dummy_string, nocolor, 1)                                                   
+            write (*, *) ""
+         enddo 
+         tab_level = tab_level - 1
+
+         ! Deallocate the memory
+         deallocate (div_wmega, laplace_LHS_pm)
+      end if
       
       ! CLEAR VELOCITIES
       call set_pm_velocities_zero

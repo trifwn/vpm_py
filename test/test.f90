@@ -32,6 +32,7 @@ Program test_pm
                                     XMIN, XMAX, UINF(3)
    integer                       :: NVR_MAX
    integer                       :: my_rank, np, ierr, i, neq, j, TMAX, ncell_rem
+   logical                       :: pmfile_exists
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -40,31 +41,49 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   open (1, file='pm.inp')
-   read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
-   read (1, *) interf_iproj         ! INTERFACE PROJECTION FUNCTION 1 , 2, 3 , 4
-   read (1, *) ibctyp               ! 1 - PERIODIC, 2 - INFLOW, 3 - OUTFLOW, 4 - WALL
-   read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
-   read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
-   read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
-   read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
-   read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
-   read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
-   read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
-   read (1, *) IPMWRITE             ! SAVING PARAMETER
-   if (IPMWRITE .gt. 10) stop       !maximume value of writes equal to 10
-   if (IPMWRITE .GT. 0) then
-      do i = 1, IPMWRITE            !max value 10
-         read (1, *) IPMWSTART(i), IPMWSTEPS(i) ! START AND FREQ OF WRITING
-      end do
-   end if
-   close (1)
-   if (my_rank .eq. 0) then
-      print *, 'Inputs read:'
-      print *, achar(9), 'DXpm=', DXpm
-      print *, achar(9), 'DYpm=', DYpm
-      print *, achar(9), 'DZpm=', DZpm
-   end if
+   
+   inquire (file='pm.inp', exist=pmfile_exists)
+   print *, 'pm.inp exists:', pmfile_exists
+   if (pmfile_exists) then
+      open (1, file='pm.inp')
+      read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
+      read (1, *) interf_iproj         ! INTERFACE PROJECTION FUNCTION 1 , 2, 3 , 4
+      read (1, *) ibctyp               ! 1 - PERIODIC, 2 - INFLOW, 3 - OUTFLOW, 4 - WALL
+      read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
+      read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
+      read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
+      read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
+      read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
+      read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
+      read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
+      read (1, *) IPMWRITE             ! SAVING PARAMETER
+      if (IPMWRITE .gt. 10) stop       !maximume value of writes equal to 10
+      if (IPMWRITE .GT. 0) then
+         do i = 1, IPMWRITE            !max value 10
+            read (1, *) IPMWSTART(i), IPMWSTEPS(i) ! START AND FREQ OF WRITING
+         end do
+      end if
+      close (1)
+      if (my_rank .eq. 0) then
+         print *, 'Inputs read:'
+         print *, achar(9), 'DXpm=', DXpm
+         print *, achar(9), 'DYpm=', DYpm
+         print *, achar(9), 'DZpm=', DZpm
+      end if
+   else
+      DXpm = 0.2_dp; DYpm = 0.2_dp; DZpm = 0.2_dp
+      interf_iproj = 4
+      ibctyp = 2
+      IDVPM = 1
+      ncoarse = 8
+      NBI = 1; NBJ = 2; NBK = 3
+      nremesh = 1; ncell_rem = 1
+      iyntree = 1; ilevmax = 1
+      OMPTHREADS = 1
+      idefine = 0
+      IPMWRITE = 1
+      IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
+   endif
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
@@ -222,10 +241,10 @@ Program test_pm
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       tab_level = 0
       
-      call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-      ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,velx, vely, velz)
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
+         call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
+         ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,velx, vely, velz)
          write (dummy_string, "(A)") "Convection of Particles"
          call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()

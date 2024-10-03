@@ -1,7 +1,7 @@
 function(setup_vpm_compiler_flags)
     if(USE_INTEL_COMPILER) 
         set(COMPILE_FLAGS -fpp -DASCII=1 -DHAVE_OMP -fPIC)
-        set(LINK_FLAGS "-qopenmp")
+        set(LINK_FLAGS "-qopenmp -fPIC")
 
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
                     -O0 ${MKL_FLAG} -g -traceback -fpe0
@@ -25,7 +25,7 @@ function(setup_vpm_compiler_flags)
         
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
                     -O0 -g -fbacktrace -finit-real=nan 
-                    -finit-integer=nan -fPIC -fcheck=all 
+                    -finit-integer=nan -fcheck=all 
                     -ffpe-trap=invalid,overflow,underflow
                     -fimplicit-none 
                     -fstack-protector-all
