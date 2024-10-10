@@ -112,6 +112,7 @@ class F_Array(object):
         _ = self._lib_array.create_dtype(
             c_int(self.ndims), c_int(self.total_size), shape_ptr_zero, data_ptr_zero
         )
+        self.data_ptr_zero = data_ptr_zero
 
         # print_red(f"Created array {self.name}")
         # print_green(f"\tThe array owns the data: {self.owns_data}")
@@ -202,7 +203,11 @@ class F_Array(object):
         return ret
 
     def to_ctype(self):
-        return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr[0][0])
+        # We need to get the 0 index pointe of the data_ptr
+        # If data is 1D, we need to get the pointer to the data_ptr[0]
+        # If data is 2D, we need to get the pointer to the data_ptr[0][0]
+        # If data is 3D, we need to get the pointer to the data_ptr[0][0][0] and so on
+        return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr_zero)
 
     def print_in_fortran(self):
         array_struct = self.to_ctype()

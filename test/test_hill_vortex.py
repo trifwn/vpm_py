@@ -20,13 +20,13 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 0,
+        verbocity= 1,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1
     )
     if rank == 0:
-        plotter = StandardVisualizer(plot_particles=("charge","magnitude"))
+        plotter = StandardVisualizer(plot_particles=("charge","magnitude"), plot_mesh= ("deformation","magnitude"))
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -99,7 +99,6 @@ def main():
         )
 
     comm.Barrier()
-    # call vpm with mode = 0
     vpm.vpm(
         num_equations= vpm.num_equations,
         mode = 0,
@@ -125,27 +124,21 @@ def main():
             num_equations=neq,
             mode = 2,
             particle_positions    =  XPR,
-            particle_charges    =  QPR,
+            particle_charges      =  QPR,
             timestep=i,
             viscosity=NI,
         )
 
-        print_IMPORTANT(f"INFO", rank)
         if rank == 0:
+            print_IMPORTANT(f"INFO", rank)
             XPR = vpm.particles.XP
             QPR = vpm.particles.QP
             UPR = vpm.particles.UP
             GPR = vpm.particles.GP
             # Print the size of the particles
-            # print(f"Number of particles: {NVR}")
-            # print(f"Number of equations: {neq}")
-            # print('\n')
-
-            # print_green(f"XPR:")
-            # print(f"Mean: {np.mean(XPR.data, axis=1)}")
-            # print(f"Max: {np.max(XPR.data, axis=1)}")
-            # print(f"Min: {np.min(XPR.data, axis=1)}")
-            # print('\n')
+            print(f"Number of particles: {NVR}")
+            print(f"Number of equations: {neq}")
+            print('\n')
 
             print_green(f"UPR:")
             print(f"Mean: {np.mean(UPR.data, axis=1)}")
@@ -153,44 +146,17 @@ def main():
             print(f"Min: {np.min(UPR.data, axis=1)}")
             print('\n')
             
-            # print_green(f"QPR:")
-            # print(f"Mean: {np.mean(QPR.data, axis=1)}")
-            # print(f"Max: {np.max(QPR.data, axis=1)}")
-            # print(f"Min: {np.min(QPR.data, axis=1)}")
-            # print('\n')
-
-            # print_green(f"GPR:")
-            # print(f"Mean: {np.mean(GPR.data, axis=1)}")
-            # print(f"Max: {np.max(GPR.data, axis=1)}")
-            # print(f"Min: {np.min(GPR.data, axis=1)}")
-            # print('\n')
-
-            # print(f"Particle Mesh Values:")
-            # print_green(f"RHS:")
-            # RHS = vpm.particle_mesh.RHS
-            # print(f"Mean: {np.mean(RHS)}")
-            # print(f"Max: {np.max(RHS)}")
-            # print(f"Min: {np.min(RHS)}")
-            # print('\n')
-
-            # ux = vpm.particle_mesh.Ux
-            # uy = vpm.particle_mesh.Uy
-            # uz = vpm.particle_mesh.Uz
-            # for u, name in zip([ux, uy, uz], ["Ux", "Uy", "Uz"]):
-            #     print_green(f"{name}:")
-            #     print(f"Mean: {np.mean(u)}")
-            #     print(f"Max: {np.max(u)}")
-            #     print(f"Min: {np.min(u)}")
-            #     print('\n')
-            
-            # V_mag = np.sqrt(ux**2 + uy**2 + uz**2)
-            # print_green(f"Velocity Magnitude:")
-            # print(f"Mean: {np.mean(V_mag)}")
-            # print(f"Max: {np.max(V_mag)}")
-            # print(f"Min: {np.min(V_mag)}")
-            # print('\n')
+            U_PM = vpm.particle_mesh.U
+            for name, u in zip(["Ux", "Uy", "Uz"], U_PM): 
+                print_green(f"{name}:")
+                print(f"Mean: {np.mean(u)}")
+                print(f"Max: {np.max(u)}")
+                print(f"Min: {np.min(u)}")
+                print('\n')
 
             print_IMPORTANT(f"Convecting Particles", rank)
+            
+            st = MPI.Wtime()
             # # Move the particles
             for j in range(vpm.particles.NVR):
                 # Translate the particles
@@ -198,7 +164,12 @@ def main():
                 # Diffusion of vorticity
                 # FACDEF = 1.0
                 # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
+            et = MPI.Wtime()
 
+            print(f"\tConvecting finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+            print_IMPORTANT(f"Updating the plot", rank)
+
+            st = MPI.Wtime()
             # Update the plot
             plotter.update_particle_plots(
                 iteration=i,
@@ -207,8 +178,24 @@ def main():
                 particle_velocities= UPR[:,:],
                 particle_deformations= GPR[:,:]
             )
+            plotter.update_mesh_plots(
+                iteration=i,
+                pm_positions= vpm.particle_mesh.grid_positions,
+                pm_velocities= vpm.particle_mesh.U,
+                pm_charges= vpm.particle_mesh.RHS,
+                pm_deformations= vpm.particle_mesh.deformation
+            )
+            et = MPI.Wtime()
+            
+            print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+            print_IMPORTANT(f"Saving the particles and particle mesh", rank)
+
+            st = MPI.Wtime()
             vpm.particles.save_to_file(filename= f"particles_test", folder="results_test")
             vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="results_test")
+            et = MPI.Wtime()
+
+            print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
 
         sleep(0.5)
         print_IMPORTANT(f"Redefine Bounds", rank)
@@ -224,20 +211,9 @@ def main():
         )
         comm.Barrier()
 
-        # if i<5:
-        #     print_IMPORTANT(f"Remeshing", rank)
-        #     # Remeshing
-        #     if rank == 0:
-        #         st = MPI.Wtime()
-        #         print_red(f"Remeshing")
-        #     XPR, QPR, UPR, GPR = vpm.remesh_particles_3d(1)
-        #     if rank == 0:
-        #         et = MPI.Wtime()
-        #         print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s")
-
     MPI.Finalize()
     end_time = MPI.Wtime()
-    print(f"Time taken: {end_time - start_time}")
+    print_IMPORTANT(f"Time taken: {int((end_time - start_time) / 60)}m {int(end_time - start_time) % 60}s", rank=rank) 
 
 if __name__ == "__main__":
     main()

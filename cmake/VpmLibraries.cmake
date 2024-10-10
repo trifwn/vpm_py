@@ -143,7 +143,7 @@ function(define_vpm_targets)
     target_link_libraries(vpm_gcalc PRIVATE types console_io vpm_size vpm_vars)
 
     add_library(vpm_mpi OBJECT ${SRC_VPM}/vpm_mpi.f90)
-    target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars)
+    target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars pmgrid)
 
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
     target_link_libraries(vpm_lib 
@@ -164,7 +164,7 @@ function(define_vpm_targets)
     endif()
     target_link_libraries(vpm 
     PUBLIC 
-        vpm_lib yaps pmlib pmproject parvar pmgrid  
+        vpm_lib arrays yaps pmlib pmproject parvar pmgrid  
         vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
         console_io file_io types constants 
         mpi_matrices operators_serial data_mpi 
@@ -184,10 +184,17 @@ function(define_vpm_targets)
     )
 
     # -------------------------------------------------------------------------------------------------
+    #                                            API Serial Vector Field Operators
+    # -------------------------------------------------------------------------------------------------
+    add_library(operators_api SHARED ${SRC_VPM}/api_operators_serial.f90)
+    add_dependencies(operators_serial arrays types) # Ensure proper dependency resolution
+    target_link_libraries(operators_api PRIVATE arrays types operators_serial)
+
+    # -------------------------------------------------------------------------------------------------
     #                                            API Shared Library
     # -------------------------------------------------------------------------------------------------
     add_library(${EXE} SHARED ${SRC_VPM}/api.f90)
-    add_dependencies(${EXE} vpm arrays) # Ensure proper dependency resolution
+    add_dependencies(${EXE} vpm arrays operators_api) # Ensure proper dependency resolution
     target_link_libraries(${EXE} PRIVATE vpm)
 
     # -------------------------------------------------------------------------------------------------

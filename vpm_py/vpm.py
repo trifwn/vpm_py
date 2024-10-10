@@ -1,5 +1,4 @@
 import numpy as np
-from mpi4py import MPI
 import os
 
 from ctypes import c_int,  byref, c_double, POINTER, c_char, c_char_p, create_string_buffer, cast
@@ -171,9 +170,8 @@ class VPM(object):
 
         # Get the pointers to arrays for the grid values
         RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
-        Velx_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
-        Vely_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
-        Velz_ptr = F_Array_Struct.null(ndims=3, total_size= 1)
+        Velocity_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
+        Deformation_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
 
         if num_particles is None:
             num_particles = NVR_size
@@ -181,8 +179,9 @@ class VPM(object):
         self._lib.vpm(
             XP_ptr, QP_ptr, UP_ptr, GP_ptr,
             byref(c_int(num_particles)), byref(c_int(num_equations)),byref(c_int(mode)), 
-            byref(RHS_pm_ptr), byref(Velx_ptr), byref(Vely_ptr), byref(Velz_ptr),
-            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(NVR_size))
+            byref(RHS_pm_ptr), byref(Velocity_ptr),
+            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(NVR_size)),
+            byref(Deformation_ptr)
         )
         # store the results of the particles
         self.particles.particle_positions = pointer_to_dp_array(XP_ptr, particle_positions.shape)
@@ -194,21 +193,17 @@ class VPM(object):
         neq = self.num_equations
 
         self.particle_mesh.number_equations = neq
-        if not Velx_ptr.is_null():
-            Ux_arr = F_Array.from_ctype(Velx_ptr, ownership=True, name = "Ux")
-            self.particle_mesh.Ux = Ux_arr.transfer_data_ownership()
+        if not Velocity_ptr.is_null():
+            U_arr = F_Array.from_ctype(Velocity_ptr, ownership=True, name = "U")
+            self.particle_mesh.U = U_arr.transfer_data_ownership()
         
-        if not Vely_ptr.is_null():
-            Uy_arr = F_Array.from_ctype(Vely_ptr, ownership=True, name = "Uy")
-            self.particle_mesh.Uy = Uy_arr.transfer_data_ownership()
-        
-        if not Velz_ptr.is_null():
-            Uz_arr = F_Array.from_ctype(Velz_ptr, ownership=True, name = "Uz")
-            self.particle_mesh.Uz = Uz_arr.transfer_data_ownership()
-
         if not RHS_pm_ptr.is_null():
             RHS_arr = F_Array.from_ctype(RHS_pm_ptr, ownership=True, name = "RHS")
             self.particle_mesh.RHS = RHS_arr.transfer_data_ownership()
+
+        if not Deformation_ptr.is_null():
+            G_arr = F_Array.from_ctype(Deformation_ptr, ownership=True, name = "G")
+            self.particle_mesh.deformation = G_arr.transfer_data_ownership()
 
     def remesh_particles(self, project_particles: bool, particles_per_cell: int= 1, cut_off: float = 1e-9):
         """Remesh particles in 3D

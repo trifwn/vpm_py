@@ -130,11 +130,11 @@ submodule(vpm_lib) vpm_remesh
 
          write (dummy_string,"(A)") 'The sampling for the particles happens on the intervals:'
          call vpm_print(dummy_string, nocolor, 2)
-         write (dummy_string,"(A, I5, A, I5)") '-X: start=', nxstart,"finish=", nxfin
+         write (dummy_string,"(A, I5, A, I5)") '-X: start=', nxstart," finish=", nxfin
          call vpm_print(dummy_string, nocolor, 2)
-         write (dummy_string,"(A, I5, A, I5)") '-Y: start=', nystart,"finish=", nyfin
+         write (dummy_string,"(A, I5, A, I5)") '-Y: start=', nystart," finish=", nyfin
          call vpm_print(dummy_string, nocolor, 2)
-         write (dummy_string,"(A, I5, A, I5)") '-Z: start=', nzstart,"finish=", nzfin
+         write (dummy_string,"(A, I5, A, I5)") '-Z: start=', nzstart," finish=", nzfin
          call vpm_print(dummy_string, nocolor, 2)
 
          ! Total number of particles

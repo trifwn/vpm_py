@@ -3,7 +3,7 @@ module test_mod
    real(dp), allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
                                            XPO(:, :), QPO(:, :), &
                                            XP_in(:, :), QP_in(:, :)
-   real(dp), pointer:: velx(:, :, :), vely(:, :, :), velz(:, :, :)
+   real(dp), pointer:: vel(:,:,:,:)
    real(dp), pointer:: RHS_pm_in(:, :, :, :), RHS_pm_out(:, :, :, :)
    integer, allocatable    :: qflag(:)
    integer :: NVR_ext, NVR_ext_init
@@ -18,8 +18,7 @@ Program test_pm
    use vpm_size, only:  st, et, fine_grid
    use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, &
                         QPO, XPO, Qflag, &
-                        QP_in, XP_in, RHS_pm_in, &
-                        velx, vely, velz
+                        QP_in, XP_in, RHS_pm_in, vel
    use test_app, only: hill_assign
    use parvar, only:    NVR
    use vpm_lib, only:   vpm, remesh_particles_3d
@@ -154,7 +153,7 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 0, NI_in, NVR_MAX)
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, vel, 0, NI_in, NVR_MAX)
    !--- END INITIALIZATION VPM
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!y
@@ -180,7 +179,7 @@ Program test_pm
       UPR = 0; GPR = 0
    end if
    ! Reinitalize the domain
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, velx, vely, velz, 1, NI_in, NVR_MAX)
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, vel, 1, NI_in, NVR_MAX)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -212,7 +211,7 @@ Program test_pm
 
    !--- MAIN LOOP
    T = 0
-   TMAX = 100
+   TMAX = 500
    do i = 1, TMAX
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
@@ -237,14 +236,14 @@ Program test_pm
       end if
 
       !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
-      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_pm_in, vel, i, NI_in, NVR_MAX)
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       tab_level = 0
       
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
          call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-         ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,velx, vely, velz)
+         ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,vel)
          write (dummy_string, "(A)") "Convection of Particles"
          call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()
@@ -290,7 +289,7 @@ Program test_pm
 
       !--- VPM INITIALIZATION AND REMESHING
       ! Used to redefine the sizes
-      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_pm_in, velx, vely, velz, i, NI_in, NVR_MAX)
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_pm_in, vel, i, NI_in, NVR_MAX)
       tab_level = 0
 
       if (mod(i, 1).eq.0) then         
@@ -302,7 +301,7 @@ Program test_pm
       ! !--- END VPM INITIALIZATION AND REMESHING
       
       !--- VPM DIFFUSION
-      !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,velx,vely,velz,i,NI_in,NVR_ext)
+      !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,vel,i,NI_in,NVR_ext)
       !if (my_rank.eq.0) then
       !   write(*,*) maxval(GPR(:,:))
       !    do j= 1,NVR_ext

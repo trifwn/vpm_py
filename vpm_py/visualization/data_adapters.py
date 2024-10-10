@@ -78,7 +78,7 @@ class MeshDataAdapter(DataAdapter):
         pm_positions, 
         pm_charges, 
         pm_velocities, 
-        pm_deformations, 
+        pm_deformations = None, 
         pm_solutions = None
     ):
         positions = {
@@ -86,21 +86,33 @@ class MeshDataAdapter(DataAdapter):
             'y': pm_positions[1,:, :, :],
             'z': pm_positions[2,:, :, :]
         }
-        velocities = {
-            'x': pm_velocities[0,:, :, :],
-            'y': pm_velocities[1,:, :, :],
-            'z': pm_velocities[2,:, :, :]
-        }
-        deformations = {
-            'x': pm_deformations[0,:, :, :],
-            'y': pm_deformations[1,:, :, :],
-            'z': pm_deformations[2,:, :, :]
-        }
-        charges = {
-            'x': pm_charges[0,:, : , :],
-            'y': pm_charges[1,:, : , :],
-            'z': pm_charges[2,:, : , :]
-        }
+        if pm_velocities is not None:
+            velocities = {
+                'x': pm_velocities[0,:, :, :],
+                'y': pm_velocities[1,:, :, :],
+                'z': pm_velocities[2,:, :, :]
+            }
+        else:
+            velocities = None
+
+        if pm_deformations is not None:
+            deformations = {
+                'x': pm_deformations[0,:, :, :],
+                'y': pm_deformations[1,:, :, :],
+                'z': pm_deformations[2,:, :, :]
+            }
+        else:
+            deformations = None
+        
+        if pm_charges is not None:
+            charges = {
+                'x': pm_charges[0,:, : , :],
+                'y': pm_charges[1,:, : , :],
+                'z': pm_charges[2,:, : , :]
+            }
+        else:
+            charges = None
+
         if pm_solutions is not None:
             solution = {
                 'x': pm_solutions[0],
@@ -111,7 +123,6 @@ class MeshDataAdapter(DataAdapter):
             solution = None
             
         data = {
-            "neq": neq,
             'position': positions,
             'charge': charges,
             'velocity': velocities,

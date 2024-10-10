@@ -8,10 +8,8 @@ contains
    !   Input :                                                                 !
    !          itype (1,2) defines what value to interpolate to the particles   !
    !---------------------------------------------------------------------------!
-   subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP,    &
-                                 velvrx_pm, velvry_pm, velvrz_pm,    &
-                                 deformx_pm, deformy_pm, deformz_pm, &
-                                 NVR, iproj, itype, NVRM)
+   subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP, velocity_pm, deform_pm, &
+                                   NVR, iproj, itype, NVRM)
       ! TODO: MAKE FLAGS FOR CALC U AND CALC G
       use projlib, only: projection_fun
       use base_types, only: dp
@@ -19,12 +17,8 @@ contains
       use vpm_vars, only: neqpm, OMPTHREADS
       Implicit None
       integer, intent(in)     :: NVR, iproj, NVRM, itype
-      real(dp), intent(in)    :: velvrx_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: velvry_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: velvrz_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: deformx_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: deformy_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: deformz_pm(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: velocity_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+      real(dp), intent(in)    :: deform_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(in)    :: SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(inout) :: QP(neqpm+1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
 
@@ -81,12 +75,12 @@ contains
 
                   f = fx*fy*fz
 
-                  UP(1, nv) = UP(1, nv) + f*(velvrx_pm(i, j, k))
-                  UP(2, nv) = UP(2, nv) + f*(velvry_pm(i, j, k))
-                  UP(3, nv) = UP(3, nv) + f*(velvrz_pm(i, j, k))
-                  GP(1, nv) = GP(1, nv) + f*(deformx_pm(i, j, k))
-                  GP(2, nv) = GP(2, nv) + f*(deformy_pm(i, j, k))
-                  GP(3, nv) = GP(3, nv) + f*(deformz_pm(i, j, k))
+                  UP(1, nv) = UP(1, nv) + f*(velocity_pm(1, i, j, k))
+                  UP(2, nv) = UP(2, nv) + f*(velocity_pm(2, i, j, k))
+                  UP(3, nv) = UP(3, nv) + f*(velocity_pm(3, i, j, k))
+                  GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k))
+                  GP(2, nv) = GP(2, nv) + f*(deform_pm(2, i, j, k))
+                  GP(3, nv) = GP(3, nv) + f*(deform_pm(3, i, j, k))
                end do
             end do
          end do

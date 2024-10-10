@@ -410,7 +410,7 @@ contains
       NN_bl_out = fine_grid%NN_bl
    End subroutine get_fine_NNbl
 
-   subroutine get_fine_Xbound(Xbound_out) bind(C, name='get_Xbound') 
+   subroutine get_fine_Xbound(Xbound_out) bind(C, name='get_fine_bounds') 
       use iso_c_binding
       implicit none
       real(c_double), dimension(6) :: Xbound_out      
@@ -423,17 +423,17 @@ contains
       implicit none
       type(grid) :: grid_in
       real(dp)    :: DV
-      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+      write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
                achar(9)//'XMIN='//achar(9), grid_in%Xbound(1), &
                achar(9)//'YMIN='//achar(9), grid_in%Xbound(2), &
                achar(9)//'ZMIN='//achar(9), grid_in%Xbound(3)
       call vpm_print(dummy_string,nocolor,2)
-      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+      write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
                achar(9)//'XMAX='//achar(9), grid_in%Xbound(4), &
                achar(9)//'YMAX='//achar(9), grid_in%Xbound(5), &
                achar(9)//'ZMAX='//achar(9), grid_in%Xbound(6)
       call vpm_print(dummy_string,nocolor,2)
-      write (dummy_string, '(A, F8.5, A, F8.5, A, F8.5)') &
+      write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
                achar(9)//'DX='//achar(9), grid_in%Dpm(1), &
                achar(9)//'DY='//achar(9), grid_in%Dpm(2), &
                achar(9)//'DZ='//achar(9), grid_in%Dpm(3)

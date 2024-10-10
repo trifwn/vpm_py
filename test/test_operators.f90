@@ -610,7 +610,7 @@ contains
 
    subroutine test_differential_operators(total_tests, passed_tests)
       integer, intent(inout) :: total_tests, passed_tests
-      real(real64), allocatable :: f(:,:,:,:), result(:,:,:,:)
+      real(real64), allocatable :: f(:,:,:,:), result3D(:,:,:), result4D(:,:,:,:)
       real(real64) :: dx, dy, dz, x, y, z, tol
       integer :: neq, nx, ny, nz, j, k, l
       logical :: test_passed
@@ -652,7 +652,7 @@ contains
 
          ! Test divergence
          print *, "  - Testing divergence..."
-         result = apply_differential_operator(f, dx, dy, dz, "divergence")
+         result3D = divergence(f, dx, dy, dz)
          test_passed = .true.
          ! Analytical divergence: div(f) = 2x + 2y + 2z
          do l = 1, nz
@@ -661,8 +661,8 @@ contains
                      x = real(j, real64) * dx
                      y = real(k, real64) * dy
                      z = real(l, real64) * dz
-                     if (abs(result(1,j,k,l) - (2*x + 2*y + 2*z)) > tol) then
-                        print *, "    - Divergence test failed at (", j, k, l, "):", result(1,j,k,l), "expected:", 2*x + 2*y + 2*z
+                     if (abs(result3D(j,k,l) - (2*x + 2*y + 2*z)) > tol) then
+                        print *, "    - Divergence test failed at (", j, k, l, "):", result3D(j,k,l), "expected:", 2*x + 2*y + 2*z
                         test_passed = .false.
                      end if
                   end do
@@ -678,7 +678,7 @@ contains
 
          ! Test curl
          print *, "  - Testing curl..."
-         result = apply_differential_operator(f, dx, dy, dz, "curl")
+         result4D = curl(f, dx, dy, dz)
          test_passed = .true.
          ! Analytical curl: curl(f) = [-2z, 2x, -2y]
          do l = 1, nz
@@ -687,11 +687,11 @@ contains
                      x = real(j, real64) * dx
                      y = real(k, real64) * dy
                      z = real(l, real64) * dz
-                     if ( abs(result(1,j,k,l) + 2*z) > tol .or. &
-                        abs(result(2,j,k,l) + 2*x) > tol .or. &
-                        abs(result(3,j,k,l) + 2*y) > tol ) then
+                     if ( abs(result4D(1,j,k,l) + 2*z) > tol .or. &
+                        abs(result4D(2,j,k,l) + 2*x) > tol .or. &
+                        abs(result4D(3,j,k,l) + 2*y) > tol ) then
                         print *, "    - Curl test failed at (", j, k, l, ")"
-                        print *, "      - Result: ", result(:,j,k,l)
+                        print *, "      - Result: ", result4D(:,j,k,l)
                         print *, "      - Expected: ", [-2*z, -2*x, -2*y]
                         test_passed = .false.
                      end if
@@ -708,16 +708,16 @@ contains
 
          ! Test Laplacian
          print *, "  - Testing Laplacian..."
-         result = apply_differential_operator(f, dx, dy, dz, "laplacian")
+         result4D = laplacian(f, dx, dy, dz)
          test_passed = .true.
          ! Analytical Laplacian: lap(f) = [2 + 2, 2 + 2, 2 + 2] = [4, 4, 4]
          do l = 1, nz
             do k = 1, ny
                   do j = 1, nx
-                     if (abs(result(1,j,k,l) - 4.0) > tol .or. &
-                        abs(result(2,j,k,l) - 4.0) > tol .or. &
-                        abs(result(3,j,k,l) - 4.0) > tol) then
-                        print *, "    - Laplacian test failed at (", j, k, l, "):", result(:,j,k,l), "expected: 4.0"
+                     if (abs(result4D(1,j,k,l) - 4.0) > tol .or. &
+                        abs(result4D(2,j,k,l) - 4.0) > tol .or. &
+                        abs(result4D(3,j,k,l) - 4.0) > tol) then
+                        print *, "    - Laplacian test failed at (", j, k, l, "):", result4D(:,j,k,l), "expected: 4.0"
                         test_passed = .false.
                      end if
                   end do
@@ -734,7 +734,8 @@ contains
 
          ! Deallocate arrays
          deallocate(f)
-         deallocate(result)
+         deallocate(result3D)
+         deallocate(result4D)
       endif
    end subroutine test_differential_operators
 

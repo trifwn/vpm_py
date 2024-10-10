@@ -44,8 +44,8 @@ class VPM_Lib:
         # API.vpm
         cls._lib_vpm.vpm.argtypes = [
             POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_double),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(F_Array_Struct),
-            POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(c_int),
+            POINTER(c_int), POINTER(c_int), POINTER(c_int), 
+            POINTER(F_Array_Struct), POINTER(F_Array_Struct), POINTER(c_int),
             POINTER(c_double), POINTER(c_int)
         ]
         cls._lib_vpm.vpm.restype = None
@@ -67,3 +67,10 @@ class VPM_Lib:
         cls._lib_vpm.write_particle_mesh_solution.restype = None
         cls._lib_vpm.write_particles.argtypes = []
         cls._lib_vpm.write_particles.restype = None
+
+        # # Calculate Derivatives
+        # cls._lib_vpm.calc_derivative.argtypes = [
+        #     POINTER(F_Array_Struct), POINTER(c_double), POINTER(c_int), POINTER(c_int),
+        #     POINTER(F_Array_Struct)
+        # ]
+        # cls._lib_vpm.calc_derivative.restype = None

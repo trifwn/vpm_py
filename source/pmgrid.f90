@@ -1,7 +1,7 @@
 module pmgrid
    use base_types, only: dp
-   real(dp), allocatable, target, save :: velvrx_pm(:, :, :), velvry_pm(:, :, :), velvrz_pm(:, :, :)
-   real(dp), allocatable, target, save :: deformx_pm(:, :, :), deformy_pm(:, :, :), deformz_pm(:, :, :)
+   real(dp), allocatable, target, save :: velocity_pm(:,:,:,:)
+   real(dp), allocatable, target, save :: deform_pm(:, :, :, :)
    real(dp), allocatable, target, save :: RHS_pm(:, :, :, :)
    real(dp), allocatable, target, save :: SOL_pm(:, :, :, :) 
    real(dp), allocatable, target       :: SOL_pm_bl(:, :, :, :)  
@@ -20,7 +20,7 @@ module pmgrid
 
 
    ! GETTERS
-   public :: get_NXpm_coarse, get_NYpm_coarse, get_NZpm_coarse
+   public :: get_NXpm, get_NYpm, get_NZpm
    ! SETTERS
    public :: set_RHS_pm 
    ! Printers
@@ -28,62 +28,28 @@ module pmgrid
 
 contains
 
-   subroutine associate_velocities(velx_ptr, vely_ptr, velz_ptr)
-      real(dp), pointer, intent(out) :: velx_ptr(:,:,:), vely_ptr(:,:,:), velz_ptr(:,:,:)
-      if (associated(velx_ptr))     nullify (velx_ptr)
-      if (associated(vely_ptr))     nullify (vely_ptr)
-      if (associated(velz_ptr))     nullify (velz_ptr) 
-      velx_ptr => velvrx_pm
-      vely_ptr => velvry_pm
-      velz_ptr => velvrz_pm
+   subroutine associate_velocities(vel_ptr)
+      real(dp), pointer, intent(out) :: vel_ptr(:,:,:,:)
+      if (associated(vel_ptr))     nullify (vel_ptr)
+      vel_ptr => velocity_pm
    end subroutine associate_velocities
 
-   subroutine associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
-      real(dp), pointer, intent(out) :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
-      if (associated(deformx_ptr))  nullify (deformx_ptr)
-      if (associated(deformy_ptr))  nullify (deformy_ptr)
-      if (associated(deformz_ptr))  nullify (deformz_ptr) 
-      deformx_ptr => deformx_pm
-      deformy_ptr => deformy_pm
-      deformz_ptr => deformz_pm
+   subroutine associate_deformations(deform_ptr)
+      real(dp), pointer, intent(out) :: deform_ptr(:,:,:,:)
+      if (associated(deform_ptr))  nullify (deform_ptr) 
+      deform_ptr => deform_pm
    end subroutine associate_deformations
 
    subroutine set_pm_velocities_zero
-      if (allocated(velvrx_pm)) then
-         deallocate (velvrx_pm, velvry_pm, velvrz_pm)
-         allocate (velvrx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(velvry_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(velvrz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         velvrx_pm = 0.d0; 
-         velvry_pm = 0.d0; 
-         velvrz_pm = 0.d0
-      else
-         allocate (velvrx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(velvry_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(velvrz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         velvrx_pm = 0.d0; 
-         velvry_pm = 0.d0; 
-         velvrz_pm = 0.d0
-      end if
+      if (allocated(velocity_pm)) deallocate (velocity_pm)
+      allocate (velocity_pm(3, NXpm_fine, NYpm_fine, NZpm_fine))
+      velocity_pm = 0.d0
    end subroutine set_pm_velocities_zero
 
    subroutine set_pm_deformations_zero
-      if (allocated(deformx_pm)) then
-         deallocate (deformx_pm, deformy_pm, deformz_pm)
-         allocate (deformx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(deformy_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(deformz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         deformx_pm = 0.d0; 
-         deformy_pm = 0.d0; 
-         deformz_pm = 0.d0
-      else
-         allocate (deformx_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(deformy_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         allocate(deformz_pm(NXpm_fine, NYpm_fine, NZpm_fine))
-         deformx_pm = 0.d0; 
-         deformy_pm = 0.d0; 
-         deformz_pm = 0.d0
-      end if
+      if (allocated(deform_pm)) deallocate (deform_pm)
+      allocate (deform_pm(3, NXpm_fine, NYpm_fine, NZpm_fine))
+      deform_pm = 0.d0
    end subroutine set_pm_deformations_zero
 
 
@@ -91,27 +57,59 @@ contains
    !! GETTERS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-   subroutine get_NXpm_coarse(NX_pm_out) bind(C, name='get_NX_pm_coarse') 
+   subroutine get_NXpm(NX_pm_out) bind(C, name='get_NX_pm') 
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NX_pm_out
       NX_pm_out = NXpm_fine
-   End subroutine get_NXpm_coarse
+   End subroutine get_NXpm
 
-   subroutine get_NYpm_coarse(NY_pm_out) bind(C, name='get_NY_pm_coarse') 
+   subroutine get_NYpm(NY_pm_out) bind(C, name='get_NY_pm') 
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NY_pm_out
       NY_pm_out = NYpm_fine
-   End subroutine get_NYpm_coarse
+   End subroutine get_NYpm
 
-   subroutine get_NZpm_coarse(NZ_pm_out) bind(C, name='get_NZ_pm_coarse') 
+   subroutine get_NZpm(NZ_pm_out) bind(C, name='get_NZ_pm') 
       use, intrinsic :: iso_c_binding, only: c_int
       implicit none
       integer(c_int), intent(out) :: NZ_pm_out
       NZ_pm_out = NZpm_fine
-   End subroutine get_NZpm_coarse
+   End subroutine get_NZpm
 
+   subroutine get_dpm(DXpm_out, DYpm_out, DZpm_out) bind(C, name='get_dpm')
+      use, intrinsic :: iso_c_binding, only: c_double
+      implicit none
+      real(c_double), intent(out) :: DXpm_out, DYpm_out, DZpm_out
+      DXpm_out = DXpm
+      DYpm_out = DYpm
+      DZpm_out = DZpm
+   end subroutine get_dpm
+
+   subroutine get_Xbounds(XMIN_pm_out, XMAX_pm_out) bind(C, name='get_Xbounds')
+      use, intrinsic :: iso_c_binding, only: c_double
+      implicit none
+      real(c_double), intent(out) :: XMIN_pm_out, XMAX_pm_out
+      XMIN_pm_out = XMIN_pm
+      XMAX_pm_out = XMAX_pm
+   end subroutine get_Xbounds
+
+   subroutine get_Ybounds(YMIN_pm_out, YMAX_pm_out) bind(C, name='get_Ybounds')
+      use, intrinsic :: iso_c_binding, only: c_double
+      implicit none
+      real(c_double), intent(out) :: YMIN_pm_out, YMAX_pm_out
+      YMIN_pm_out = YMIN_pm
+      YMAX_pm_out = YMAX_pm
+   end subroutine get_Ybounds
+
+   subroutine get_Zbounds(ZMIN_pm_out, ZMAX_pm_out) bind(C, name='get_Zbounds')
+      use, intrinsic :: iso_c_binding, only: c_double
+      implicit none
+      real(c_double), intent(out) :: ZMIN_pm_out, ZMAX_pm_out
+      ZMIN_pm_out = ZMIN_pm
+      ZMAX_pm_out = ZMAX_pm
+   end subroutine get_Zbounds
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !! SETTERS
@@ -137,12 +135,8 @@ contains
       print *, "PM GRID INFO"
       print *, "============"
       print *, ""
-      call dp_3d_alloc_info("velvrx_pm", velvrx_pm)
-      call dp_3d_alloc_info("velvry_pm", velvry_pm)
-      call dp_3d_alloc_info("velvrz_pm", velvrz_pm)
-      call dp_3d_alloc_info("deformx_pm", deformx_pm)
-      call dp_3d_alloc_info("deformy_pm", deformy_pm)
-      call dp_3d_alloc_info("deformz_pm", deformz_pm)
+      call dp_4d_alloc_info("velocity_pm", velocity_pm)
+      call dp_4d_alloc_info("deform_pm", deform_pm)
       call dp_4d_alloc_info("RHS_pm", RHS_pm)
       print *, achar(9), "XMIN_pm: ", XMIN_pm
       print *, achar(9), "XMAX_pm: ", XMAX_pm
@@ -182,33 +176,33 @@ contains
          call vpm_print(dummy_string, red, 1)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"X:", &
-            achar(9)//"Max:", maxval(velvrx_pm), &
-            achar(9)//"Min:", minval(velvrx_pm), &
-            achar(9)//"Mean:", sum(velvrx_pm)/NXpm_fine/NYpm_fine/NZpm_fine
+            achar(9)//"Max:", maxval(velocity_pm(1,:,:,:)), &
+            achar(9)//"Min:", minval(velocity_pm(1,:,:,:)), &
+            achar(9)//"Mean:", sum(velocity_pm(1,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"Y:", &
-            achar(9)//"Max:", maxval(velvry_pm), &
-            achar(9)//"Min:", minval(velvry_pm), &
-            achar(9)//"Mean:", sum(velvry_pm)/NXpm_fine/NYpm_fine/NZpm_fine
+            achar(9)//"Max:", maxval(velocity_pm(2,:,:,:)), &
+            achar(9)//"Min:", minval(velocity_pm(2,:,:,:)), &
+            achar(9)//"Mean:", sum(velocity_pm(2,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"Z:", &
-            achar(9)//"Max:", maxval(velvrz_pm), &
-            achar(9)//"Min:", minval(velvrz_pm), &
-            achar(9)//"Mean:", sum(velvrz_pm)/NXpm_fine/NYpm_fine/NZpm_fine
+            achar(9)//"Max:", maxval(velocity_pm(3,:,:,:)), &
+            achar(9)//"Min:", minval(velocity_pm(3,:,:,:)), &
+            achar(9)//"Mean:", sum(velocity_pm(3,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
          call vpm_print(dummy_string, nocolor, 2)
          ! CHeck for nan values
-         if (any(isnan(velvrx_pm)) .or. any(isnan(velvry_pm)) .or. any(isnan(velvrz_pm))) then
+         if (any(isnan(velocity_pm))) then 
             ! Print Velx
             do i = 1, NXpm_fine
                do j = 1, NYpm_fine
                   do k = 1, NZpm_fine
-                     if (isnan(velvrx_pm(i, j, k)) .or. isnan(velvry_pm(i, j, k)) .or. isnan(velvrz_pm(i, j, k))) then
+                     if (isnan(velocity_pm(1, i, j, k)) .or. &
+                         isnan(velocity_pm(2, i, j, k)) .or. &
+                         isnan(velocity_pm(3, i, j, k))) then
                         write (*, "(A, I3, A, I3, A, I3)") &
                               achar(9)//"I:", i, achar(9)//"J:", j, achar(9)//"K:", k, achar(9)
-                        ! write (*, "(A, 3F15.8)") &
-                              ! achar(9)//achar(9)//"Velx:" , velvrx_pm(i, j, k), achar(9)//"Vely", velvry_pm(i, j, k), achar(9)//"Velz", velvrz_pm(i, j, k)
                         stop
                      end if
                   end do

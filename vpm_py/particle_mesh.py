@@ -13,27 +13,16 @@ from vpm_py.vpm_lib import VPM_Lib
 class ParticleMesh: 
     def __init__(
         self, 
-        Nx: int= 10,
-        Ny: int= 10,
-        Nz: int= 10,
         num_equations: int = 3
     ) -> None:
         self.load_lib()
-        self.Nx = Nx
-        self.Ny = Ny
-        self.Nz = Nz
         self.number_equations = num_equations
         
         self.load_lib()
-        self.Ux = np.zeros((Nx, Ny, Nz))
-        self.Uy = np.zeros((Nx, Ny, Nz))
-        self.Uz = np.zeros((Nx, Ny, Nz))
-        self.RHS = np.zeros((num_equations + 1, Nx, Ny, Nz))
-    
-    def update_U(self, Ux, Uy, Uz):
-        self.Ux = Ux
-        self.Uy = Uy
-        self.Uz = Uz
+        self.U = np.zeros((3, 1, 1, 1))
+        self.deformation = np.zeros((3, 1, 1, 1))
+        self.SOL = np.zeros((num_equations, 1, 1, 1))
+        self.RHS = np.zeros((num_equations , 1, 1, 1))
     
     def load_lib(self):
         lib = VPM_Lib()
@@ -41,41 +30,84 @@ class ParticleMesh:
         self.setup_function_signatures()
 
     def setup_function_signatures(self):
-        self._lib.get_NX_pm_coarse.argtypes = [POINTER(c_int)]
-        self._lib.get_NX_pm_coarse.restype = None
-        self._lib.get_NY_pm_coarse.argtypes = [POINTER(c_int)]
-        self._lib.get_NY_pm_coarse.restype = None
-        self._lib.get_NZ_pm_coarse.argtypes = [POINTER(c_int)]
-        self._lib.get_NZ_pm_coarse.restype = None
+        self._lib.get_NX_pm.argtypes = [POINTER(c_int)]
+        self._lib.get_NX_pm.restype = None
+        self._lib.get_NY_pm.argtypes = [POINTER(c_int)]
+        self._lib.get_NY_pm.restype = None
+        self._lib.get_NZ_pm.argtypes = [POINTER(c_int)]
+        self._lib.get_NZ_pm.restype = None
         self._lib.get_NN.argtypes = [POINTER(c_int * 3)]
         self._lib.get_NN.restype = None
         self._lib.get_NN_bl.argtypes = [POINTER(c_int * 6)]
         self._lib.get_NN_bl.restype = None
-        self._lib.get_Xbound.argtypes = [POINTER(c_double * 6)]
-        self._lib.get_Xbound.restype = None
+        self._lib.get_fine_bounds.argtypes = [POINTER(c_double * 6)]
+        self._lib.get_fine_bounds.restype = None
+        self._lib.get_Xbounds.argtypes = [POINTER(c_double), POINTER(c_double)]
+        self._lib.get_Xbounds.restype = None
+        self._lib.get_Ybounds.argtypes = [POINTER(c_double), POINTER(c_double)]
+        self._lib.get_Ybounds.restype = None
+        self._lib.get_Zbounds.argtypes = [POINTER(c_double), POINTER(c_double)]
+        self._lib.get_Zbounds.restype = None
         self._lib.get_neqpm.argtypes = [POINTER(c_int)]
         self._lib.get_neqpm.restype = None
         self._lib.set_RHS_pm.argtypes = [POINTER(c_double), POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int)]
         self._lib.set_RHS_pm.restype = None
         # self._lib.get_dpm.argtypes = [POINTER(F_Array_Struct)]
         # self._lib.get_dpm.restype = None
+    
+    @property
+    def grid_positions(self):
+
+        # First, we need to get the number of grid points in each direction
+        NX_pm = self.NX_pm
+        NY_pm = self.NY_pm
+        NZ_pm = self.NZ_pm
+
+        Xmin = c_double()
+        Xmax = c_double()
+        self._lib.get_Xbounds(byref(Xmin), byref(Xmax))
+        Xmin = Xmin.value
+        Xmax = Xmax.value
+
+        Ymin = c_double()
+        Ymax = c_double()
+        self._lib.get_Ybounds(byref(Ymin), byref(Ymax))
+        Ymin = Ymin.value
+        Ymax = Ymax.value
+
+        Zmin = c_double()
+        Zmax = c_double()
+        self._lib.get_Zbounds(byref(Zmin), byref(Zmax))
+        Zmin = Zmin.value
+        Zmax = Zmax.value
+
+        # Get dx, dy, dz
+        dx = (Xmax - Xmin) / (NX_pm - 1)
+        dy = (Ymax - Ymin) / (NY_pm - 1)
+        dz = (Zmax - Zmin) / (NZ_pm - 1)
+        
+        X = np.linspace(Xmin, Xmax, NX_pm)
+        Y = np.linspace(Ymin, Ymax, NY_pm)
+        Z = np.linspace(Zmin, Zmax, NZ_pm)
+        X,Y,Z = np.meshgrid(X, Y, Z, indexing='ij')
+        return np.array([X, Y, Z])
 
     @property
     def NX_pm(self):
         NX_pm = c_int()
-        self._lib.get_NX_pm_coarse(byref(NX_pm))
+        self._lib.get_NX_pm(byref(NX_pm))
         return NX_pm.value
     
     @property
     def NY_pm(self):
         NY_pm = c_int()
-        self._lib.get_NY_pm_coarse(byref(NY_pm))
+        self._lib.get_NY_pm(byref(NY_pm))
         return NY_pm.value
     
     @property
     def NZ_pm(self):
         NZ_pm = c_int()
-        self._lib.get_NZ_pm_coarse(byref(NZ_pm))
+        self._lib.get_NZ_pm(byref(NZ_pm))
         return NZ_pm.value
 
     @property
@@ -102,7 +134,7 @@ class ParticleMesh:
         Xbound(6) is the boundary of the domain.
         """
         xbound = (c_double * 6)()
-        self._lib.get_Xbound(byref(xbound))
+        self._lib.get_fine_bounds(byref(xbound))
         return np.array(xbound)
 
     @property

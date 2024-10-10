@@ -162,42 +162,37 @@ contains
    end subroutine solget
 
    subroutine velbcast
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm,&
-                        NXpm_fine, NYpm_fine, NZpm_fine
-      use mpi_matrices, only: mpimat3_pm
+      use pmgrid, only: velocity_pm, NXpm_fine, NYpm_fine, NZpm_fine
+      use mpi_matrices, only: mpimat4
       use MPI
       Implicit None
-      integer :: my_rank, np, ierr, mat3
+      integer :: my_rank, np, ierr, mat4
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       !---------------------------------------------
-      call mpimat3_pm(mat3, NXpm_fine, NYpm_fine, NZpm_fine)
-      call MPI_BCAST(velvrx_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_BCAST(velvry_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_BCAST(velvrz_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_TYPE_FREE(mat3, ierr)
+      call mpimat4(mat4, 3, NXpm_fine, NYpm_fine, NZpm_fine)
+      call MPI_BCAST(velocity_pm, 1, mat4, 0, MPI_COMM_WORLD, ierr)
+      call MPI_TYPE_FREE(mat4, ierr)
       !--------------------------------------------
    end subroutine velbcast
 
    subroutine defbcast
-      use pmgrid, only: deformx_pm, deformy_pm, deformz_pm, &
+      use pmgrid, only: deform_pm, &
                         NXpm_fine, NYpm_fine, NZpm_fine
-      use mpi_matrices, only: mpimat3_pm
+      use mpi_matrices, only: mpimat4
       use MPI
       Implicit None
-      integer :: my_rank, np, ierr, mat3
+      integer :: my_rank, np, ierr, mat4
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       !---------------------------------------------
-      call mpimat3_pm(mat3, NXpm_fine, NYpm_fine, NZpm_fine)
-      call MPI_BCAST(deformx_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_BCAST(deformy_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_BCAST(deformz_pm, 1, mat3, 0, MPI_COMM_WORLD, ierr)
-      call MPI_TYPE_FREE(mat3, ierr)
+      call mpimat4(mat4, 3, NXpm_fine, NYpm_fine, NZpm_fine)
+      call MPI_BCAST(deform_pm, 1, mat4, 0, MPI_COMM_WORLD, ierr)
+      call MPI_TYPE_FREE(mat4, ierr)
       !--------------------------------------------
    end subroutine defbcast
 

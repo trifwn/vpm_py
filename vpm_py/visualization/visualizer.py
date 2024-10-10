@@ -406,7 +406,7 @@ class Visualizer:
         pm_positions: np.ndarray,
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
-        pm_deformations: np.ndarray,
+        pm_deformations: np.ndarray | None = None,
         neq: int = 3,
         pm_solutions: np.ndarray | None = None,
     ):

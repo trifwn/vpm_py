@@ -224,7 +224,7 @@ contains
     subroutine assign_array(arr1, arr2)
         ! subroutine to assign the array1 to array2. It does not create a new array.
         ! It justs changes the pointers of array2 to the pointers of array1.
-        type(ND_Array), intent(inout) :: arr1
+        type(ND_Array), intent(out) :: arr1
         type(ND_Array), intent(in) :: arr2
 
         ! Deallocate the data array if allocated
@@ -243,7 +243,7 @@ contains
     subroutine add__(arr1, arr2, arr_res) bind(C, name='add')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(inout) :: arr_res
+        type(ND_Array), intent(out) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -273,7 +273,7 @@ contains
     subroutine sub__(arr1, arr2, arr_res) bind(C, name='sub')
         implicit none
         type(ND_Array), intent(in) :: arr1, arr2
-        type(ND_Array), intent(inout) :: arr_res
+        type(ND_Array), intent(out) :: arr_res
         real(c_double), dimension(:), pointer :: data1, data2, data_res
         integer(c_int), dimension(:), pointer :: shape1, shape2
         integer :: i
@@ -400,7 +400,7 @@ contains
     !!!!!!!!!!!!!!!!!!!!! CONVERSION FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     function from_intrinsic(data_array, shape_arr) result(arr)
         implicit none
-        real(c_double), dimension(*), intent(in), target :: data_array ! SHOULD BE ASSUMED-RANK INSTEAD OF ASSUMED-SIZE
+        real(c_double), dimension(..), intent(in), target :: data_array ! SHOULD BE ASSUMED-RANK INSTEAD OF ASSUMED-SIZE
         integer(c_int), dimension(:), intent(in), target :: shape_arr
         real(c_double), pointer :: first_element
         type(ND_Array) :: arr
@@ -423,18 +423,70 @@ contains
         ! I want to create a pointer that points to the data_array 
         ! Since the data_array is assumed to be contiguous, I can just point to the first element
         ! of the data_array
-        first_element => data_array(1)
-        call C_F_POINTER(C_LOC(first_element), data_ptr, [total_size])
+        ! first_element => data_array(1)
+        call C_F_POINTER(C_LOC(data_array), data_ptr, [total_size])
 
         arr = create_dtype(size(shape_arr), total_size, shape_ptr, data_ptr)
     end function from_intrinsic
     
-    function to_intrisic(arr) result(f_array)
+    subroutine convert_to_1D_array(arr, f_1D)
+        implicit none
+        type(ND_Array), intent(in) :: arr
+        real(c_double), dimension(:), pointer :: f_1D
+        if (arr%ndims /= 1) error stop 'Array must have 4 dimensions.'
+        call C_F_POINTER(arr%data_ptr, f_1D, [arr%total_size])
+    end subroutine convert_to_1D_array
+
+    subroutine convert_to_2D_array(arr,f_2D)
+        implicit none
+        type(ND_Array), intent(in) :: arr
+        real(c_double), dimension(:,:), pointer :: f_2D
+        integer(c_int), dimension(:), pointer :: f_shape
+        integer :: i, j, k
+        integer :: n1, n2, n3
+        if (arr%ndims /= 2) error stop 'Array must have 4 dimensions.'
+
+        call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
+        n1 = f_shape(1)
+        n2 = f_shape(2)
+        call C_F_POINTER(arr%data_ptr, f_2D, [n1, n2])
+    end subroutine convert_to_2D_array
+
+    subroutine convert_to_3D_array(arr, f_3D)
+        implicit none
+        type(ND_Array), intent(in) :: arr
+        real(c_double), dimension(:,:,:), pointer :: f_3D
+        integer(c_int), dimension(:), pointer :: f_shape
+        integer :: i, j, k
+        integer :: n1, n2, n3
+        if (arr%ndims /= 3) error stop 'Array must have 4 dimensions.'
+
+        call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
+        n1 = f_shape(1)
+        n2 = f_shape(2)
+        n3 = f_shape(3)
+        call C_F_POINTER(arr%data_ptr, f_3D, [n1, n2, n3])
+    end subroutine convert_to_3D_array
+
+    subroutine convert_to_4D_array(arr, f_4D)
+        implicit none
+        type(ND_Array), intent(in) :: arr
+        real(dp), pointer :: f_4D(:,:,:,:)
+        integer(c_int), pointer :: f_shape(:)
+        integer :: i, j, k, l
+        integer :: n1, n2, n3, n4
+        ! Error handling
+        call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
+        call C_F_POINTER(arr%data_ptr, f_4D, f_shape)
+    end subroutine convert_to_4D_array
+
+    function to_intrinsic_flattened(arr) result(f_array)
         implicit none
         type(ND_Array), intent(in) :: arr
         real(c_double), dimension(:), pointer :: f_array
         call C_F_POINTER(arr%data_ptr, f_array, [arr%total_size])
-    end function to_intrisic
+    end function to_intrinsic_flattened
+
     !!!!!!!!!!!!!!!!!!!!!END CONVERSION FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !!!!!!!!!!!!!!!!!!!!! PRINTING AND DEBUGGING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

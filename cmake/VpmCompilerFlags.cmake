@@ -32,7 +32,7 @@ function(setup_vpm_compiler_flags)
                     # -Wall
                     PARENT_SCOPE
         )
-        set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} -O3 -ffast-math  -march=native)
+        set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} -O3 -ffast-math -march=native PARENT_SCOPE)
         
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${LINK_FLAGS} -O0 -g -fbacktrace -fcheck=all -finit-real=nan -finit-integer=nan -fPIC" PARENT_SCOPE)        
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${LINK_FLAGS} -O3 -flto -march=native" PARENT_SCOPE)        

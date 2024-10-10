@@ -7,11 +7,10 @@ Module api
    use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
    integer, parameter :: MAX_STRING_LENGTH = 256
-   character(kind=c_char, len=MAX_STRING_LENGTH) :: test_string = 'This is a test string'
 contains
-   subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                                     &
-                         num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,                         &
-                         max_level, omp_threads, grid_define, write_type, write_start, write_steps              &
+   subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                        &
+                         num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,            &
+                         max_level, omp_threads, grid_define, write_type, write_start, write_steps &
                          ) &
       bind(C, name='init')
 
@@ -85,28 +84,11 @@ contains
 
    subroutine finalize() bind(C, name='finalize')
       implicit none
-      
-      ! integer :: ierr
-      ! print *, 'Finalizing MPI'
-      ! call MPI_FINALIZE(ierr)
-      ! if (ierr .ne. 0) then
-      !    print *, 'Error finalizing MPI'
-      !    stop
-      ! end if
-      ! Free the memory
-      ! call free_vpm_vars()
-      ! call free_vpm_size()
-      ! call free_parvar()
-      ! call free_pmgrid()
-      ! call free_openmpth()
-      ! call free_pmlib()
-      ! call free_projlib()
-      ! call free_yapslib()
-   End subroutine finalize
+   end subroutine finalize
 
    subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-                       RHS_pm_out, Velx_out, Vely_out, Velz_out, NTIME_in, NI_in,&
-                       NVR_size_in, deformx_out, deformy_out, deformz_out) bind(C, name='vpm')
+                       RHS_pm_out, Vel_out, NTIME_in, NI_in,                   &
+                       NVR_size_in, deform_out) bind(C, name='vpm')
       !  -> XP : particle positions (3 * NVR)
       !  -> QP : particle quantities (neqpm * NVR)
       !  -> UP : particle velocities (3 * NVR)
@@ -131,12 +113,11 @@ contains
       real(c_double), intent(in)             :: NI_in
       real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
       real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
-      type(ND_Array), intent(out)            :: RHS_pm_out, Velx_out, Vely_out, Velz_out
-      type(ND_Array), intent(out), optional  :: deformx_out, deformy_out, deformz_out
+      type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out
+      type(ND_Array), intent(out), optional  :: deform_out
 
-      real(c_double), pointer          :: RHS_pm_ptr(:, :, :, :), &
-                                          Velx_ptr(:, :, :), Vely_ptr(:, :, :), Velz_ptr(:, :, :)
-      real(c_double), pointer          :: deformx_ptr(:, :, :), deformy_ptr(:, :, :), deformz_ptr(:, :, :)
+      real(c_double), pointer          :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+      real(c_double), pointer          :: deform_ptr(:, :, :, :)
       integer :: ierr, my_rank
 
       call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
@@ -146,41 +127,23 @@ contains
       end if
       
       call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_ptr, Velx_ptr, Vely_ptr, Velz_ptr, NTIME_in, NI_in, NVR_size_in, &
-               deformx_ptr, deformy_ptr, deformz_ptr)
+               RHS_pm_ptr, Vel_ptr, NTIME_in, NI_in, NVR_size_in, &
+               deform_ptr)
 
-      
       ! Copy the data back to the arrays
       ! Assign the pointers to the arrays
       if (associated(RHS_pm_ptr)) then 
          RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
       end if
 
-      if (associated(Velx_ptr)) then
-         Velx_out = from_intrinsic(Velx_ptr, shape(Velx_ptr))
+      if (associated(Vel_ptr)) then
+         Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
       end if
 
-      if (associated(Vely_ptr)) then
-         Vely_out = from_intrinsic(Vely_ptr, shape(Vely_ptr))
+      if ((associated(deform_ptr)).and.(present(deform_out))) then
+         deform_out = from_intrinsic(deform_ptr, shape(deform_ptr))
       end if
-
-      if (associated(Velz_ptr)) then
-         Velz_out = from_intrinsic(Velz_ptr, shape(Velz_ptr))
-      end if
-
-   
-      ! if ((associated(deformx_ptr)).and.(present(deformx_out))) then
-      !    deformx_out = from_intrinsic(deformx_ptr, shape(deformx_ptr))
-      ! end if
-
-      ! if ((associated(deformy_ptr)).and.(present(deformy_out))) then
-      !    deformy_out = from_intrinsic(deformy_ptr, shape(deformy_ptr))
-      ! end if
-
-      ! if ((associated(deformz_ptr)).and.(present(deformz_out))) then
-      !    deformz_out = from_intrinsic(deformz_ptr, shape(deformz_ptr))
-      ! end if
-   End subroutine call_vpm
+   end subroutine call_vpm
 
    subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out, cuttof_value) &
          bind(C, name='remesh_particles_3d')
@@ -202,18 +165,16 @@ contains
       else
          call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out)
       end if
-
       XP_arr = from_intrinsic(XP_out, shape(XP_out))
       QP_arr = from_intrinsic(QP_out, shape(QP_out))
       GP_arr = from_intrinsic(GP_out, shape(GP_out))
       UP_arr = from_intrinsic(UP_out, shape(UP_out))
-
-   End subroutine call_remesh_particles_3d
+   end subroutine call_remesh_particles_3d
 
    subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
       use console_io, only: vpm_write_folder, pm_output_file_suffix
       use file_io, only: write_pm_solution
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
+      use pmgrid, only: velocity_pm, deform_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: fine_grid 
       implicit none
@@ -230,13 +191,13 @@ contains
 
       NN = fine_grid%NN
       NN_bl = fine_grid%NN_bl
-      if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
-         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
-                                deformx_pm, deformy_pm, deformz_pm)
+      if (allocated(deform_pm)) then
+         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm, &
+                                deform_pm)
       else
-         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+         call write_pm_solution(NTIME_pm, NN, NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm)
       end if
-   End subroutine write_particle_mesh_solution
+   end subroutine write_particle_mesh_solution
 
    subroutine write_particles_stored(folder, filename) bind(C, name='write_particles')
       use file_io, only: write_particles
@@ -254,7 +215,7 @@ contains
       endif
 
       call write_particles(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
-   End subroutine write_particles_stored
+   end subroutine write_particles_stored
 
    subroutine write_particles_stored_hdf5(folder, filename) bind(C, name='write_particles_hdf5')
       use file_io, only: write_particles_hdf5
@@ -270,11 +231,11 @@ contains
          call set_string_f_c(particle_output_file_suffix, filename)
       endif
       call write_particles_hdf5(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
-   End subroutine write_particles_stored_hdf5
+   end subroutine write_particles_stored_hdf5
 
    subroutine write_particle_mesh_solution_hdf5(folder, filename) bind(C, name='write_particle_mesh_solution_hdf5')
       use file_io, only: write_pm_solution_hdf5
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm, deformx_pm, deformy_pm, deformz_pm, RHS_pm, SOL_pm
+      use pmgrid, only:  deform_pm, RHS_pm, SOL_pm, velocity_pm
       use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: fine_grid
       use console_io, only: vpm_write_folder, pm_output_file_suffix
@@ -292,14 +253,13 @@ contains
 
       NN = fine_grid%NN
       NN_bl = fine_grid%NN_bl
-      if ((allocated(deformx_pm)).and.(allocated(deformy_pm)).and.(allocated(deformz_pm))) then
-         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm, &
-                                deformx_pm, deformy_pm, deformz_pm)
+      if (allocated(deform_pm)) then
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velocity_pm, &
+                                deform_pm)
       else
-         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velvrx_pm, velvry_pm, velvrz_pm)
+         call write_pm_solution_hdf5(NTIME_pm, NN, NN_bl,neqpm, RHS_pm, SOL_pm, velocity_pm)
       end if
-   End subroutine write_particle_mesh_solution_hdf5
-
+   end subroutine write_particle_mesh_solution_hdf5
 
    subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
       use ND_Arrays
@@ -344,25 +304,19 @@ contains
       neqpm_out = neqpm
    end subroutine get_neqpm
 
-   subroutine get_velocity_pm(velx_out, vely_out, velz_out) bind(C, name='get_velocity_pm')
-      use pmgrid, only: velvrx_pm, velvry_pm, velvrz_pm
+   subroutine get_velocity_pm(velocity_ptr) bind(C, name='get_velocity_pm')
+      use pmgrid, only: velocity_pm 
       implicit none
-      real(c_double), dimension(:,:,:), pointer :: velx_out, vely_out, velz_out
+      real(c_double), dimension(:, :,:,:), pointer :: velocity_ptr
+      velocity_ptr => velocity_pm
+   end subroutine get_velocity_pm
 
-      velx_out => velvrx_pm
-      vely_out => velvry_pm
-      velz_out => velvrz_pm
-   End subroutine get_velocity_pm
-
-   subroutine get_deformation_pm(deformx_out, deformy_out, deformz_out) bind(C, name='get_deformation_pm')
-      use pmgrid, only: deformx_pm, deformy_pm, deformz_pm
+   subroutine get_deformation_pm(deform_ptr) bind(C, name='get_deformation_pm')
+      use pmgrid, only: deform_pm
       implicit none
-      real(c_double), dimension(:,:,:), pointer :: deformx_out, deformy_out, deformz_out
-
-      deformx_out => deformx_pm
-      deformy_out => deformy_pm
-      deformz_out => deformz_pm
-   End subroutine get_deformation_pm
+      real(c_double), dimension(:,:,:,:), pointer :: deform_ptr
+      deform_ptr => deform_pm
+   end subroutine get_deformation_pm
 
 !! VPM SIZE
 
@@ -373,37 +327,37 @@ contains
 
       call print_projlib_info()
 
-   End subroutine print_projlib
+   end subroutine print_projlib
 
    subroutine print_pmgrid() bind(C, name='print_pmgrid')
       use pmgrid, only: print_pmgrid_info
       implicit none
 
       call print_pmgrid_info()
-   End subroutine print_pmgrid
+   end subroutine print_pmgrid
 
    subroutine print_vpm_vars() bind(C, name='print_vpm_vars')
       use vpm_vars, only: print_vpm_vars_info
       implicit none
 
       call print_vpm_vars_info()
-   End subroutine print_vpm_vars
+   end subroutine print_vpm_vars
 
    subroutine print_vpm_size() bind(C, name='print_vpm_size')
       use vpm_size, only: print_vpm_size_info
       implicit none
 
       call print_vpm_size_info()
-   End subroutine print_vpm_size
+   end subroutine print_vpm_size
 
    subroutine print_parvar() bind(C, name='print_parvar')
       use parvar, only: print_parvar_info
       implicit none
 
       call print_parvar_info()
-   End subroutine print_parvar
+   end subroutine print_parvar
 
-   !! STRING MANIPULATION
+!! STRING MANIPULATION
    subroutine get_string_f_c(fstring, cptr)
       use iso_c_binding
       implicit none
@@ -420,10 +374,6 @@ contains
          fstring_t(i:i) = c_null_char
       end do
       cptr = c_loc(fstring_t)
-      ! print *, "Fortran string: ", trim(fstring)
-      ! print *, "Fortran string full length: ", full_length
-      ! print *, "Fortran string trimmed length: ", trimmed_length
-      ! print *, "Fortran string bytes: ", iachar(fstring(1:trimmed_length))
    end subroutine get_string_f_c
 
    subroutine set_string_f_c(fstring, new_string)
@@ -438,36 +388,5 @@ contains
          if (new_string(i) == c_null_char) exit
          fstring(i:i) = new_string(i)
       end do
-      ! print *, "Set test_string to: ", trim(test_string)
-      ! print *, "Length of test_string: ", len_trim(test_string)
    end subroutine set_string_f_c
-
-   !!! FILE I/O !!!
-   subroutine set_particle_file_suffix(suffix)  bind(C, name='set_particle_file_suffix')
-      use iso_c_binding
-      use console_io, only: particle_output_file_suffix
-      character(kind = c_char), dimension(*), intent(in) :: suffix
-      call set_string_f_c(particle_output_file_suffix, suffix)
-   end subroutine set_particle_file_suffix
-
-   subroutine set_pm_file_suffix(suffix)  bind(C, name='set_pm_file_suffix')
-      use iso_c_binding
-      use console_io, only: pm_output_file_suffix
-      character(kind = c_char), dimension(*), intent(in) :: suffix
-      call set_string_f_c(pm_output_file_suffix, suffix)
-   end subroutine set_pm_file_suffix
-
-   subroutine set_vpm_write_folder(folder)  bind(C, name='set_vpm_write_folder')
-      use iso_c_binding
-      use console_io, only: vpm_write_folder
-      character(kind = c_char), dimension(*), intent(in) :: folder
-      call set_string_f_c(vpm_write_folder, folder)
-   end subroutine set_vpm_write_folder
-
-   subroutine print_write_settings() bind(C, name = 'print_write_settings')
-      use console_io, only: vpm_print, particle_output_file_suffix, pm_output_file_suffix, vpm_write_folder
-      call vpm_print("Particle output file suffix: " // trim(particle_output_file_suffix), NOCOLOR, 1)
-      call vpm_print("PM output file suffix: " // trim(pm_output_file_suffix), NOCOLOR, 1)
-      call vpm_print("VPM write folder: " // trim(vpm_write_folder), NOCOLOR, 1)
-   end subroutine print_write_settings
-End Module api
+end Module api

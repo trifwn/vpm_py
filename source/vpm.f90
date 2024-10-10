@@ -69,7 +69,7 @@ end subroutine vpm_define_problem
 
 subroutine vpm_interpolate(                                    &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,  &
-   RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr           &
+   RHS_pm_ptr, deform_ptr           &
 )
    use pmgrid, only: RHS_pm
    use parvar, only: NVR
@@ -80,7 +80,7 @@ subroutine vpm_interpolate(                                    &
    integer, intent(inout)                    :: NVR_in
    integer, intent(in)                       :: neqpm_in, NVR_size_in
    real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer,optional   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(out), pointer,optional   :: deform_ptr(:, :, :, :)
    integer :: ierr, my_rank, np
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -91,7 +91,7 @@ subroutine vpm_interpolate(                                    &
    ND       =  3
    neqpm    = neqpm_in
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-   if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   if (present(deform_ptr)) call associate_deformations(deform_ptr)
    call allocate_sol_and_rhs(my_rank + 1)
    RHS_pm_ptr => RHS_pm
 
@@ -120,7 +120,7 @@ end subroutine vpm_interpolate
 !>     - Interpolate the PM grid to the particles
 subroutine vpm_diffuse(                                         &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,   &
-   RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr,           & 
+   RHS_pm_ptr, deform_ptr,           & 
    NI_in                                                        &
 )
    use MPI
@@ -132,7 +132,7 @@ subroutine vpm_diffuse(                                         &
    integer, intent(in)                       :: neqpm_in, NVR_size_in
    real(dp), intent(in)                      :: NI_in
    real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer, optional  :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(out), pointer, optional  :: deform_ptr(:, :, :, :)
    integer :: ierr, my_rank, np
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -144,7 +144,7 @@ subroutine vpm_diffuse(                                         &
    neqpm    = neqpm_in
    NI       = NI_in
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-   if(present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   if(present(deform_ptr)) call associate_deformations(deform_ptr)
    call allocate_sol_and_rhs(my_rank + 1)
    RHS_pm_ptr => RHS_pm
 
@@ -209,26 +209,22 @@ subroutine vpm_project_and_solve(                              &
 end subroutine vpm_project_and_solve
 
 subroutine vpm_solve_velocity(                                 &
-   NTIME_in,                                                   &
-   XP_in, QP_in, UP_in, GP_in,                                 &
-   NVR_in, NVR_size_in, neqpm_in,                              &
-   RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr                    &
+   NTIME_in, XP_in, QP_in, UP_in, GP_in,                       &
+   NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr          &
 )
    use MPI
-   implicit none
    real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
    integer, intent(inout)           :: NVR_in
    integer, intent(in)              :: neqpm_in, NVR_size_in
    real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer   :: velx_ptr(:,:,:), vely_ptr(:,:,:), velz_ptr(:,:,:)
+   real(dp), intent(out), pointer   :: vel_ptr(:,:,:,:)
    integer, intent(in)              :: NTIME_in
-   
    integer :: ierr, my_rank, np
 
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
    call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
-   call associate_velocities(velx_ptr, vely_ptr, velz_ptr)
+   call associate_velocities(vel_ptr)
 
    if (my_rank .eq. 0) then
       !call convect_first_order(Xbound,Dpm,NN,NN_bl)
@@ -244,8 +240,7 @@ subroutine vpm_solve_velocity_delatation(                      &
    NTIME_in,                                                   &
    XP_in, QP_in, UP_in, GP_in,                                 &
    NVR_in, NVR_size_in, neqpm_in,                              &
-   RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr,                   &
-   deformx_ptr, deformy_ptr, deformz_ptr                       &
+   RHS_pm_ptr, vel_ptr, deform_ptr                             &
 )
    use MPI
    implicit none
@@ -253,8 +248,8 @@ subroutine vpm_solve_velocity_delatation(                      &
    integer, intent(inout)                     :: NVR_in
    integer, intent(in)                        :: neqpm_in, NVR_size_in
    real(dp), intent(out), pointer             :: RHS_pm_ptr(:, :, :, :)
-   real(dp), intent(out), pointer             :: velx_ptr(:,:,:), vely_ptr(:,:,:), velz_ptr(:,:,:)
-   real(dp), intent(out), pointer, optional   :: deformx_ptr(:,:,:), deformy_ptr(:,:,:), deformz_ptr(:,:,:)
+   real(dp), intent(out), pointer             :: vel_ptr(:, :,:,:)
+   real(dp), intent(out), pointer, optional   :: deform_ptr(:, :,:,:)
    integer, intent(in)              :: NTIME_in
    
    integer :: ierr, my_rank, np
@@ -262,8 +257,8 @@ subroutine vpm_solve_velocity_delatation(                      &
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
    call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
-   call associate_velocities(velx_ptr, vely_ptr, velz_ptr)
-   if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+   call associate_velocities(vel_ptr)
+   if (present(deform_ptr)) call associate_deformations(deform_ptr)
    
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
    if (my_rank .eq. 0) then
@@ -288,13 +283,11 @@ end subroutine vpm_solve_velocity_delatation
 #endif
 
 subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr, NTIME_in, NI_in, NVR_size_in,&
-               deformx_ptr, deformy_ptr, deformz_ptr)
+               RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in,&
+               deform_ptr)
       use parvar, only:    QP, XP, UP, GP, NVR, NVR_size,            &
                            print_particle_info, print_particle_positions, associate_particles
-      use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm,  &
-                           deformx_pm, deformy_pm, deformz_pm,       &
-                           SOL_pm, IDVPM,                            &
+      use pmgrid, only:    SOL_pm, IDVPM,                            &
                            print_velocity_stats, set_pm_velocities_zero, &
                            set_pm_deformations_zero, associate_velocities, &
                            associate_deformations 
@@ -308,8 +301,8 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
       integer, intent(in)              :: neqpm_in, WhatToDo, NVR_size_in, NTIME_in
       real(dp), intent(in)             :: NI_in
       real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
-      real(dp), intent(out), pointer   :: velx_ptr(:, :, :), vely_ptr(:, :, :), velz_ptr(:, :, :)
-      real(dp), intent(out), pointer, optional   :: deformx_ptr(:, :, :), deformy_ptr(:, :, :), deformz_ptr(:, :, :)
+      real(dp), intent(out), pointer   :: vel_ptr(:, :, :, :)
+      real(dp), intent(out), pointer, optional   :: deform_ptr(:, :, :, :)
 
       ! LOCAL VARIABLES
       integer                           :: ierr, my_rank, np
@@ -328,28 +321,28 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
       call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
       if (NVR .eq. 0) return
       if (associated(RHS_pm_ptr)) nullify (RHS_pm_ptr)
-      call associate_velocities(velx_ptr, vely_ptr, velz_ptr)
-      if (present(deformx_ptr)) call associate_deformations(deformx_ptr, deformy_ptr, deformz_ptr)
+      call associate_velocities(vel_ptr)
+      if (present(deform_ptr)) call associate_deformations(deform_ptr)
 
       select case(WhatToDo)
          case (DEFINE_PROBLEM)
             call vpm_define_problem(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in)
          case (SOLVE_VELOCITY)
             call vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,        &
-                                 neqpm_in, RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr)
+                                 neqpm_in, RHS_pm_ptr, vel_ptr)
          case (SOLVE_VELOCITY_DELATATION)
             call vpm_solve_velocity_delatation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in,          &
-                                 NVR_size_in, neqpm_in, RHS_pm_ptr, velx_ptr, vely_ptr, velz_ptr,     &
-                                 deformx_ptr, deformy_ptr, deformz_ptr)
+                                 NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr,     &
+                                 deform_ptr)
          case (PROJECT_AND_SOLVE)
             call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in,         &
                                  RHS_pm_ptr)
          case (INTERPOLATE)
             call vpm_interpolate(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,           &
-                                 RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr)
+                                 RHS_pm_ptr, deform_ptr)
          case (DIFFUSE)
             call vpm_diffuse(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,               &
-                                 RHS_pm_ptr, deformx_ptr, deformy_ptr, deformz_ptr, NI_in)
+                                 RHS_pm_ptr, deform_ptr, NI_in)
       end select
    return
    contains
@@ -387,7 +380,6 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
          end if
       end subroutine print_arguements
 end subroutine vpm
-
 
    subroutine allocate_sol_and_rhs(n_block)
       use pmgrid, only: SOL_pm, RHS_pm, SOL_pm_bl, RHS_pm_bl
@@ -437,7 +429,7 @@ end subroutine vpm
       use serial_vector_field_operators, only: divergence, laplacian
       implicit none
       integer :: my_rank, ierr, i
-      real(dp), allocatable :: div_wmega(:, :, :, :), laplace_LHS_pm(:, :, :, :)
+      real(dp), allocatable :: div_wmega(:, :, :), laplace_LHS_pm(:, :, :, :)
       type(grid) :: my_block_grid
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
@@ -512,8 +504,8 @@ end subroutine vpm
 
       if (my_rank .eq. 0) then
          ! We need to write the residuals of the solution
-         call divergence(RHS_pm, DXpm , DYpm, DZpm, div_wmega)
-         call laplacian(SOL_pm, DXpm, DYpm, DZpm, laplace_LHS_pm)
+         div_wmega = divergence(RHS_pm, DXpm , DYpm, DZpm)
+         laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
          ! Print the mean, max and min div_u
          write (*, *) ""
          write (dummy_string, "(A)") 'Divergence of the Psi field'
@@ -563,7 +555,6 @@ end subroutine vpm
       use pmgrid, only: ncoarse, SOL_pm, RHS_pm, SOL_pm_bl, RHS_pm_bl
       use parvar, only: XP, QP, NVR
       use pmlib, only:  pmesh
-      use pmgrid, only: XMAX_pm, XMIN_pm, YMAX_pm, YMIN_pm, ZMAX_pm, ZMIN_pm
       use yaps, only:   yaps3d
       use vpm_mpi, only: solget, velbcast
       implicit none
@@ -749,8 +740,7 @@ end subroutine vpm
 
    subroutine interpolate_particles_parallel(itypeb)
       use parvar, only:    NVR, XP_scatt, QP_scatt, UP_scatt, GP_scatt, NVR_p
-      use pmgrid, only:    velvrx_pm, velvry_pm, velvrz_pm, RHS_pm, &
-                           deformx_pm, deformy_pm, deformz_pm, SOL_pm
+      use pmgrid, only:    velocity_pm,  deform_pm, RHS_pm, SOL_pm
       use vpm_interpolate, only: back_to_particles_3D
       use vpm_mpi, only:   rhsbcast, particles_scat, particles_gath, velbcast, defbcast
 
@@ -786,8 +776,7 @@ end subroutine vpm
       ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity field
       ! WHEN ITYPEB = 2 WE GET THE GP FROM THE deformation
       call back_to_particles_3D(SOL_pm, XP_scatt, QP_scatt, UP_scatt, GP_scatt,  &
-                                velvrx_pm, velvry_pm, velvrz_pm,                 &
-                                deformx_pm, deformy_pm, deformz_pm,              &
+                                velocity_pm, deform_pm,                          &
                                 NVR_p, interf_iproj, itypeb, NVR_p               )
       ! GATHERS XP, QP, UP, GP
       call particles_gath

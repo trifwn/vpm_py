@@ -6,7 +6,7 @@ module file_io
 
 contains
 
-    subroutine write_pm_solution(NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velx, vely, velz, deformx_pm, deformy_pm, deformz_pm)
+    subroutine write_pm_solution(NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velocity, deform_pm)
         use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
         
         integer, intent(in)              :: NTIME
@@ -14,12 +14,8 @@ contains
         integer, intent(in)              :: neqpm
         real(dp), intent(in)             :: RHS(neqpm, NN_in(1), NN_in(2), NN_in(3)), &
                                             SOL(neqpm, NN_in(1), NN_in(2), NN_in(3))
-        real(dp), intent(in)             :: velx(NN_in(1), NN_in(2), NN_in(3)),       &
-                                            vely(NN_in(1), NN_in(2), NN_in(3)),       &
-                                            velz(NN_in(1), NN_in(2), NN_in(3))
-        real(dp), intent(in), optional   :: deformx_pm(NN_in(1), NN_in(2), NN_in(3)), &
-                                            deformy_pm(NN_in(1), NN_in(2), NN_in(3)), &
-                                            deformz_pm(NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in)             :: velocity(3, NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in), optional   :: deform_pm(3, NN_in(1), NN_in(2), NN_in(3))                                            
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
 
         character*50                     :: filout
@@ -27,7 +23,7 @@ contains
         logical                          :: exist_flag
         real(dp)                         :: cellx, celly, cellz, velocx, velocy, velocz, &
                                             wmegax, wmegay, wmegaz, psi_1, psi_2, psi_3, &
-                                            deformx, deformy, deformz
+                                            defx, defy, defz
 
         
         write (filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix) // '.dat'
@@ -51,7 +47,7 @@ contains
             open (1, file=trim(filout))
         end if
 
-        if (present(deformx_pm)) then
+        if (present(deform_pm)) then
             write (1, "(a)") 'VARIABLES = "X" "Y" "Z" "U" "V" "W" '//&
                             '"VORTX" "VORTY" "VORTZ" "PSI1" "PSI2" '//&
                             '"PSI3" "DEFORMX" "DEFORMY" "DEFORMZ"'
@@ -73,19 +69,19 @@ contains
                 cellz =  ZMIN_pm + (K - 1)*DZpm
 
                 ! Calculated Velocity
-                velocx = velx(i, j, k)
-                velocy = vely(i, j, k)
-                velocz = velz(i, j, k)
+                velocx = velocity(1, i, j, k) 
+                velocy = velocity(1, i, j, k) 
+                velocz = velocity(1, i, j, k) 
 
                 ! Deformation of vorticity
-                if (present(deformx_pm)) then
-                    deformx = deformx_pm(i, j, k)
-                    deformy = deformy_pm(i, j, k)
-                    deformz = deformz_pm(i, j, k)
+                if (present(deform_pm)) then
+                    defx = deform_pm(1, i, j, k)
+                    defy = deform_pm(2, i, j, k)
+                    defz = deform_pm(3, i, j, k)
                 else
-                    deformx = 0.d0
-                    deformy = 0.d0
-                    deformz = 0.d0
+                    defx = 0.d0
+                    defy = 0.d0
+                    defz = 0.d0
                 end if
 
                 ! RHS
@@ -102,7 +98,7 @@ contains
                                             velocx, velocy, velocz,   &
                                             wmegax, wmegay, wmegaz,   &
                                             psi_1, psi_2, psi_3,      &
-                                            deformx, deformy, deformz
+                                            defx, defy, defz
                 end do
             end do
         end do
@@ -219,17 +215,13 @@ contains
     !> \param[in] neqpm        Number of equations in the PM solver.
     !> \param[in] RHS          Right-hand side of PM equation (Charges).
     !> \param[in] SOL          Solution vector.
-    !> \param[in] velx         X-component of velocity.
-    !> \param[in] vely         Y-component of velocity.
-    !> \param[in] velz         Z-component of velocity.
-    !> \param[in] deformx_pm   X-component of PM deformation.
-    !> \param[in] deformy_pm   Y-component of PM deformation.
-    !> \param[in] deformz_pm   Z-component of PM deformation.
+    !> \param[in] velocity     Velocity components.
+    !> \param[in] deformation  Deformation components.
     !> \param[in] compression  Compression level.
     !----------------------------------------------------------------------
     subroutine write_pm_solution_hdf5(                                  &
-        NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velx, vely, velz,       &
-        deformx_pm, deformy_pm, deformz_pm, compression                 &
+        NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velocity,               &
+        deformation, compression                 &
     )
         use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
         use h5fortran
@@ -239,21 +231,14 @@ contains
         integer, intent(in)              :: neqpm
         real(dp), intent(in)             :: RHS(neqpm, NN_in(1), NN_in(2), NN_in(3)), &
                                             SOL(neqpm, NN_in(1), NN_in(2), NN_in(3))
-        real(dp), intent(in)             :: velx(NN_in(1), NN_in(2), NN_in(3)),       &
-                                            vely(NN_in(1), NN_in(2), NN_in(3)),       &
-                                            velz(NN_in(1), NN_in(2), NN_in(3))
-        real(dp), intent(in), optional   :: deformx_pm(NN_in(1), NN_in(2), NN_in(3)), &
-                                            deformy_pm(NN_in(1), NN_in(2), NN_in(3)), &
-                                            deformz_pm(NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in)             :: velocity(3, NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in), optional   :: deformation(3, NN_in(1), NN_in(2), NN_in(3))
         integer, optional                :: compression 
         integer                          :: comp_level = 4
         
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
         character(len=50)                :: filout
         integer                          :: i, j, k
-        real(dp)                         :: cellx, celly, cellz, velocx, velocy, velocz, &
-                                            wmegax, wmegay, wmegaz, psi_1, psi_2, psi_3, &
-                                            deformx, deformy, deformz
         real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
 
         type(hdf5_file)                  :: h5f
@@ -288,9 +273,7 @@ contains
         call h5f%create('/Y', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%create('/Z', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
-        call h5f%create('/U', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/V', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/W', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        call h5f%create('/VELOCITY', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
         ! Iterate over the 3D grid and write data to HDF5 file
         do k = NZs, NZf
@@ -311,23 +294,17 @@ contains
         
         ! Write the vorticity field to the HDF5 file
         call h5f%write('/RHS', RHS(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
+
         ! Write the solution field to the HDF5 file
         call h5f%write('/SOL', SOL(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
-        ! Write the deformation field to the HDF5 file
-
+        
         ! Write the velocity field to the HDF5 file
-        call h5f%write('/U', velx(NXs:NXf, NYs:NYf, NZs:NZf))
-        call h5f%write('/V', vely(NXs:NXf, NYs:NYf, NZs:NZf))
-        call h5f%write('/W', velz(NXs:NXf, NYs:NYf, NZs:NZf))
-
-        if (present(deformx_pm)) then
-            call h5f%create('/DEFORMX', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%create('/DEFORMY', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%create('/DEFORMZ', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-
-            call h5f%write('/DEFORMX', deformx_pm(NXs:NXf, NYs:NYf, NZs:NZf))
-            call h5f%write('/DEFORMY', deformy_pm(NXs:NXf, NYs:NYf, NZs:NZf))
-            call h5f%write('/DEFORMZ', deformz_pm(NXs:NXf, NYs:NYf, NZs:NZf))
+        call h5f%write('/VEL', velocity(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
+        
+        ! Write the deformation field to the HDF5 file
+        if (present(deformation)) then
+            call h5f%create('/DEFORM', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+            call h5f%write('/DEFORM', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
         end if
 
         ! Close HDF5 file

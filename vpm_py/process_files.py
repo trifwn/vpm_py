@@ -38,37 +38,30 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
         XS = f['X'][:]
         YS = f['Y'][:]
         ZS = f['Z'][:]
-        UXS = f['U'][:]
-        UYS = f['V'][:]
-        UZS = f['W'][:]
         RHS = f['RHS'][:]
         SOL = f['SOL'][:]
+        UPM = f['VEL'][:]
 
         try:
-            DEFORM = f['DEFORMX'][:]
-            DEFORMY = f['DEFORMY'][:]
-            DEFORMZ = f['DEFORMZ'][:]
+            DEFORM = f['DEFORM'][:]
         except KeyError:
             pass 
 
         XS = np.moveaxis(XS, [0, 1, 2], [2, 1, 0])
         YS = np.moveaxis(YS, [0, 1, 2], [2, 1, 0])
         ZS = np.moveaxis(ZS, [0, 1, 2], [2, 1, 0])
-        UXS = np.moveaxis(UXS, [0, 1, 2], [2, 1, 0])
-        UYS = np.moveaxis(UYS, [0, 1, 2], [2, 1, 0])
-        UZS = np.moveaxis(UZS, [0, 1, 2], [2, 1, 0])
+        UPM = np.moveaxis(UPM, [0, 1, 2, 3], [3, 2, 1, 0])
         RHS = np.moveaxis(RHS, [0, 1, 2, 3], [3, 2, 1, 0])
         SOL = np.moveaxis(SOL, [0, 1, 2, 3], [3, 2, 1, 0])
 
     # Mesh grid needs to have shape adjusted (as done in the original function)
     neq = RHS.shape[0]
     mesh_positions = np.array([XS, YS, ZS])
-    mesh_velocities = np.array([UXS, UYS, UZS])
+    mesh_velocities = np.array(UPM) 
     mesh_charges = np.array(RHS)
     mesh_solution = np.array(SOL)
     # Create a placeholder for mesh deformations, as the original code assumes this array
     mesh_deformations = np.zeros_like(mesh_positions)
-
     return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution
 
 def process_particle_ouput_file_dat(filename: str , folder: str | None = None):
