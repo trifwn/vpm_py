@@ -6,7 +6,7 @@ import numpy as np
 
 from vpm_py.console_io import print_IMPORTANT, print_red, print_green, print_blue
 from vpm_py.visualization import StandardVisualizer
-from test_hill_spherical_vortex import hill_assign_parallel
+from test_hill_problem import hill_assign_parallel
 
 def main():
     # Initialize MPI
@@ -20,13 +20,13 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 1,
+        verbocity= 2,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1
     )
     if rank == 0:
-        plotter = StandardVisualizer(plot_particles=("charge","magnitude"), plot_mesh= ("deformation","magnitude"))
+        plotter = StandardVisualizer(plot_particles=("charge","magnitude"))
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -34,7 +34,7 @@ def main():
     print_blue(f"Rank: {rank}")
     comm.Barrier()
      
-    DT = 1 * 0.1
+    DT =  0.1
     NI = -0.1
     neq = 3 
     UINF = np.array([0., 0., 0.])
@@ -42,10 +42,8 @@ def main():
     # Create particles
     NVR = 100
     XPR_zero = np.zeros((3, NVR), dtype=np.float64)
-    XPR_zero[:, 0] = np.array([-1.5, -1.5, -1.5])
-    XPR_zero[:, 1] = np.array([ 1.5,  1.5,  1.5])
-    XPR_zero[:, 0] = np.array([-1.956, -1.9832, -2.04])
-    XPR_zero[:, 1] = np.array([2.01, 2.1, 1.89])
+    XPR_zero[:, 0] = np.array([-2., -2., -2.])
+    XPR_zero[:, 1] = np.array([2., 2., 2.])
     QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
 
     # Initialization VPM
@@ -70,7 +68,7 @@ def main():
         NN_bl= vpm.particle_mesh.nn_bl,
         Xbound= vpm.particle_mesh.xbound,
         neqpm= vpm.num_equations,
-        sphere_radius = 1.0,
+        sphere_radius = 1.5,
         u_freestream = 1.0,
         sphere_z_center = 0.0,
     )
@@ -83,7 +81,7 @@ def main():
     XPR, QPR = vpm.remesh_particles(project_particles=False) 
     if rank == 0:
         et = MPI.Wtime()
-        print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+        print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
     print_IMPORTANT(f"Particles initialized", rank)
 
@@ -158,15 +156,16 @@ def main():
             
             st = MPI.Wtime()
             # # Move the particles
-            for j in range(vpm.particles.NVR):
-                # Translate the particles
-                XPR[:3, j] += (UPR[:3, j] + UINF) * DT
-                # Diffusion of vorticity
-                # FACDEF = 1.0
-                # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
+            XPR[:3, :] += (UPR[:3, :]) * DT
+            # for j in range(vpm.particles.NVR):
+            #     # Translate the particles
+            #     XPR[:3, j] += (UPR[:3, j] + UINF) * DT
+            #     # Diffusion of vorticity
+            #     # FACDEF = 1.0
+            #     # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
             et = MPI.Wtime()
 
-            print(f"\tConvecting finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+            print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
             print_IMPORTANT(f"Updating the plot", rank)
 
             st = MPI.Wtime()
@@ -186,8 +185,7 @@ def main():
                 pm_deformations= vpm.particle_mesh.deformation
             )
             et = MPI.Wtime()
-            
-            print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+            print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
             print_IMPORTANT(f"Saving the particles and particle mesh", rank)
 
             st = MPI.Wtime()
@@ -195,7 +193,7 @@ def main():
             vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="results_test")
             et = MPI.Wtime()
 
-            print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
+            print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
         sleep(0.5)
         print_IMPORTANT(f"Redefine Bounds", rank)

@@ -58,7 +58,7 @@ contains
       end if
       if (my_rank .eq. 0) then
          et = MPI_WTIME()
-         write (199, *) 'tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
       !-->SOL_pm_0 not needed for anything else
 
@@ -76,9 +76,10 @@ contains
          call Bounds2D(ibctyp, NXs, NXf, NYs, NYf, neqs, neqf)
          deallocate (source_bound, d_s, x_s, y_s)
       end if
-      if (my_rank .eq. 0) et = MPI_WTIME()
-      if (my_rank .eq. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-
+      if (my_rank .eq. 0) then
+          et = MPI_WTIME()
+         if (VERBOCITY.gt.0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+      end if
    end subroutine infdomain
 
    !------------------------------------------------------------------------!
@@ -138,7 +139,7 @@ contains
       end if
       if (my_rank .eq. 0) then
          et = MPI_WTIME()
-         write (199, *) 'tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
       !-->SOL_pm_0 not needed for anything else
 
@@ -170,7 +171,7 @@ contains
          call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,I3,A,F8.3,A)") achar(9)//"Bounds finished in:", int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
          call vpm_print(dummy_string, yellow, 2)
-         write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         if (VERBOCITY .gt. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
       end if
 
    end subroutine infdomain_3d

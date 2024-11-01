@@ -1,8 +1,25 @@
 module file_io
     use base_types, only: dp
-    use console_io, only: vpm_print, vpm_write_folder, pm_output_file_suffix, particle_output_file_suffix, &
-                          nocolor, dummy_string
+    use console_io, only: vpm_print, nocolor, dummy_string
+
     implicit none
+    integer, parameter :: MAX_STRING_LENGTH= 256
+
+    ! FILES
+    character (len=MAX_STRING_LENGTH), save :: case_folder = "vpm_case/"
+
+    ! Particle output
+    character (len=MAX_STRING_LENGTH), save :: particle_folder = "results/"
+    character (len=MAX_STRING_LENGTH), save :: particle_output_file = "particles"
+
+    ! Mesh output
+    character (len=MAX_STRING_LENGTH), save :: mesh_folder = "results/"
+    character (len=MAX_STRING_LENGTH), save :: mesh_output_file = "particle_mesh"
+
+    ! Stat and Info output
+    character (len=MAX_STRING_LENGTH), save :: yaps_time_file = "yaps_time.dat"
+    character (len=MAX_STRING_LENGTH), save :: solve_stats_file = "solve_information.csv"
+    public :: particle_output_file, mesh_output_file, case_folder
 
 contains
 
@@ -26,7 +43,8 @@ contains
                                             defx, defy, defz
 
         
-        write (filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix) // '.dat'
+        write (filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
+                NTIME, trim(mesh_output_file) // '.dat'
 
         write (dummy_string, "(A)") achar(9)//'Writing PM solution to file: '//trim(filout)
         call vpm_print(dummy_string, nocolor, 2)
@@ -113,7 +131,8 @@ contains
         logical :: exist_flag
         character*80 :: filout1
 
-        write (filout1, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix)//'.dat'
+        write (filout1, '(a,i5.5,a)') trim(case_folder)//trim(particle_folder), &
+                NTIME, trim(particle_output_file)//'.dat'
         write (dummy_string, "(A)") achar(9)//'Writing particles to file: '//trim(filout1)
         call vpm_print(dummy_string, nocolor, 2)
         
@@ -161,15 +180,17 @@ contains
         use h5fortran, only: hdf5_file
         implicit none
 
-        integer, intent(in) :: NTIME, NVR, neq, NVR_size
-        real(dp), intent(in):: XPR(3, NVR_size), QPR(neq+1, NVR_size), UPR(3, NVR), GPR(3, NVR)
+        integer, intent(in)              :: NTIME, NVR, neq, NVR_size
+        real(dp), intent(in)             :: XPR(3, NVR_size), QPR(neq+1, NVR_size), &
+                                            UPR(3, NVR),      GPR(3, NVR)
         integer, optional                :: compression 
         integer                          :: comp_level = 1
-        type(hdf5_file) :: h5f
-        character(len=80) :: filout1
+        type(hdf5_file)                  :: h5f
+        character(len=MAX_STRING_LENGTH) :: filout1
 
         ! Create the filename for the output
-        write(filout1, '(A,I5.5,A)') trim(vpm_write_folder), NTIME, trim(particle_output_file_suffix) // ".h5" 
+        write(filout1, '(A,I5.5,A)') trim(case_folder)//trim(particle_folder) , &
+                NTIME, trim(particle_output_file) // ".h5" 
         write (dummy_string, "(A)") achar(9)//'Writing particles to HDF5 file: '//trim(filout1)
         call vpm_print(dummy_string, nocolor, 2)
         ! Open the HDF5 file for writing
@@ -237,15 +258,15 @@ contains
         integer                          :: comp_level = 4
         
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
-        character(len=50)                :: filout
+        character(len=MAX_STRING_LENGTH) :: filout
         integer                          :: i, j, k
         real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
 
         type(hdf5_file)                  :: h5f
 
         ! Construct file name
-        write(filout, '(a,i5.5,a)') trim(vpm_write_folder), NTIME, trim(pm_output_file_suffix) // ".h5"
-
+        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
+                NTIME, trim(mesh_output_file) // ".h5"
         ! Informative print statement
         write(dummy_string, "(A)") achar(9)//'Writing PM solution to HDF5 file: '//trim(filout)
         call vpm_print(dummy_string, nocolor, 2)

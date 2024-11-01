@@ -297,7 +297,7 @@ submodule(vpm_lib) vpm_remesh
    !>@param [in]  F is the value at the global coordinates
    !>@param [out] FC is the value at global coordinates of the interpolated value
    !--------------------------------------------------------------------------------
-   function cell3d_interp_euler(F, N, M) result(FC)
+   module function cell3d_interp_euler(F, N, M) result(FC)
       use iso_fortran_env
       implicit none
 

@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
-from matplotlib.widgets import TextBox
 
 import numpy as np
 import os

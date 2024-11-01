@@ -172,7 +172,7 @@ contains
       use console_io, only: vpm_print, nocolor, red, VERBOCITY, dummy_string
       integer :: i, j, k 
       if (VERBOCITY >= 2) then 
-         write (dummy_string, "(A)") 'Velocity info in the PM:'
+         write (dummy_string, "(A)") 'Velocity U=∇xψ+∇ϕ info in the PM:'
          call vpm_print(dummy_string, red, 1)
          write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
             achar(9)//"X:", &
@@ -213,5 +213,51 @@ contains
          end if
       endif
    end subroutine print_velocity_stats
+
+   subroutine print_vortex_stretching_stats
+      use console_io, only: vpm_print, nocolor, red, VERBOCITY, dummy_string
+      integer :: i, j, k 
+      if (VERBOCITY >= 2) then 
+         write (dummy_string, "(A)") 'Vortex Stretching (w∇)·u info in the PM:'
+         call vpm_print(dummy_string, red, 1)
+         write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
+            achar(9)//"X:", &
+            achar(9)//"Max:", maxval(deform_pm(1,:,:,:)), &
+            achar(9)//"Min:", minval(deform_pm(1,:,:,:)), &
+            achar(9)//"Mean:", sum(deform_pm(1,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
+            achar(9)//"Y:", &
+            achar(9)//"Max:", maxval(deform_pm(2,:,:,:)), &
+            achar(9)//"Min:", minval(deform_pm(2,:,:,:)), &
+            achar(9)//"Mean:", sum(deform_pm(2,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
+         call vpm_print(dummy_string, nocolor, 2)
+         write (dummy_string, "(A,A, F8.3, A, F8.3, A, F8.3)") &
+            achar(9)//"Z:", &
+            achar(9)//"Max:", maxval(deform_pm(3,:,:,:)), &
+            achar(9)//"Min:", minval(deform_pm(3,:,:,:)), &
+            achar(9)//"Mean:", sum(deform_pm(3,:,:,:))/NXpm_fine/NYpm_fine/NZpm_fine
+         call vpm_print(dummy_string, nocolor, 2)
+         ! CHeck for nan values
+         if (any(isnan(deform_pm))) then 
+            ! Print Velx
+            do i = 1, NXpm_fine
+               do j = 1, NYpm_fine
+                  do k = 1, NZpm_fine
+                     if (isnan(deform_pm(1, i, j, k)) .or. &
+                         isnan(deform_pm(2, i, j, k)) .or. &
+                         isnan(deform_pm(3, i, j, k))) then
+                        write (*, "(A, I3, A, I3, A, I3)") &
+                              achar(9)//"I:", i, achar(9)//"J:", j, achar(9)//"K:", k, achar(9)
+                        stop
+                     end if
+                  end do
+               end do
+            end do
+            write (*, *) achar(9), 'VPM: NAN VALUES IN VELOCITY'
+            stop
+         end if
+      endif
+   end subroutine print_vortex_stretching_stats 
 
 end module pmgrid

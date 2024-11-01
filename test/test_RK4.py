@@ -6,7 +6,7 @@ import numpy as np
 from vpm_py.console_io import print_IMPORTANT, print_red, print_green, print_blue
 from vpm_py.visualization import StandardVisualizer
 from vpm_py.arrays import F_Array
-from test_hill_spherical_vortex import hill_assign_parallel, visualize_vorticity
+from test_hill_problem import hill_assign_parallel, visualize_vorticity
 
 
 # Initialize MPI
@@ -20,7 +20,7 @@ vpm = VPM(
     number_of_equations=3,
     number_of_processors=np_procs,
     rank=rank,
-    verbocity=2,
+    verbocity=1,
     dx_particle_mesh=0.1,
     dy_particle_mesh=0.1,
     dz_particle_mesh=0.1,
@@ -175,7 +175,7 @@ def solve(i: int, T: float, XPR: F_Array, QPR: F_Array):
         GPR = vpm.particles.particle_deformations
 
     comm.Barrier()
-    return UPR 
+    return UPR, GPR
 
 def timestep(
     i:int, 
@@ -185,28 +185,28 @@ def timestep(
 ):
     XPR_TMP = XPR.copy()
     QPR_TMP = QPR.copy()
-    U1 = solve(i, t, XPR_TMP, QPR_TMP)
+    U1, G1 = solve(i, t, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U1)):
             print_red(f"U1 has NaN values", rank)
             raise ValueError("U1 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U1[:, :]
-    U2 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
+    U2, G2 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U2)):
             print_red(f"U2 has NaN values", rank)
             raise ValueError("U2 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U2[:, :]
-    U3 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
+    U3, G3 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U3)):
             print_red(f"U3 has NaN values", rank)
             raise ValueError("U3 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + DT * U3[:, :]
-    U4 = solve(i, t + DT, XPR_TMP, QPR_TMP)
+    U4, G4 = solve(i, t + DT, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U4)):
             print_red(f"U4 has NaN values", rank)
@@ -215,6 +215,7 @@ def timestep(
     # U_mean = U1
     if rank == 0:
         U_mean = 1/6 * (U1[:, :] + 2 * U2[:, :] + 2 * U3[:, :] + U4[:, :])
+        G_mean = 1/6 * (G1[:, :] + 2 * G2[:, :] + 2 * G3[:, :] + G4[:, :])
         if np.any(np.isnan(U_mean)):
             print_red(f"U_mean has NaN values", rank)
             print_red(f"U1: {U1}", rank)
@@ -226,6 +227,7 @@ def timestep(
         # We do not convect the vorticity
         for j in range(vpm.particles.NVR):
             XPR[:, j] = XPR[:, j] + U_mean[:,j] * DT
+            QPR[0:3, j] = QPR[0:3, j] + G_mean[:,j] * DT
 
         print_IMPORTANT(f"Saving to file", rank)
         vpm.particles.save_to_file(filename=f"particles")
@@ -241,6 +243,8 @@ def timestep(
         viscosity=NI,
     )
     comm.Barrier()
+
+    XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-6)
     return XPR, QPR
 
 # # Simulate

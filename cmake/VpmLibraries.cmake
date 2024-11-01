@@ -208,7 +208,7 @@ function(define_vpm_targets)
     )
     target_link_options(${EXE}_exe PRIVATE 
         # $<$<BOOL:${BUILD_STATIC}>:-static>                      # Link statically
-        $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
+        $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                   # Link MKL
     )
 
     # # -------------------------------------------------------------------------------------------------

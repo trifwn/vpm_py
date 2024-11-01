@@ -12,13 +12,12 @@ Module vpm_lib
    use constants, only: pi, pi2, pi4
    use base_types, only: dp
    ! Printing
-   use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY, &
-                         particle_output_file_suffix, vpm_write_folder, pm_output_file_suffix
+   use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
    use parvar, only:     print_particle_info, print_particle_positions, associate_particles
-   use pmgrid, only:     print_velocity_stats, set_pm_velocities_zero, &
-                         set_pm_deformations_zero, associate_velocities, &
-                         associate_deformations 
-   use file_io, only:   write_particles_hdf5, write_pm_solution_hdf5
+   use pmgrid, only:     print_velocity_stats, print_vortex_stretching_stats, &
+                         set_pm_velocities_zero, set_pm_deformations_zero,    &
+                         associate_velocities, associate_deformations 
+   use file_io, only:    write_particles_hdf5, write_pm_solution_hdf5
 
    !  WhatToDo flags
    integer, parameter :: DEFINE_PROBLEM = 0,                                        &
@@ -71,7 +70,7 @@ subroutine vpm_interpolate(                                    &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,  &
    RHS_pm_ptr, deform_ptr           &
 )
-   use pmgrid, only: RHS_pm
+   use pmgrid, only: RHS_pm, velocity_pm, deform_pm
    use parvar, only: NVR
    use MPI
    implicit none
@@ -106,7 +105,8 @@ subroutine vpm_interpolate(                                    &
 
    ! We assume that the problem is solved and the velocity field is calculated
    if (my_rank .eq. 0) then
-      call calc_velocity_serial_3d(-1) 
+      ! call calc_velocity_serial_3d(-1) ! ONLY DEFORMATION 
+      call calc_vortex_stretching_conservative(velocity_pm, deform_pm)
    end if
    call interpolate_particles_parallel(1)
 end subroutine vpm_interpolate
@@ -120,7 +120,7 @@ end subroutine vpm_interpolate
 !>     - Interpolate the PM grid to the particles
 subroutine vpm_diffuse(                                         &
    XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in,   &
-   RHS_pm_ptr, deform_ptr,           & 
+   RHS_pm_ptr, deform_ptr,                                      & 
    NI_in                                                        &
 )
    use MPI
@@ -160,7 +160,7 @@ subroutine vpm_diffuse(                                         &
    call set_pm_deformations_zero
    if (my_rank .eq. 0) then
       ! diffusion stores -NI*grad^2 w * Vol in GP(1,:)
-      ! SOL_pm = -VIS \nabla \cdot RHS_pm
+      ! RHS_pm = -VIS \nabla \cdot RHS_pm
       call diffuse_vort_3d ! DIFFUSION OF VORTICITY
    end if
    ! WHEN ITYPEB = 2 WE GET THE GP FROM THE SOL_pm (DEFORMATION) and from QP
@@ -229,20 +229,21 @@ subroutine vpm_solve_velocity(                                 &
    if (my_rank .eq. 0) then
       !call convect_first_order(Xbound,Dpm,NN,NN_bl)
       ! FROM THE SOLUTION OF PM WE GET THE VELOCITIES ON THE GRID
-      call calc_velocity_serial_3d(0) ! VELOCITY STO PM
+      call calc_velocity ! VELOCITY STO PM
       ! SOL_pm is stil the solution of vorticity
       call print_velocity_stats
    end if
    call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
 end subroutine vpm_solve_velocity
 
-subroutine vpm_solve_velocity_delatation(                      &
+subroutine vpm_solve_velocity_deformation(                      &
    NTIME_in,                                                   &
    XP_in, QP_in, UP_in, GP_in,                                 &
    NVR_in, NVR_size_in, neqpm_in,                              &
    RHS_pm_ptr, vel_ptr, deform_ptr                             &
 )
    use MPI
+   use pmgrid, only: velocity_pm, deform_pm
    implicit none
    real(dp), intent(inout), target            :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
    integer, intent(inout)                     :: NVR_in
@@ -257,33 +258,31 @@ subroutine vpm_solve_velocity_delatation(                      &
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
    call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
    call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
+
    call associate_velocities(vel_ptr)
    if (present(deform_ptr)) call associate_deformations(deform_ptr)
-   
    call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
    if (my_rank .eq. 0) then
       !call convect_first_order(Xbound,Dpm,NN,NN_bl)
       ! FROM THE SOLUTION OF PM WE GET THE VELOCITIES ON THE GRID
-      call calc_velocity_serial_3d(0) ! VELOCITY STO PM
-      ! SOL_pm is stil the solution of vorticity
+      call calc_velocity ! VELOCITY AND DEFORMATION STO PM
       call print_velocity_stats
+      call calc_vortex_stretching_conservative(velocity_pm, deform_pm) ! VELOCITY AND DEFORMATION STO PM
+      call print_vortex_stretching_stats
    end if
    call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
-end subroutine vpm_solve_velocity_delatation
+end subroutine vpm_solve_velocity_deformation
 
+subroutine set_num_threads()
 #ifdef USE_INTEL
-   subroutine set_num_threads()
-      if (SOLVER .eq. 1) then
-         call mkl_set_num_threads(OMPTHREADS)
-      end if
-   end subroutine set_num_threads
-#else
-   subroutine set_num_threads()
-   end subroutine set_num_threads
+   if (SOLVER .eq. 1) then
+      call mkl_set_num_threads(OMPTHREADS)
+   end if
 #endif
+end subroutine set_num_threads
 
 subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-               RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in,&
+               RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in,      &
                deform_ptr)
       use parvar, only:    QP, XP, UP, GP, NVR, NVR_size,            &
                            print_particle_info, print_particle_positions, associate_particles
@@ -331,7 +330,7 @@ subroutine vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
             call vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,        &
                                  neqpm_in, RHS_pm_ptr, vel_ptr)
          case (SOLVE_VELOCITY_DELATATION)
-            call vpm_solve_velocity_delatation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in,          &
+            call vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in,          &
                                  NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr,     &
                                  deform_ptr)
          case (PROJECT_AND_SOLVE)
@@ -391,7 +390,7 @@ end subroutine vpm
       ! NN_tmp       : is the number of cells in each direction (block cells)
       ! NN_bl_tmp    : is the start and finish of the cells in each direction
       ! Xbound       : is the boundary of the domain
-      NN_block(1:3) = block_grids(n_block)%NN(1:3)
+      NN_block = block_grids(n_block)%NN
 
       ! SOL_pm block
       if (allocated(SOL_pm_bl)) then
@@ -427,10 +426,17 @@ end subroutine vpm
                         print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero 
       use vpm_mpi, only: rhsbcast, rhsscat
       use serial_vector_field_operators, only: divergence, laplacian
+      use file_io, only: solve_stats_file, case_folder  
       implicit none
       integer :: my_rank, ierr, i
       real(dp), allocatable :: div_wmega(:, :, :), laplace_LHS_pm(:, :, :, :)
+      real(dp) :: total_vort
       type(grid) :: my_block_grid
+      character(len=256) :: filename
+      ! LOCAL TEMPORARY TBR
+      real(dp) :: max_div_w, mean_div_w, total_enstrophy, total_vorticity
+      real(dp) :: mean_residual(neqpm), max_residual(neqpm), mean_rhs(neqpm), max_rhs(neqpm)  
+
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
       if (my_rank .eq. 0) then
@@ -457,18 +463,23 @@ end subroutine vpm
          call vpm_print(dummy_string, yellow, 1)
          write (dummy_string, "(A,3F8.3)") achar(9)//'Z:', fine_grid%Xbound(3), fine_grid%Xbound(6)
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3I5)") achar(9)//'Size of the fine domain:', fine_grid%NN(1), &
-                                                                               fine_grid%NN(2), &
-                                                                               fine_grid%NN(3) 
+         write (dummy_string, "(A,3I5,A,I15)") achar(9)//'Size of the fine domain:', fine_grid%NN(1), &
+                                                                                    fine_grid%NN(2), &
+                                                                                    fine_grid%NN(3), &
+                           achar(9)//achar(9)//'Total Cells:', fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3) 
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3I5)") achar(9)//'Size of the coarse domain:', coarse_grid%NN(1), & 
-                                                                                 coarse_grid%NN(2), & 
-                                                                                 coarse_grid%NN(3)
+         write (dummy_string, "(A,3I5,A,I15)") achar(9)//'Size of the coarse domain:', coarse_grid%NN(1), & 
+                                                                                      coarse_grid%NN(2), & 
+                                                                                      coarse_grid%NN(3), &
+                           achar(9)//'Total Cells:', coarse_grid%NN(1)*coarse_grid%NN(2)*coarse_grid%NN(3)
+
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A,3I5)") achar(9)//'Size of the block domains:', block_grids(1)%NN(1), &
-                                                                                 block_grids(1)%NN(2), &
-                                                                                 block_grids(1)%NN(3)
          write (dummy_string, "(A,I5)") achar(9)//'Number of blocks:', NBlocks
+         call vpm_print(dummy_string, yellow, 1)
+         write (dummy_string, "(A,3I5,A,I15)") achar(9)//'Size of the block domains:', block_grids(1)%NN(1), &
+                                                                                       block_grids(1)%NN(2), &
+                                                                                       block_grids(1)%NN(3), &
+                           achar(9)//'Total Cells:', block_grids(1)%NN(1)*block_grids(1)%NN(2)*block_grids(1)%NN(3)
          call vpm_print(dummy_string, yellow, 1)
       end if
 
@@ -507,39 +518,96 @@ end subroutine vpm
          div_wmega = divergence(RHS_pm, DXpm , DYpm, DZpm)
          laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
          ! Print the mean, max and min div_u
-         write (*, *) ""
-         write (dummy_string, "(A)") 'Divergence of the Psi field'
+         write (dummy_string, *) ""
+         call vpm_print(dummy_string, nocolor, 1)
+         write (dummy_string, "(A)") 'Divergence of the Ψ field'
          call vpm_print(dummy_string, yellow, 1)
-         write (dummy_string, "(A, E10.4, A,E10.4, A, E10.4)") "ΔPsi"// &
+         write (dummy_string, "(A, E10.4, A,E10.4, A, E10.4)") achar(9)//"div(ω)"// achar(9)// &
                achar(9)//" min : ", minval(div_wmega), &
                achar(9)//" max : ", maxval(div_wmega), &
                achar(9)//" mean: ", sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+         call vpm_print(dummy_string, blue, 1)
+         
+         write (dummy_string, "(A)") 'Total Vorticity in the domain'
+         call vpm_print(dummy_string, yellow, 1)
+         total_vort = sum(RHS_pm(1:3,:,:,:)) * DXpm * DYpm * DZpm
+         write (dummy_string, "(A, E10.4)") achar(9)//'Total Vorticity : ', total_vort
+         call vpm_print(dummy_string, blue, 1)
+         write (dummy_string, "(A)") 'Total Enstrophy in the domain'
+         call vpm_print(dummy_string, yellow, 1)
+         total_vort = sum(RHS_pm(1:3,:,:,:)**2) * DXpm * DYpm * DZpm
+         write (dummy_string, "(A, E10.4)") achar(9)//'Total Enstrophy : ', total_vort
          call vpm_print(dummy_string, blue, 1)
 
          write (dummy_string, "(A)") 'Residuals of the solution'
          call vpm_print(dummy_string, yellow, 1)
          do i = 1,neqpm
             ! For each equation write the laplacian - RHS_pm
-            write (dummy_string, "(A, I3, A)") '   Equation =', i, "Δf = RHS"
+            write (dummy_string, "(A, I3, A)") '   Equation =', i, ":   Δf = RHS"
             call vpm_print(dummy_string, blue, 1)
-            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Forcing (RHS)'//     &
-                  achar(9)//'min : ', minval(RHS_pm(i,:,:,:)),                                     &
-                  achar(9)//'max : ', maxval(RHS_pm(i,:,:,:)),                                     &
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Forcing (RHS)'//      &
+                  achar(9)//'min : ', minval(RHS_pm(i,:,:,:)),                                      &
+                  achar(9)//'max : ', maxval(RHS_pm(i,:,:,:)),                                      &
                   achar(9)//'mean: ', sum(RHS_pm(i,:,:,:))/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
             call vpm_print(dummy_string, nocolor, 1)                                                   
-            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//"Solution"//          &
-                  achar(9)//'min : ', minval(SOL_pm(i,:,:,:)),                                     &
-                  achar(9)//'max : ', maxval(SOL_pm(i,:,:,:)),                                     &
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//"Solution"//           &
+                  achar(9)//'min : ', minval(SOL_pm(i,:,:,:)),                                      &
+                  achar(9)//'max : ', maxval(SOL_pm(i,:,:,:)),                                      &
                   achar(9)//'mean: ', sum(SOL_pm(i,:,:,:))/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3)) 
             call vpm_print(dummy_string, nocolor, 1)
             write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Res:=Δf-RHS'//  &
-                  achar(9)//'min : ', minval(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:)),            &
-                  achar(9)//'max : ', maxval(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:)),            &
-                  achar(9)//'mean: ', sum(laplace_LHS_pm(i,:,:,:) - RHS_PM(i,:,:,:))               &
+                  achar(9)//'min : ', minval(abs(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:))),        &
+                  achar(9)//'max : ', maxval(abs(laplace_LHS_pm(i,:,:,:)- RHS_PM(i,:,:,:))),        &
+                  achar(9)//'mean: ', sum(abs(laplace_LHS_pm(i,:,:,:) - RHS_PM(i,:,:,:)))           &
                                              /(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
             call vpm_print(dummy_string, nocolor, 1)                                                   
-            write (*, *) ""
+            write (dummy_string, *) ""
+            call vpm_print(dummy_string, nocolor, 1)
          enddo 
+
+         ! Construct the filename
+         write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
+
+         ! Determine the file status and write mode
+         if (NTIME_pm == 1) then
+            open(unit=10, file=filename, status='replace', action='write')
+            ! Write CSV header
+            write(10, '(A)') "Iteration,Total_Enstrophy, Total_Vorticity,"      &
+                           //"MEAN_DIV_W,MAX_DIV_W,"                            &
+                           //"MEAN_RESIDUAL1,MAX_RESIDUAL1,MEAN_RHS1,MAX_RHS1," &
+                           //"MEAN_RESIDUAL2,MAX_RESIDUAL2,MEAN_RHS2,MAX_RHS2," &
+                           //"MEAN_RESIDUAL3,MAX_RESIDUAL3,MEAN_RHS3,MAX_RHS3"
+         else
+            open(unit=10, file=filename, status='old', position='append', action='write')
+         endif
+
+         ! Calculate required values
+         total_enstrophy = sum(RHS_pm(1:3,:,:,:)**2) * DXpm * DYpm * DZpm
+         total_vorticity = sum(RHS_pm(1:3,:,:,:))
+
+         mean_div_w = sum(div_wmega) / (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+         max_div_w = maxval(abs(div_wmega))
+
+         ! Calculate residual statistics across all equations
+         mean_residual = sum(sum(sum(abs(laplace_LHS_pm - RHS_PM), dim=4), dim=3), dim=2) / &
+                        (neqpm * fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+         max_residual = maxval(maxval(maxval(abs(laplace_LHS_pm - RHS_PM), dim=4), dim=3), dim=2)
+
+         ! Calculate RHS statistics across all equations
+         mean_rhs = sum(sum(sum(RHS_PM, dim=4), dim=3), dim=2) / &
+                  (neqpm * fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+         max_rhs = maxval(maxval(maxval(abs(RHS_PM), dim=4), dim=3), dim=2)
+
+         ! Write data for this iteration
+         write(10, '(I0,16(",",ES14.7))') NTIME_pm, &
+            total_enstrophy, total_vorticity, &
+            mean_div_w, max_div_w, &
+            mean_residual(1), max_residual(1), mean_rhs(1), max_rhs(1), &
+            mean_residual(2), max_residual(2), mean_rhs(2), max_rhs(2), &
+            mean_residual(3), max_residual(3), mean_rhs(3), max_rhs(3)
+
+         close(10)
+
          tab_level = tab_level - 1
 
          ! Deallocate the memory
@@ -612,7 +680,7 @@ end subroutine vpm
          end do
 
          ! FINE
-         Dpm_fine(1:3)    = fine_grid%Dpm(1:3)
+         Dpm_fine(1:3) = fine_grid%Dpm(1:3)
          Xbound(1:6) = fine_grid%Xbound(1:6)
 
          call yaps3d(SOL_pm_bl, RHS_pm_bl, Xbound_block, Xbound_coarse, Dpm_fine, Dpm_coarse, NN_block, NN_bl_block, &
@@ -623,18 +691,6 @@ end subroutine vpm
          my_block_idx = my_rank + 1
          my_block_grid = block_grids(my_block_idx)
          call solget(NBlocks, NBI, NBJ, NBK, my_block_grid, block_grids, fine_grid, SOL_pm, SOL_pm_bl) 
-
-         if (my_rank .eq. 0) then
-            write (dummy_string, "(A)") 'Final PM solution values'
-            call vpm_print(dummy_string, blue, 2)
-            do eq_num = 1, neqpm
-               write (dummy_string, "(A, I3,A,F8.3,A,F8.3)") &
-                  achar(9)//'Equation =', eq_num, "->"// &
-                  achar(9)//'min(SOL_pm)', minval(SOL_pm(eq_num,:,:,:)), &
-                  achar(9)//'max(SOL_pm)', maxval(SOL_pm(eq_num,:,:,:))   
-               call vpm_print(dummy_string, blue, 2)
-            enddo
-         end if
       end if
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       !--------------------------------------------
@@ -740,7 +796,7 @@ end subroutine vpm
 
    subroutine interpolate_particles_parallel(itypeb)
       use parvar, only:    NVR, XP_scatt, QP_scatt, UP_scatt, GP_scatt, NVR_p
-      use pmgrid, only:    velocity_pm,  deform_pm, RHS_pm, SOL_pm
+      use pmgrid, only:    velocity_pm,  deform_pm, RHS_pm
       use vpm_interpolate, only: back_to_particles_3D
       use vpm_mpi, only:   rhsbcast, particles_scat, particles_gath, velbcast, defbcast
 
@@ -755,10 +811,10 @@ end subroutine vpm
       if (my_rank .eq. 0) st = MPI_WTIME()
 
       ! BROADCASTING
-      call rhsbcast(RHS_pm, fine_grid%NN, neqpm)
-      call rhsbcast(SOL_pm, fine_grid%NN, neqpm)
+      ! call rhsbcast(RHS_pm, fine_grid%NN, neqpm)
+      ! call rhsbcast(SOL_pm, fine_grid%NN, neqpm)
       if (itypeb .eq. 1) call velbcast
-      if (itypeb .eq. 2) call defbcast
+      call defbcast
       call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
       ! ALLOCATE
@@ -775,9 +831,9 @@ end subroutine vpm
 
       ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity field
       ! WHEN ITYPEB = 2 WE GET THE GP FROM THE deformation
-      call back_to_particles_3D(SOL_pm, XP_scatt, QP_scatt, UP_scatt, GP_scatt,  &
-                                velocity_pm, deform_pm,                          &
-                                NVR_p, interf_iproj, itypeb, NVR_p               )
+      call back_to_particles_3D(XP_scatt, QP_scatt, UP_scatt, GP_scatt,  &
+                                velocity_pm, deform_pm,                  &
+                                NVR_p, interf_iproj, itypeb, NVR_p       )
       ! GATHERS XP, QP, UP, GP
       call particles_gath
 

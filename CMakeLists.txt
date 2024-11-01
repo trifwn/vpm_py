@@ -9,6 +9,9 @@ endif()
 
 # Add option for static build
 option(BUILD_STATIC "Build static executable" ON)
+option(CMAKE_INSTALL_LOCAL_ONLY "Install only the local project" ON)
+SET(CMAKE_INSTALL_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs")
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Include custom modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -80,8 +83,6 @@ set(EXE "vpm_${BUILD_TYPE}_${COMPILER_NAME}")
 
 include(VpmLibraries)
 define_vpm_targets()
-### CUSTOM TARGETS FOR OPERATORS
-
 
 # -------------------------------------------------------------------------------------------------
 #                                            Dependencies
@@ -120,3 +121,9 @@ else()
     message("\tCompiling and linking with Netlib Fishpack Implementation")
 endif()
 message("-------------------------------------------------------------------------------------------------------------------")
+
+# Install the libraries to the folder VPM_SOURCE_DIR/../vpm_py/shared_libs
+install(TARGETS operators_api DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+install(TARGETS vpm DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+install(TARGETS arrays DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+install(TARGETS ${EXE} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)

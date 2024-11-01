@@ -8,7 +8,7 @@ contains
    !   Input :                                                                 !
    !          itype (1,2) defines what value to interpolate to the particles   !
    !---------------------------------------------------------------------------!
-   subroutine back_to_particles_3D(SOL_pm, XP, QP, UP, GP, velocity_pm, deform_pm, &
+   subroutine back_to_particles_3D(XP, QP, UP, GP, velocity_pm, deform_pm, &
                                    NVR, iproj, itype, NVRM)
       ! TODO: MAKE FLAGS FOR CALC U AND CALC G
       use projlib, only: projection_fun
@@ -19,9 +19,7 @@ contains
       integer, intent(in)     :: NVR, iproj, NVRM, itype
       real(dp), intent(in)    :: velocity_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(in)    :: deform_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
-      real(dp), intent(in)    :: SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
       real(dp), intent(inout) :: QP(neqpm+1, NVRM), XP(3, NVRM), UP(3, NVRM), GP(3, NVRM)
-
 
       real(dp)         :: fx, fy, fz, f, x, y, z
       integer          :: inode, jnode, knode, i, j, k, nv, ips, ipf

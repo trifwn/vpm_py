@@ -6,6 +6,7 @@ contains
                      nb_j, nb_k, ireturn, iyntree, ilevmax, npmsize)
 
       use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
+      use file_io, only: yaps_time_file, case_folder
       use projlib
       use pmlib, only: pmesh
       use MPI
@@ -26,6 +27,7 @@ contains
 
       integer                          :: ibctyp_c
       integer                          :: origsize(5), isize1, isize2, isize3, NN_tmpc(6), rank 
+      character(len=256)               :: yaps_file
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -38,10 +40,22 @@ contains
       nullify (XP)
       QP => DQP
       XP => DXP
+      nb = my_rank + 1
+
+      if (VERBOCITY > 0) then
+         if (my_rank.eq.0) then
+            write (yaps_file, "(A)") trim(case_folder)//trim(yaps_time_file) 
+            open(199, file=yaps_file, access='append', action='write', form='formatted')
+            write(199, *) 'Block', my_rank, 'Start'
+            write(199, *) achar(9)//'NN coarse=', NN_coarse(1), NN_coarse(2), NN_coarse(3)
+            do rank = 0, np - 1
+               write(199, *) achar(9)//"BLOCK", rank, ' -> NN_bl=', NNbl(1, nb), NNbl(2, nb), NNbl(3, nb) 
+            end do
+         endif 
+      end if
 
       !The equations to be solved should be from 1 to neqf
       neq = neqf
-      nb = my_rank + 1
       Xbound_tmp(1:6) = Xbound_bl(1:6, nb)
       NN_tmp(1:3) = NNbl(1:3, nb)
       NN_bl_tmp(1:6) = NNbl_bl(1:6, nb)
@@ -93,7 +107,7 @@ contains
       
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'Pmesh Block (Infinite Domain)', int((endtime - starttime)/60), 'm', &
+         if(VERBOCITY > 0 ) write (199, *) 'Pmesh Block (Infinite Domain)', int((endtime - starttime)/60), 'm', &
                                                          mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") &
                'Pmesh Block (Infinite Domain) finished in:', &
@@ -177,7 +191,7 @@ contains
 
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'Mapping Nodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         if(VERBOCITY > 0 ) write (199, *) 'Mapping Nodes', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") 'Mapping Nodes finished in', &
             int((endtime - starttime)/60), ' m', mod(endtime - starttime, 60.d0), ' s'
          call vpm_print(dummy_string, yellow, 1)
@@ -224,7 +238,7 @@ contains
       !!      endif
       !!      !We broadcast SOL_pm_sample(which is the addition of Sampled solution from proccesors to all cpu's
       !!        if(my_rank.eq.0)endtime = MPI_WTIME()
-      !!        if(my_rank.eq.0) write(199,*)'pm_sample11',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
+      !!        if(my_rank.eq.0) if(VERBOCITY > 0 )write(199,*)'pm_sample11',int((endtime-starttime)/60),'m',mod(endtime-starttime,60.d0),'s'
       !!      call mpimat5(mat5,npmsize,NN_coarse(1),NN_coarse(2),NN_coarse(3),BLOCKS,BLOCKS,0)
       !!      call MPI_BCAST(SOL_pm_sample,1,mat5,0,MPI_COMM_WORLD,ierr)
       !!      call MPI_TYPE_FREE(mat5,ierr)
@@ -278,7 +292,8 @@ contains
       end if
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'Gathering SOL_pm_sample', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         if(VERBOCITY > 0 ) write (199, *) 'Gathering SOL_pm_sample', int((endtime - starttime)/60), 'm', &
+                                                                      mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") 'Gathering PM Solution samples finished in', &
                int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
          call vpm_print(dummy_string, yellow, 1)
@@ -293,7 +308,7 @@ contains
 
       if (my_rank .eq. 0) then 
          endtime = MPI_WTIME()
-         write (199, *) 'Broadcasting SOL_pm_sample', int((endtime - starttime)/60), 'm', &
+         if(VERBOCITY > 0 ) write (199, *) 'Broadcasting SOL_pm_sample', int((endtime - starttime)/60), 'm', &
                                                       mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") 'Broadcasting PM Solution samples finished in',&
             int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
@@ -373,7 +388,7 @@ contains
 
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'Pmesh Coarse', int((endtime - starttime)/60), 'm', &
+         if(VERBOCITY > 0 ) write (199, *) 'Pmesh Coarse', int((endtime - starttime)/60), 'm', &
                                                          mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") &
                'Pmesh Coarse finished in:', &
@@ -412,7 +427,7 @@ contains
       
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'pm_bc1', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         if(VERBOCITY > 0 ) write (199, *) 'PM BC1:', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") &
                'Pmesh BC1 finished in:', &
                int((endtime - starttime)/60), ' m',&
@@ -498,7 +513,7 @@ contains
       !---------------------------------------------------------------------------------
       if (my_rank .eq. 0) then
          endtime = MPI_WTIME()
-         write (199, *) 'pm_bc2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+         if(VERBOCITY > 0 ) write (199, *) 'PM BC2', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
          write (dummy_string, "(A, I3, A, F8.3, A)") &
                'Pmesh BC2 finished in:', &
                int((endtime - starttime)/60), ' m',&
@@ -506,7 +521,7 @@ contains
          call vpm_print(dummy_string, yellow, 1)
       end if
       ! write(*,*) 'Solving for Block',nb
-      !iynbc=0 means that the bc's of the poisson solver are already defined
+      ! iynbc=0 means that the bc's of the poisson solver are already defined
       iynbc = 0
       itree = 0
       lmax = 0
@@ -553,34 +568,15 @@ contains
                int((endtime - starttime)/60), ' m',&
                mod(endtime - starttime, 60.d0), ' s'
          call vpm_print(dummy_string, yellow, 1)
-
-         write (199, *) 'Pmesh Block (defined BC)', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
-         write (199, *) "Total time", int((endtime - total_starttime)/60), 'm', mod(endtime - total_starttime, 60.d0), 's'
-         write (199, *) ""
+         
+         if(VERBOCITY > 0 ) then 
+          write (199, *) 'Pmesh Block (defined BC)', int((endtime - starttime)/60), 'm', mod(endtime - starttime, 60.d0), 's'
+          write (199, *) "Total time", int((endtime - total_starttime)/60), 'm', mod(endtime - total_starttime, 60.d0), 's'
+          write (199, *) ""
+          close(199)
+         endif
       end if
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-
-      !allocate(SOL_pm_er(NN_fine(1),NN_fine(2),1,7))
-      !allocate(velvrx_tmp(NXpm,NYpm,NZpm) ,velvry_tmp(NXpm,NYpm,NZpm),velvrz_tmp(NXpm,NYpm,NZpm))
-      ! write(*,*) NXf-NXs+1
-      ! ixs=(i_nb-1)*(NXf-NXs)+NN_bl_fine(1)
-      ! jxs=(j_nb-1)*(NYf-NXs)+NN_bl_fine(2)
-
-      ! ixf= ixs + (NXf-NXs+1)-1
-      ! jxf= jxs + (NYf-NYs+1)-1
-      ! write(*,*) 'BLOCKmap',ixs,ixf,jxs,jxf
-      ! SOL_pm_er(ixs:ixf,jxs:jxf,1,1)= SOL_pm(NN_bl(1):NN_bl(4),NN_bl(2):NN_bl(5),1,1)
-      ! velvrx_tmp(ixs:ixf,jxs:jxf,1) = velvrx(NN_bl(1):NN_bl(4),NN_bl(2):NN_bl(5),1)
-      ! velvry_tmp(ixs:ixf,jxs:jxf,1) = velvry(NN_bl(1):NN_bl(4),NN_bl(2):NN_bl(5),1)
-
-      !SOL_pm_er  = abs(SOL_pm_er -SOL_pm_fine)
-      !velphix_fine=0
-      !velphiy_fine=0
-      !velvrx_tmp = abs(velvrx_tmp - velvrx_fine)
-      !velvry_tmp = abs(velvry_tmp - velvry_fine)
-      !write(outfil1,'(a5,i2.2)') 'error',nc
-      !call write_pm_solution(RHS_pm_fine,SOL_pm_er,velphix_fine,velphiy_fine,velvrx_tmp,velvry_tmp,Dpm_fine,outfil1,Xbound_fine,NN_bl_fine,NN_fine)
-
    contains
 
       subroutine mapnodes_bl

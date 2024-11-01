@@ -75,6 +75,8 @@ class SliceFilter_3D(Filter):
                 sliced_data[key] = slice[slices]
             elif isinstance(slice, dict):
                 sliced_data[key] = {k: v[slices] for k, v in slice.items()}
+            elif key == 'solution':
+                pass
             else:
                 raise TypeError(f"Unsupported data type: {type(slice)}")
         # Reorder the missing axis out of the data. We want to put

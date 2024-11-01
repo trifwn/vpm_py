@@ -91,6 +91,12 @@ class ResultPlot:
         self.plotter = plotter
         return self.plotter
 
+    # @property
+    # def plotter(self):
+    #     if self._plotter is None:
+    #         return self.get_plotter()
+    #     return self._plotter
+
     def get_plot_dimensions(self):
         """
         Determine the plot dimensions based on the type and filters.

@@ -1,37 +1,49 @@
 module test_mod
    use base_types, only: dp
-   real(dp), allocatable, target:: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
-                                           XPO(:, :), QPO(:, :), &
-                                           XP_in(:, :), QP_in(:, :)
-   real(dp), pointer:: vel(:,:,:,:)
-   real(dp), pointer:: RHS_pm_in(:, :, :, :), RHS_pm_out(:, :, :, :)
+   real(dp), allocatable, target    :: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
+                                       XPO(:, :), QPO(:, :), &
+                                       XP_in(:, :), QP_in(:, :)
+   real(dp), pointer       :: RHS_ptr(:,:,:,:)
+   real(dp), pointer       :: SOL_ptr(:,:,:,:)
+   real(dp), pointer       :: vel_ptr(:,:,:,:)
+   real(dp), pointer       :: deform_ptr(:,:,:,:)
    integer, allocatable    :: qflag(:)
-   integer :: NVR_ext, NVR_ext_init
+   integer                 :: NVR_ext, NVR_ext_init
 end module test_mod
 
 Program test_pm
    use base_types, only: dp
-   use pmgrid, only:    XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm,ncoarse, IDVPM
-   use vpm_vars, only:  mrem, interf_iproj,   &
-                        IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, nremesh, iyntree,&
-                        ilevmax, ibctyp, NBI, NBJ, NBK
-   use vpm_size, only:  st, et, fine_grid
-   use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, &
-                        QPO, XPO, Qflag, &
-                        QP_in, XP_in, RHS_pm_in, vel
-   use test_app, only: hill_assign
-   use parvar, only:    NVR
-   use vpm_lib, only:   vpm, remesh_particles_3d
-   use file_io, only:   write_pm_solution_hdf5, write_particles_hdf5 
-   use console_io, only:        vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level
+   use pmgrid, only:     XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm, ncoarse, IDVPM, &
+                         SOL_pm, velocity_pm, deform_pm
+   use vpm_vars, only:   mrem, interf_iproj,   &
+                         IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, nremesh, iyntree,&
+                         ilevmax, ibctyp, NBI, NBJ, NBK
+   use vpm_size, only:   st, et, fine_grid
+   use test_mod, only:   XPR, QPR, UPR, GPR, NVR_ext, &
+                         QPO, XPO, Qflag, &
+                         QP_in, XP_in, &
+                         RHS_ptr, vel_ptr, deform_ptr, SOL_ptr
+   use test_app, only:   hill_assign
+   use parvar, only:     NVR
+   use vpm_lib, only:    vpm, remesh_particles_3d
+   use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, case_folder 
+   use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
    use MPI
 
    Implicit None
-   real(dp)                      :: Vref, NI_in, DT_in, FACDEF, T, &
-                                    XMIN, XMAX, UINF(3)
-   integer                       :: NVR_MAX
-   integer                       :: my_rank, np, ierr, i, neq, j, TMAX, ncell_rem
-   logical                       :: pmfile_exists
+   real(dp)             :: Vref, NI_in, DT_in, FACDEF, T, &
+                           XMIN, XMAX, UINF(3)
+   integer              :: NVR_size
+   integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
+   logical              :: pmfile_exists
+   real(dp)             :: sphere_radius = 1.5_dp
+   real(dp)             :: sphere_z_0 = 0.0_dp
+   real(dp)             :: u_free_stream = 1.0_dp
+   real(dp)             :: CFL_x, CFL_y, CFL_z, CFL
+   real(dp)             :: CFL_treshold_up = 0.9_dp
+   real(dp)             :: CFL_treshold_down = 0.5_dp
+   real(dp)             :: CFL_target = 0.7_dp
+   character(len=250)   :: cfl_file
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -40,9 +52,9 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   
+   case_folder = 'results_deform_CFL_variable/'
    inquire (file='pm.inp', exist=pmfile_exists)
-   print *, 'pm.inp exists:', pmfile_exists
+   if(my_rank.eq.0) print "(A,L1)", 'pm.inp exists:', pmfile_exists
    if (pmfile_exists) then
       open (1, file='pm.inp')
       read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
@@ -70,74 +82,39 @@ Program test_pm
          print *, achar(9), 'DZpm=', DZpm
       end if
    else
-      DXpm = 0.2_dp; DYpm = 0.2_dp; DZpm = 0.2_dp
+      DXpm = 0.1_dp
+      DYpm = 0.1_dp
+      DZpm = 0.1_dp
+ 
+      NBI = 1
+      NBJ = 2
+      NBK = 3
+
       interf_iproj = 4
       ibctyp = 2
       IDVPM = 1
       ncoarse = 8
-      NBI = 1; NBJ = 2; NBK = 3
-      nremesh = 1; ncell_rem = 1
-      iyntree = 1; ilevmax = 1
-      OMPTHREADS = 1
+      ncell_rem = 1
+      iyntree = 1
+      ilevmax = 1
+      OMPTHREADS = 2
+      nremesh = 1
       idefine = 0
-      IPMWRITE = 1
-      IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
+
+      IPMWRITE = 1; IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
    endif
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   VERBOCITY = 0
+   !--- END READ SETTINGS
    
-
+   !--- Problem settings
    NI_in = -0.1_dp        ! Viscosity
-   DT_in = 0.5_dp         ! =dx/U
-   NVR_MAX = 5000        ! MAX NUMBER OF PARTICLES
-   neq = 3              ! NUMBER OF EQUATIONS
-   mrem = 1             ! REMESHING FACTOR
+   DT_in =  0.01_dp       ! =dx/U
+   neq = 3                ! NUMBER OF EQUATIONS
+   UINF = 0               ! INFLOW VELOCITY
 
-   UINF = 0;            ! INFLOW VELOCITY
-   UINF(1) = 1_dp
-
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   !--- INPUT OF PARTICLES
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! if (my_rank .eq. 0) then
-   !    print *, 'Reading Particles:'
-   !    open (11, file='particles.bin', form='unformatted', access='sequential', status='old') ! read particles
-   !    ! open (12, file='read_particles') ! write particles
-   !    print *, 'particles.bin'
-
-   !    read (11) NVR_ext
-   !    ! write (12, "(I10)") NVR_ext
-   !    read (11) Vref
-   !    ! write (12, "(F10.5)") Vref
-
-   !    print *, achar(9), 'NVR_ext=', NVR_ext
-   !    print *, achar(9), 'Vref=', Vref
-
-   !    ! Allocate XPR and QPR arrays based on NVR_ext
-   !    allocate (XPR(3, NVR_ext))
-   !    allocate (QPR(4, NVR_ext))
-
-   !    ! Read XPR and QPR arrays
-   !    do i = 1, NVR_ext
-   !       read (11) XPR(:, i)
-   !       read (11) QPR(:, i)
-   !       ! write (12, "(7F10.5)") XPR(:, i),  QPR(:, i)
-   !       ! write (*, *) achar(9), 'Particle: i', i
-   !       ! write (*, *) achar(9), 'XPR=', XPR(:, i)
-   !       ! write (*, *) achar(9), 'QPR=', QPR(:, i)
-   !    end do
-   !    close (11)
-   !    ! close(12)
-
-   !    QPR(1:3, :) = -QPR(1:3, :)*Vref
-   !    QPR(4, :) = QPR(4, :)*Vref
-   !    QPR(neq + 1, :) = Vref
-   !    XPR = 0
-   !    QPR = 0
-   ! end if
    NVR = 100
    NVR_ext = NVR
-   Vref = 1
+   NVR_size = NVR_ext
    allocate (XPR(3, NVR_ext))
    allocate (QPR(4, NVR_ext))
    allocate (UPR(3, NVR_ext))
@@ -153,7 +130,7 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, vel, 0, NI_in, NVR_MAX)
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_ptr, vel_ptr, 0, NI_in, NVR_size)
    !--- END INITIALIZATION VPM
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!y
@@ -162,24 +139,16 @@ Program test_pm
       write (dummy_string, "(A)") 'Hill Vortex Initialization'
       call vpm_print(dummy_string, red, 1)
    end if
-   allocate (RHS_pm_in(neq, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
-   call hill_assign(fine_grid%NN, fine_grid%NN_bl, fine_grid%Xbound, fine_grid%Dpm, RHS_pm_in, neq)
-   call set_RHS_pm(RHS_pm_in,size(RHS_pm_in,1), size(RHS_pm_in,2), size(RHS_pm_in,3), size(RHS_pm_in,4))
+   allocate (RHS_ptr(neq, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+   call hill_assign(RHS_ptr,                                                               &
+                    fine_grid%NN, fine_grid%NN_bl, fine_grid%Xbound, fine_grid%Dpm, neq,     &
+                    sphere_radius, u_free_stream, sphere_z_0                                 )
+   call set_RHS_pm(RHS_ptr,size(RHS_ptr,1), size(RHS_ptr,2), size(RHS_ptr,3), size(RHS_ptr,4))
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
    call remesh_particles_3d(-1,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
-
-   !--- ALLOCATIONS FOR ALL PARTICLES and sources
-   if (my_rank .eq. 0) then
-      if (allocated(UPR)) deallocate(UPR)
-      if (allocated(GPR)) deallocate(GPR)
-      ! Only particles
-      allocate (UPR(3, NVR_EXT))
-      allocate (GPR(3, NVR_EXT))
-      UPR = 0; GPR = 0
-   end if
    ! Reinitalize the domain
-   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_pm_in, vel, 1, NI_in, NVR_MAX)
+   call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_ptr, vel_ptr, 1, NI_in, NVR_size)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -189,10 +158,8 @@ Program test_pm
    if (my_rank .eq. 0) then
       allocate (QPO(1:neq + 1, NVR_ext))     ! OUTPUT STRENGTH
       allocate (XPO(1:3, NVR_ext))           ! OUTPUT POSITION
-      
       allocate (QP_in(1:neq + 1, NVR_ext))   ! INPUT STRENGTH
       allocate (XP_in(1:3, NVR_ext))         ! INPUT POSITION
-
       allocate (Qflag(NVR_ext))
       Qflag = 0 ! 
 
@@ -205,81 +172,154 @@ Program test_pm
       
       QP_in = QPO
       XP_in = XPO
+      NVR = NVR_ext
+      NVR_size = NVR_ext
    end if
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! ------- End Allocate memory for all particles
 
    !--- MAIN LOOP
    T = 0
-   TMAX = 500
-   do i = 1, TMAX
+   max_iter = 2000
+   do i = 1, max_iter
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
          write (*, *)
-         write (*, *) "---------------------------------"
-         write (*, *) achar(27)//'[1;92mITERATION= ', i, ' of', TMAX, achar(27)//'[0m'
-         write (*, *) achar(27)//'[1;92mT=', DT_in*i, achar(27)//'[0m'
+         write (*, *) "-----------------------------------------------------------------------------"
+         write (*, *) achar(27)//'[1;92mITERATION= ', i, ' of', max_iter, achar(27)//'[0m'
+         write (*, *) achar(27)//'[1;92mT=', T, achar(27)//'[0m'
          write (*, *) achar(27)//'[1;92mDT=', DT_in, achar(27)//'[0m'
-         write (*, *) "---------------------------------"
+         write (*, *) "-----------------------------------------------------------------------------"
       end if
       !get velocities and deformations
-      T = DT_in
+      T = T +  DT_in
 
       !--- ALLOCATIONS FOR ALL PARTICLES and sources
       if (my_rank .eq. 0) then
          if (allocated(UPR)) deallocate(UPR)
          if (allocated(GPR)) deallocate(GPR)
-         ! Only particles
          allocate (UPR(3, NVR_EXT))
          allocate (GPR(3, NVR_EXT))
          UPR = 0; GPR = 0
       end if
 
       !--- VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
-      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_pm_in, vel, i, NI_in, NVR_MAX)
-      !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 2, RHS_ptr, vel_ptr, i, NI_in, NVR_size)
       tab_level = 0
+      if (my_rank .eq. 0) then
+         write (*, "(A)") ''
+         write (*, "(A)") 'Velocity Field'
+         write (*, "(A)") '---------------------------------'
+         write (*, "(A)") 'X-Component'
+         write (*, "(A, F8.3)") achar(9)//'min', minval(vel_ptr(1, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'max', maxval(vel_ptr(1, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'mean', sum(vel_ptr(1, :, :, :))/size(vel_ptr(1, :, :, :))
+         write (*, "(A)") '---------------------------------'
+         write (*, "(A)") 'Y-Component'
+         write (*, "(A, F8.3)") achar(9)//'min', minval(vel_ptr(2, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'max', maxval(vel_ptr(2, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'mean', sum(vel_ptr(2, :, :, :))/size(vel_ptr(2, :, :, :))
+         write (*, "(A)") '---------------------------------'
+         write (*, "(A)") 'Z-Component'
+         write (*, "(A, F8.3)") achar(9)//'min', minval(vel_ptr(3, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'max', maxval(vel_ptr(3, :, :, :))
+         write (*, "(A, F8.3)") achar(9)//'mean', sum(vel_ptr(3, :, :, :))/size(vel_ptr(3, :, :, :))
+         write (*, "(A)") '---------------------------------'
+         CFL_x = maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm
+         CFL_y = maxval(abs(vel_ptr(2, :, :, :)))*DT_in/DYpm
+         CFL_z = maxval(abs(vel_ptr(3, :, :, :)))*DT_in/DZpm
+         CFL = CFL_x + CFL_y + CFL_z
+         write (*, "(A, F8.3,A ,F8.3, A)")  achar(27)//'[1;33mCFL Criterion = ', CFL, &
+                                            achar(9)//'with DT=', DT_IN, achar(27)//'[0m'
+         write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
+                           achar(9)//'X-axis min', CFL_x,                                       &
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+         write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
+                           achar(9)//'Y-axis min', CFL_y,                                       &
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+         write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
+                           achar(9)//'Z-axis min', CFL_z,                                       &
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+         
+         ! IF CFL > 0.9 adjust the time step so that the CFL is 0.9
+         if (CFL .gt. CFL_treshold_up) then
+            write (*, "(A)") achar(27)//'[1;31mCFL CRITERION EXCEEDED', achar(27)//'[0m'
+            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
+            DT_in = (CFL_target/CFL) * DT_in
+            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
+            write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
+         end if
+         ! IF CFL < 0.5 adjust the time step so that the CFL is 0.5
+         if (CFL .lt. CFL_treshold_down) then
+            DT_in = (CFL_target/CFL) * DT_in
+            write (*, "(A)") achar(27)//'[1;91mCFL CRITERION EXCEEDED', achar(27)//'[0m'
+            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
+            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
+            write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
+         end if
+         write (*, "(A)") ''
+
+         !WRITE TO INFOFILE
+         if (i.eq.1) then
+            write (cfl_file, '(A)') trim(case_folder)//'cfl.csv'
+            open (unit=10, file=cfl_file, status='replace', action='write')
+            write (10, "(A)") 'Iteration, DT, DX, DY, DZ, CFL, CFL_x, CFL_y, CFL_z'
+         else 
+            open(unit=10, file=cfl_file, status='old', position='append', action='write')
+         end if
+         write (10, '(I0, 8(",",ES14.7))') i, DT_in, DXpm, DYpm, DZpm, CFL, CFL_x, CFL_y, CFL_z
+         close (10)
+      end if
+      !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
       
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
+         ! Write particles to file
+         write (dummy_string, "(A)") "Writing Particles and PM"
+         call vpm_print(dummy_string, red, 1)
+         st = MPI_WTIME()
          call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-         ! call write_pm_solution_hdf5(i, NN, NN_bl, neq, RHS_pm, SOL_pm,vel)
+         call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, &
+                                     RHS_ptr, SOL_pm, velocity_pm, deform_pm)
+         et = MPI_WTIME()
+         write (dummy_string, "(A,I3,A,F8.3,A)") &
+               achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
+
          write (dummy_string, "(A)") "Convection of Particles"
          call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()
-
-         ! MOVE PARTICLES
-         !!$omp parallel private(j,FACDEF)
-         !!$omp do
+         !$omp parallel private(j,FACDEF)
+         !$omp shared(XPR,UPR,QPR,GPR)
+         !$omp do
          do j = 1, NVR
+            ! Move particles
             XPR(1:3, j) = XPR(1:3, j) + (UPR(1:3, j) + UINF(1:3))*DT_in
-            FACDEF = 1.
+
+            ! Vortex Stretching 
+            FACDEF = - 1._dp
             !OMET   = sqrt ( QPR(1,j)**2 + QPR(2,j)**2 + QPR(3,j)**2 )
             !OG     = sqrt ( GPR(1,j)**2 + GPR(2,j)**2 + GPR(3,j)**2 )
             ! if (OG.ne.0.) then                                                      !RMETM
             !    if (OMET.gt.0.001)  FACDEF = OMET*MIN(RMETM,DT_in*OG/OMET)/OG/DT_in  !RMETM
             ! endif                                                                   !RMETM
-
-            ! DEFORMATION OF PARTICLES
-            QPR(1:3, j) = QPR(1:3, j) - FACDEF*GPR(1:3, j)*DT_in
-            !minus beacuse defromation is negative
-
-            !if(mod(j,10).eq.0)write(28,*) GPR(1:3,j)
-            !if(mod(j,10).eq.0)write(29,*) UPR(1:3,j)
+            QPR(1:3, j) = QPR(1:3, j) - FACDEF * GPR(1:3, j)*DT_in
          end do
-         !!$omp enddo
-         !!$omp end parallel
+         !$omp enddo
+         !$omp end parallel
          et = MPI_WTIME()
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          call vpm_print(dummy_string, yellow, 1)
          
-         st = MPI_WTIME()
-         ! PROBABLY MOVES PARTICLES IN AND OUT OF THE DOMAIN
          write (dummy_string, "(A)") "Moving Particles in/out"
          call vpm_print(dummy_string, red, 1)
-         call find_par_in(T, UINF(1))
-         call find_par_out
+         st = MPI_WTIME()
+         ! call find_par_in(T, UINF(1))
+         ! call find_par_out
          et = MPI_WTIME()
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
@@ -289,29 +329,27 @@ Program test_pm
 
       !--- VPM INITIALIZATION AND REMESHING
       ! Used to redefine the sizes
-      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_pm_in, vel, i, NI_in, NVR_MAX)
+      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_ptr, vel_ptr, i, NI_in, NVR_size)
       tab_level = 0
 
       if (mod(i, 1).eq.0) then         
          ! Remesh the particles
-         ! call remesh_particles_3d(1,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+         ! call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+         NVR_size = NVR_EXT
       endif
-      ! !--- END VPM INITIALIZATION AND REMESHING
+      !--- END VPM INITIALIZATION AND REMESHING
       
       !--- VPM DIFFUSION
       !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,vel,i,NI_in,NVR_ext)
       !if (my_rank.eq.0) then
-      !   write(*,*) maxval(GPR(:,:))
       !    do j= 1,NVR_ext
       !        QPR(1:3,j) = QPR(1:3,j)  -GPR(1:3,j) * DT_in
       !    enddo
       !endif
-      !get velocities and deformation
    end do
    !--- END MAIN LOOP
-   
    call MPI_FINALIZE(ierr)
 end Program test_pm
 

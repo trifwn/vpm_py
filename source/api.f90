@@ -172,8 +172,7 @@ contains
    end subroutine call_remesh_particles_3d
 
    subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
-      use console_io, only: vpm_write_folder, pm_output_file_suffix
-      use file_io, only: write_pm_solution
+      use file_io, only: write_pm_solution, case_folder, mesh_output_file
       use pmgrid, only: velocity_pm, deform_pm, RHS_pm, SOL_pm
       use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: fine_grid 
@@ -182,11 +181,11 @@ contains
       integer :: NN(3), NN_bl(6)
 
       if (present(folder)) then
-         call set_string_f_c(vpm_write_folder, folder)
+         call set_string_f_c(case_folder, folder)
       endif
 
       if (present(filename)) then
-         call set_string_f_c(pm_output_file_suffix, filename)
+         call set_string_f_c(mesh_output_file, filename)
       endif
 
       NN = fine_grid%NN
@@ -200,55 +199,52 @@ contains
    end subroutine write_particle_mesh_solution
 
    subroutine write_particles_stored(folder, filename) bind(C, name='write_particles')
-      use file_io, only: write_particles
+      use file_io, only: write_particles, case_folder, particle_output_file
       use parvar, only: XP, QP, UP, GP, NVR, NVR_size
       use vpm_vars, only: neqpm, NTIME_pm
-      use console_io, only: vpm_write_folder, particle_output_file_suffix
       implicit none
       character(kind=c_char), intent(in), optional :: folder(*), filename(*)
 
       if (present(folder)) then
-         call set_string_f_c(vpm_write_folder, folder)
+         call set_string_f_c(case_folder, folder)
       endif
       if (present(filename)) then
-         call set_string_f_c(particle_output_file_suffix, filename)
+         call set_string_f_c(particle_output_file, filename)
       endif
 
       call write_particles(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
    end subroutine write_particles_stored
 
    subroutine write_particles_stored_hdf5(folder, filename) bind(C, name='write_particles_hdf5')
-      use file_io, only: write_particles_hdf5
+      use file_io, only: write_particles_hdf5, case_folder, particle_output_file
       use parvar, only: XP, QP, UP, GP, NVR, NVR_size
       use vpm_vars, only: neqpm, NTIME_pm
-      use console_io, only: vpm_write_folder, particle_output_file_suffix
       implicit none
       character(kind=c_char), intent(in), optional :: folder(*), filename(*)
       if (present(folder)) then
-         call set_string_f_c(vpm_write_folder, folder)
+         call set_string_f_c(case_folder, folder)
       endif
       if (present(filename)) then
-         call set_string_f_c(particle_output_file_suffix, filename)
+         call set_string_f_c(particle_output_file, filename)
       endif
       call write_particles_hdf5(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
    end subroutine write_particles_stored_hdf5
 
    subroutine write_particle_mesh_solution_hdf5(folder, filename) bind(C, name='write_particle_mesh_solution_hdf5')
-      use file_io, only: write_pm_solution_hdf5
+      use file_io, only: write_pm_solution_hdf5, case_folder, mesh_output_file
       use pmgrid, only:  deform_pm, RHS_pm, SOL_pm, velocity_pm
       use vpm_vars, only: NTIME_pm, neqpm
       use vpm_size, only: fine_grid
-      use console_io, only: vpm_write_folder, pm_output_file_suffix
       implicit none
       character(kind = c_char), intent(in), optional :: folder(*), filename(*)
       integer :: NN(3), NN_bl(6)
 
       if (present(folder)) then
-         call set_string_f_c(vpm_write_folder, folder)
+         call set_string_f_c(case_folder, folder)
       endif
 
       if (present(filename)) then
-         call set_string_f_c(pm_output_file_suffix, filename)
+         call set_string_f_c(mesh_output_file, filename)
       endif
 
       NN = fine_grid%NN

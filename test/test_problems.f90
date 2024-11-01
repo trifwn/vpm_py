@@ -1,90 +1,89 @@
-Module test_app
+module test_app
     use base_types, only: dp
     real(dp), allocatable    :: analytic_sol(:, :, :, :)
 
 contains
     !-------Test problems
-    subroutine fUi_HillsVortex_1(CP,a,us,z0,Uind,Grad,Defm,Vort)
-            ! Arguments
-            integer, parameter :: MK=8
-            real(MK),dimension(3), intent(in) :: CP !< Control Point
-            real(MK) :: a  !< hill vortex radius
-            real(MK) :: us !< hills self induced velocity us=-5/2 U0  (ie convects along -ez)
-            real(MK) :: z0 !< Position on the z axis
-            real(MK),dimension(3),intent(out) :: Uind !< Induced velocity
-            real(MK),dimension(9),intent(out) :: Grad !< Gradient
-            real(MK),dimension(3),intent(out) :: Defm !< Deformation
-            real(MK),dimension(3),intent(out) :: Vort !< Vorticity
-            ! Variables
-            real(MK)              :: r3d,rho
-            real(MK)              :: x,y,z
-            real(MK)              :: urho
-            real(MK)              :: uz
-            real(MK),dimension(3) :: e_phi  ! Tangential coordinate
-            real(MK),dimension(3) :: e_rho  ! Cylindrical radial
-            real(MK)              :: om_phi
-            real(MK)              :: defm_phi
-            !
-            x=CP(1)
-            y=CP(2)
-            z=CP(3)-z0  ! Note the allowed offset
+    subroutine fUi_HillsVortex_1(CP, a, us, z0,Uind,Grad,Defm,Vort)
+        ! Arguments
+        real(dp),dimension(3), intent(in) :: CP !< Control Point
+        real(dp), intent(in) :: a  !< hill vortex radius
+        real(dp), intent(in) :: us !< hills self induced velocity us=-5/2 U0  (ie convects along -ez)
+        real(dp), intent(in) :: z0 !< Position on the z axis
+        real(dp),dimension(3),intent(out) :: Uind !< Induced velocity
+        real(dp),dimension(9),intent(out) :: Grad !< Gradient
+        real(dp),dimension(3),intent(out) :: Defm !< Deformation
+        real(dp),dimension(3),intent(out) :: Vort !< Vorticity
+        ! Variables
+        real(dp)              :: r3d,rho
+        real(dp)              :: x,y,z
+        real(dp)              :: urho
+        real(dp)              :: uz
+        real(dp),dimension(3) :: e_phi  ! Tangential coordinate
+        real(dp),dimension(3) :: e_rho  ! Cylindrical radial
+        real(dp)              :: om_phi
+        real(dp)              :: defm_phi
+        !
+        x=CP(1)
+        y=CP(2)
+        z=CP(3)-z0  ! Note the allowed offset
 
-            r3d=sqrt(x**2 + y**2 + z**2)
-            rho=sqrt(x**2 + y**2)
-            ! Tangential coordinate (tangent to (y,z))
-            if (rho/a<1.e-12) then
-                e_phi(1:3)=0.0_MK
-                e_rho(1:3)=0.0_MK
-            else
-                e_phi(1)=-y/rho
-                e_phi(2)= x/rho
-                e_phi(3)=0
-                e_rho(1)= x/rho
-                e_rho(2)= y/rho
-                e_rho(3)=0
-            endif
-            if(r3d<a) then
-                ! --- Inside the sphere
-                ! Velocity
-                uz     =3._MK/5._MK*us*(1._MK-(2._MK*rho**2+z**2)/(a**2))+us*2._MK/5._MK ;
-                urho   =3._MK/5._MK*us*(rho*z)/(a**2);
-                ! Vorticity (along e_phi)
-                om_phi= 3._MK*us*rho/a**2  != -15/2  * (u0 rho)/a^2 = 3 us rho/a**2
-                ! Deformation
-                defm_phi= 9._MK/5._MK*us**2/a**2*rho*z ! =45/4 * uo^2/a^2 * rho z
-                ! Gradient
-                Grad(1:9)=0.0_MK !TODO
-            else
-                ! --- Outside of the sphere
-                ! Velocity
-                uz    =2._MK/5._MK*us* (((a**2)/(z**2+rho**2))**(5._MK/2._MK))*(2._MK*z**2-rho**2)/(2._MK*a**2);
-                urho  =3._MK/5._MK*us*rho*z/(a**2)*(((a**2)/(z**2+rho**2))**(5._MK/2._MK));
-                ! Vorticity
-                om_phi   = 0.0_MK
-                ! Deformation
-                defm_phi = 0.0_MK
-                ! Gradient
-                Grad(1:9)=0.0_MK !TODO
-            endif
-            !
-            Uind(1) = urho * e_rho(1)
-            Uind(2) = urho * e_rho(2)
-            Uind(3) = uz
-            !
-            Defm(1) =  defm_phi * e_phi(1)
-            Defm(2) =  defm_phi * e_phi(2)
-            Defm(3) = 0.0_MK
-            !
-            Vort(1) = om_phi * e_phi(1)
-            Vort(2) = om_phi * e_phi(2)
-            Vort(3) = 0.0_MK
+        r3d=sqrt(x**2 + y**2 + z**2)
+        rho=sqrt(x**2 + y**2)
+        ! Tangential coordinate (tangent to (y,z))
+        if (rho/a<1.e-12) then
+            e_phi(1:3)=0.0_dp
+            e_rho(1:3)=0.0_dp
+        else
+            e_phi(1)=-y/rho
+            e_phi(2)= x/rho
+            e_phi(3)=0
+            e_rho(1)= x/rho
+            e_rho(2)= y/rho
+            e_rho(3)=0
+        endif
+        if(r3d<a) then
+            ! --- Inside the sphere
+            ! Velocity
+            uz     =3._dp/5._dp*us*(1._dp-(2._dp*rho**2+z**2)/(a**2))+us*2._dp/5._dp ;
+            urho   =3._dp/5._dp*us*(rho*z)/(a**2);
+            ! Vorticity (along e_phi)
+            om_phi= 3._dp*us*rho/a**2  != -15/2  * (u0 rho)/a^2 = 3 us rho/a**2
+            ! Deformation
+            defm_phi= 9._dp/5._dp*us**2/a**2*rho*z ! =45/4 * uo^2/a^2 * rho z
+            ! Gradient
+            Grad(1:9)=0.0_dp !TODO
+        else
+            ! --- Outside of the sphere
+            ! Velocity
+            uz    =2._dp/5._dp*us* (((a**2)/(z**2+rho**2))**(5._dp/2._dp))*(2._dp*z**2-rho**2)/(2._dp*a**2);
+            urho  =3._dp/5._dp*us*rho*z/(a**2)*(((a**2)/(z**2+rho**2))**(5._dp/2._dp));
+            ! Vorticity
+            om_phi   = 0.0_dp
+            ! Deformation
+            defm_phi = 0.0_dp
+            ! Gradient
+            Grad(1:9)=0.0_dp !TODO
+        endif
+        !
+        Uind(1) = urho * e_rho(1)
+        Uind(2) = urho * e_rho(2)
+        Uind(3) = uz
+        !
+        Defm(1) =  defm_phi * e_phi(1)
+        Defm(2) =  defm_phi * e_phi(2)
+        Defm(3) = 0.0_dp
+        !
+        Vort(1) = om_phi * e_phi(1)
+        Vort(2) = om_phi * e_phi(2)
+        Vort(3) = 0.0_dp
 
-        end subroutine
+    end subroutine
 
-    !> 
-    subroutine hill_assign(NN,NN_bl,Xbound,Dpm,RHS_pm_bl,neqpm)
+    subroutine hill_assign(RHS_pm_bl, NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius, u_free_stream, z_0)
         integer,intent(in) :: NN(3),NN_bl(6),neqpm
         real(dp),intent(in) :: Xbound(6),Dpm(3)
+        real(dp),intent(in) :: sphere_radius, u_free_stream, z_0
         real(dp),intent(inout) :: RHS_pm_bl(neqpm,NN(1),NN(2),NN(3))
         real(dp) :: CP(3),Uind(3),Grad(9),Defm(3),Vort(3)
         integer          :: i,j,k
@@ -105,24 +104,16 @@ contains
                         CP(2)=Xbound(2)+(J-1)*Dpm(2)
                         CP(3)=Xbound(3)+(K-1)*Dpm(3)
                         Uind=0.0d0; Grad=0.0d0; Defm=0.d0; Vort=0.0d0
-                        call fUi_HillsVortex_1(CP,1.0d0,-1.0d0,0.0d0,Uind,Grad,Defm,Vort)
+                        call fUi_HillsVortex_1(CP, sphere_radius, u_free_stream, z_0, Uind,Grad,Defm,Vort)
                         RHS_pm_bl(1:3,i,j,k)=-Vort(1:3)
-
                         analytic_sol(1:3,i,j,k)= Uind(1:3)
                         analytic_sol(4:6,i,j,k)= Defm(1:3)
-
                         ! write(1,'(9(e28.17,1x))') CP(1),CP(2),CP(3),Uind(1),Uind(2),Uind(3),&
                         !                         Vort(1),Vort(2),Vort(3)
                     enddo
                 enddo
             enddo
             ! close(1)
-        !   ---FOR PLOTTING PURPOSES ONLY
-        ! if (I_EXIST.eqv..false.) then 
-        ! call system('~/bin/preplot hillref.dat >/dev/null')
-        ! call system('rm hillref.dat')
-        ! endif
-
     End subroutine hill_assign
 
     subroutine hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
@@ -181,7 +172,7 @@ contains
     End subroutine hill_error
 
     subroutine definevort(RHS_pm,Xbound,Dpm,NN,NN_bl)
-        Implicit None
+        implicit none
 
         real(dp), intent(in)    :: Xbound(6),Dpm(3)
         integer,intent(in)      :: NN(3),NN_bl(6)
@@ -220,13 +211,11 @@ contains
         enddo
 
         if (I_EXIST.eqv..false.) then 
-        ! call system('~/bin/preplot vortref.dat >/dev/null')
-        ! call system('rm vortref.dat')
         endif
     End subroutine definevort
 
-
     subroutine vort_error(NN,NN_bl,Xbound,Dpm,SOL_pm)
+        implicit none
         integer,intent(in) :: NN(3),NN_bl(6)
         real(dp),intent(in)  :: Xbound(6),Dpm(3)
         real(dp),intent(in)  :: SOL_pm(7,NN(1),NN(2),NN(3))
@@ -255,9 +244,7 @@ contains
             enddo
         
         write(*,*)'----Maximum Phi Error-----:',max_err(1)/analytic_max*100,'%'
-        ! call system('~/bin/preplot vorterror.dat >/dev/null')
-        ! call system('rm vorterror.dat')
         return
-    End subroutine vort_error
+    end subroutine vort_error
 
 end module test_app

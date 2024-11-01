@@ -16,6 +16,9 @@ class StandardVisualizer(Visualizer):
                 quantity= plot_particles[0],
                 component= plot_particles[1],
                 filters=[],
+                options={
+                    "s": "auto",
+                },
             )
             plot_options.append(particle_option)
 

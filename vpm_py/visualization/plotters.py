@@ -116,23 +116,24 @@ class ParticlePlotter(Plotter):
         Set up the initial particle plot.
         """
         if 'cmap' in self.options.keys():
-            cmap = self.options['cmap']
+            self.cmap = self.options['cmap']
         else:
-            cmap = 'viridis'
+            self.cmap = 'viridis'
         if 'norm' in self.options.keys():
-            norm = self.options['norm']
+            self.norm = self.options['norm']
         else:
-            norm = None
+            self.norm = None
         if 's' in self.options.keys():
-            s = self.options['s']
+            self.s = self.options['s']
         else:
-            s = 10
+            self.s = 'auto'
+        self.base_s = 10 if self.s == 'auto' else self.s
 
         if self.is_3d:
-            self.plot = self.ax.scatter([], [], [], c=[], s=s, cmap=cmap, norm=norm)
+            self.plot = self.ax.scatter([], [], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm)
             self.set_labels('X', 'Y', 'Z')
         else:
-            self.plot = self.ax.scatter([], [], c=[], s=s, cmap=cmap, norm=norm)
+            self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm)
             self.set_labels('X', 'Y')
         self.colorbar = self.fig.colorbar(self.plot, ax=self.ax)
     
@@ -184,6 +185,13 @@ class ParticlePlotter(Plotter):
 
         self.plot.set_array(c)
         self.plot.set_clim(c.min(), c.max())
+        if self.s == "auto":
+            c = np.maximum(c, 1e-10)
+            s = np.abs(c.ravel()/c.max())
+            s = self.base_s * (1 + np.log10(s))
+            # Set s to a minimum value 
+            s = np.maximum(s, 0.01)
+            self.plot.set_sizes(s.ravel())
         if title:
             self.set_title(title)
         self.update_colorbar()
@@ -244,8 +252,8 @@ class MeshPlotter(Plotter):
         self.ax.set_ylim(1.1 * y.min(), 1.1 * y.max())
 
         if self.s == "auto":
+            c = np.maximum(c, 1e-10)
             s = np.abs(c.ravel()/c.max())
-            s = np.maximum(s, 1e-10)
             s = self.base_s * (1 + np.log10(s))
             # Set s to a minimum value 
             s = np.maximum(s, 0.01)
@@ -391,10 +399,10 @@ class SlicePlotter(Plotter):
                     self.slice_plane_ax = plotter.ax
                     self.side_effect(plot_data, data, info)
                 except AttributeError:
-                    print('No slice plot found.')
+                    # print('No slice plot found. Cannot add side effect.')
                     return
             else:
-                print('No slice plot found.')
+                # print('No slice plot found.')
                 return
     
     def update(self, plot_data, title=None):

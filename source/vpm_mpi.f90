@@ -170,7 +170,6 @@ contains
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-
       !---------------------------------------------
       call mpimat4(mat4, 3, NXpm_fine, NYpm_fine, NZpm_fine)
       call MPI_BCAST(velocity_pm, 1, mat4, 0, MPI_COMM_WORLD, ierr)
@@ -188,7 +187,6 @@ contains
 
       call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-
       !---------------------------------------------
       call mpimat4(mat4, 3, NXpm_fine, NYpm_fine, NZpm_fine)
       call MPI_BCAST(deform_pm, 1, mat4, 0, MPI_COMM_WORLD, ierr)

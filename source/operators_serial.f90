@@ -131,7 +131,10 @@ contains
                 df(2) = (f(4) - 2*f(3) + f(2)) / (dx**2)
 
                 ! Fourth-order accurate central difference for the interior points
-                df(3:n-2) = (-f(1:n-4) + 16*f(2:n-3) - 30*f(3:n-2) + 16*f(4:n-1) - f(5:n)) / (12*dx**2)
+                ! df(3:n-2) = (-f(1:n-4) + 16*f(2:n-3) - 30*f(3:n-2) + 16*f(4:n-1) - f(5:n)) / (12*dx**2)
+
+                ! Second-order accurate central difference for the interior points
+                df(3:n-1) = (f(4:n) - 2*f(3:n-1) + f(2:n-2)) / (dx**2)
 
                 ! Second-order accurate central difference for the last two points
                 df(n-1) = (f(n) - 2*f(n-1) + f(n-2)) / (dx**2)

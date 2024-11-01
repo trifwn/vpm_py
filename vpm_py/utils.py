@@ -24,6 +24,6 @@ def divide_processors(
     for subset in subsets:
         if sum(subset) < min_sum:
             min_sum = sum(subset)
-            NBI, NBJ, NBK = subset
+            NBK, NBJ, NBI = subset
 
     return NBI, NBJ, NBK
