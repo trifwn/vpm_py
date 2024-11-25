@@ -114,7 +114,7 @@ contains
                 enddo
             enddo
             ! close(1)
-    End subroutine hill_assign
+    end subroutine hill_assign
 
     subroutine hill_error(NN,NN_bl,Xbound,Dpm,SOL_pm,velvrx_pm,velvry_pm,velvrz_pm)
         integer,intent(in) :: NN(3),NN_bl(6)
@@ -169,7 +169,7 @@ contains
         ! call system('~/bin/preplot hillerror.dat >/dev/null')
         ! call system('rm hillerror.dat')
         return
-    End subroutine hill_error
+    end subroutine hill_error
 
     subroutine definevort(RHS_pm,Xbound,Dpm,NN,NN_bl)
         implicit none
@@ -212,7 +212,7 @@ contains
 
         if (I_EXIST.eqv..false.) then 
         endif
-    End subroutine definevort
+    end subroutine definevort
 
     subroutine vort_error(NN,NN_bl,Xbound,Dpm,SOL_pm)
         implicit none

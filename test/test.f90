@@ -25,9 +25,11 @@ Program test_pm
                          RHS_ptr, vel_ptr, deform_ptr, SOL_ptr
    use test_app, only:   hill_assign
    use parvar, only:     NVR
-   use vpm_lib, only:    vpm, remesh_particles_3d
+   use vpm_lib, only:    vpm 
+   use vpm_remesh, only: remesh_particles_3d
    use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, case_folder 
    use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
+   use serial_vector_field_operators, only: divergence
    use MPI
 
    Implicit None
@@ -36,7 +38,7 @@ Program test_pm
    integer              :: NVR_size
    integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
    logical              :: pmfile_exists
-   real(dp)             :: sphere_radius = 1.5_dp
+   real(dp)             :: sphere_radius = 1.0_dp
    real(dp)             :: sphere_z_0 = 0.0_dp
    real(dp)             :: u_free_stream = 1.0_dp
    real(dp)             :: CFL_x, CFL_y, CFL_z, CFL
@@ -44,6 +46,7 @@ Program test_pm
    real(dp)             :: CFL_treshold_down = 0.5_dp
    real(dp)             :: CFL_target = 0.7_dp
    character(len=250)   :: cfl_file
+   real(dp), allocatable :: divergence_HILL(:,:,:)
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -52,7 +55,7 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   case_folder = 'results_deform_CFL_variable/'
+   case_folder = 'results_deform_dt=0.01/'
    inquire (file='pm.inp', exist=pmfile_exists)
    if(my_rank.eq.0) print "(A,L1)", 'pm.inp exists:', pmfile_exists
    if (pmfile_exists) then
@@ -103,7 +106,7 @@ Program test_pm
 
       IPMWRITE = 1; IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
    endif
-   VERBOCITY = 0
+   VERBOCITY = 1
    !--- END READ SETTINGS
    
    !--- Problem settings
@@ -125,8 +128,8 @@ Program test_pm
    UPR = 0
    GPR = 0
 
-   XPR(1:3, 1) = [-2. , -2. , -2.]
-   XPR(1:3, 2) = [ 2. ,  2. ,  2.]
+   XPR(1:3, 1) = [-2*sphere_radius, -2*sphere_radius, -2*sphere_radius]
+   XPR(1:3, 2) = [ 2*sphere_radius,  2*sphere_radius,  2*sphere_radius]
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    !--- INITIALIZATION VPM
@@ -143,6 +146,16 @@ Program test_pm
    call hill_assign(RHS_ptr,                                                               &
                     fine_grid%NN, fine_grid%NN_bl, fine_grid%Xbound, fine_grid%Dpm, neq,     &
                     sphere_radius, u_free_stream, sphere_z_0                                 )
+   
+                    
+   if (my_rank.eq.0) then                    
+      divergence_HILL = divergence(RHS_ptr, fine_grid%Dpm(1), fine_grid%Dpm(2), fine_grid%Dpm(3))
+      write (*, *) "MAX DIV HILL", maxval(abs(divergence_HILL))
+      write (*, *) "MIN DIV HILL", minval(abs(divergence_HILL))
+      write (*, *) "MEAN DIV HILL", sum(abs(divergence_HILL))
+   endif
+   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
    call set_RHS_pm(RHS_ptr,size(RHS_ptr,1), size(RHS_ptr,2), size(RHS_ptr,3), size(RHS_ptr,4))
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
@@ -180,7 +193,7 @@ Program test_pm
 
    !--- MAIN LOOP
    T = 0
-   max_iter = 2000
+   max_iter = 1000
    do i = 1, max_iter
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
       if (my_rank .eq. 0) then
@@ -244,23 +257,23 @@ Program test_pm
                            achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
                            achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
          
-         ! IF CFL > 0.9 adjust the time step so that the CFL is 0.9
-         if (CFL .gt. CFL_treshold_up) then
-            write (*, "(A)") achar(27)//'[1;31mCFL CRITERION EXCEEDED', achar(27)//'[0m'
-            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
-            DT_in = (CFL_target/CFL) * DT_in
-            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
-            write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
-         end if
-         ! IF CFL < 0.5 adjust the time step so that the CFL is 0.5
-         if (CFL .lt. CFL_treshold_down) then
-            DT_in = (CFL_target/CFL) * DT_in
-            write (*, "(A)") achar(27)//'[1;91mCFL CRITERION EXCEEDED', achar(27)//'[0m'
-            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
-            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
-            write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
-         end if
-         write (*, "(A)") ''
+         ! ! IF CFL > 0.9 adjust the time step so that the CFL is 0.9
+         ! if (CFL .gt. CFL_treshold_up) then
+         !    write (*, "(A)") achar(27)//'[1;31mCFL CRITERION EXCEEDED', achar(27)//'[0m'
+         !    write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
+         !    DT_in = (CFL_target/CFL) * DT_in
+         !    write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
+         !    write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
+         ! end if
+         ! ! IF CFL < 0.5 adjust the time step so that the CFL is 0.5
+         ! if (CFL .lt. CFL_treshold_down) then
+         !    DT_in = (CFL_target/CFL) * DT_in
+         !    write (*, "(A)") achar(27)//'[1;91mCFL CRITERION EXCEEDED', achar(27)//'[0m'
+         !    write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
+         !    write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
+         !    write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
+         ! end if
+         ! write (*, "(A)") ''
 
          !WRITE TO INFOFILE
          if (i.eq.1) then
@@ -282,8 +295,7 @@ Program test_pm
          call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()
          call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-         call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, &
-                                     RHS_ptr, SOL_pm, velocity_pm, deform_pm)
+         call write_pm_solution_hdf5(i, fine_grid, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
          et = MPI_WTIME()
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
@@ -334,7 +346,7 @@ Program test_pm
 
       if (mod(i, 1).eq.0) then         
          ! Remesh the particles
-         ! call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+         call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
          NVR_size = NVR_EXT
@@ -342,7 +354,7 @@ Program test_pm
       !--- END VPM INITIALIZATION AND REMESHING
       
       !--- VPM DIFFUSION
-      !call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,vel,i,NI_in,NVR_ext)
+      ! call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,vel,i,NI_in,NVR_ext)
       !if (my_rank.eq.0) then
       !    do j= 1,NVR_ext
       !        QPR(1:3,j) = QPR(1:3,j)  -GPR(1:3,j) * DT_in
@@ -443,7 +455,7 @@ subroutine find_par_out
    !call project_vol3d(RHS_pm_out,neqpm+1,ieq,neqpm+1,1)
    !write(*,*) 'out',NVR_out,NVR_in,maxval(abs(RHS_pm_out(1,:,:,:)))
    deallocate (XP_out, QP_out)
-End subroutine find_par_out
+end subroutine find_par_out
 
 subroutine find_par_in(T_in, U)
    use base_types, only: dp
@@ -525,7 +537,7 @@ subroutine find_par_in(T_in, U)
    ! deallocate (XP_tmp, QP_tmp)
 
    write (*, *) achar(9), 'Sources in', NVR_in
-End subroutine find_par_in
+end subroutine find_par_in
 
 subroutine move_par_out(DT)
    use base_types, only: dp
@@ -572,7 +584,7 @@ subroutine move_par_out(DT)
    end do
 
    return
-End subroutine move_par_out
+end subroutine move_par_out
 
 ! subroutine create_sources(UINF)
 !    use vpm_size, only: Dpm
@@ -682,4 +694,4 @@ End subroutine move_par_out
 !    end do
 
 !    QSOUR = -QSOUR
-! End subroutine create_sources
+! end subroutine create_sources

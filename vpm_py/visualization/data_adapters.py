@@ -1,7 +1,10 @@
-import numpy as np
 from abc import ABC, abstractmethod
-from .filters import Filter 
-from .quantities import QuantityOfInterest, Quantity
+
+import numpy as np
+
+from .filters import Filter
+from .quantities import Quantity, QuantityOfInterest
+
 
 class DataAdapter(ABC):
     def __init__(
@@ -84,13 +87,13 @@ class MeshDataAdapter(DataAdapter):
         positions = {
             'x': pm_positions[0,:, :, :],
             'y': pm_positions[1,:, :, :],
-            'z': pm_positions[2,:, :, :]
+            'z': pm_positions[2,:, :, :] if neq == 3 else np.zeros_like(pm_positions[0])
         }
         if pm_velocities is not None:
             velocities = {
                 'x': pm_velocities[0,:, :, :],
                 'y': pm_velocities[1,:, :, :],
-                'z': pm_velocities[2,:, :, :]
+                'z': pm_velocities[2,:, :, :] if neq == 3 else np.zeros_like(pm_velocities[0])
             }
         else:
             velocities = None
@@ -99,7 +102,7 @@ class MeshDataAdapter(DataAdapter):
             deformations = {
                 'x': pm_deformations[0,:, :, :],
                 'y': pm_deformations[1,:, :, :],
-                'z': pm_deformations[2,:, :, :]
+                'z': pm_deformations[2,:, :, :] if neq == 3 else np.zeros_like(pm_deformations[0])
             }
         else:
             deformations = None
@@ -108,7 +111,7 @@ class MeshDataAdapter(DataAdapter):
             charges = {
                 'x': pm_charges[0,:, : , :],
                 'y': pm_charges[1,:, : , :],
-                'z': pm_charges[2,:, : , :]
+                'z': pm_charges[2,:, : , :] if neq == 3 else np.zeros_like(pm_charges[0])
             }
         else:
             charges = None
@@ -117,7 +120,7 @@ class MeshDataAdapter(DataAdapter):
             solution = {
                 'x': pm_solutions[0],
                 'y': pm_solutions[1],
-                'z': pm_solutions[2]
+                'z': pm_solutions[2] if neq == 3 else np.zeros_like(pm_solutions[0])
             }
         else:
             solution = None

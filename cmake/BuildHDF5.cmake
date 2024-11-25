@@ -8,7 +8,6 @@ LANGUAGES C Fortran
 
 option(hdf5_parallel "build HDF5 parallel MPI")
 option(zlib_legacy "use legacy zlib 1.x")
-
 # --- system checks
 message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX})
@@ -71,7 +70,7 @@ if(hdf5_parallel)
   check_mpi_version()
 endif()
 
-include(${PROJECT_SOURCE_DIR}/../cmake/hdf5.cmake)
+# include(${PROJECT_SOURCE_DIR}/../cmake/hdf5.cmake)
 
 message(STATUS "Build / install HDF5 ${hdf5_tag} to ${CMAKE_INSTALL_PREFIX}")
 

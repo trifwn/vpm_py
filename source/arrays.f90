@@ -1,7 +1,7 @@
 module ND_Arrays
-  use ISO_C_BINDING
-  use base_types, only: dp
-  implicit none
+    use ISO_C_BINDING
+    use base_types, only: dp
+    implicit none
 
     type, bind(C) :: ND_Array
         integer :: ndims               ! Number of dimensions
@@ -12,7 +12,7 @@ module ND_Arrays
         ! integer :: ref_count           ! Reference count
         ! logical :: is_view             ! Is the array a view?
         ! type(ND_Array), pointer :: parent_arr  ! Pointer to the parent array
-        
+
         ! integer :: data_location       ! 0: Fortran, 1: C
         ! real(dp) , allocatable :: data_arr(:)
     end type ND_Array
@@ -70,21 +70,21 @@ contains
         implicit none
         integer, intent(in) :: ndims
         type(C_PTR), intent(in) :: shape_ptr
-        
+
         ! Local variables
         type(ND_Array) :: arr
         integer(c_int), dimension(:), pointer :: shape_arr
         real(c_double), dimension(:), pointer, contiguous :: data_arr
         integer :: total_size, i
-        
+
         ! Get the shape array
         call C_F_POINTER(shape_ptr, shape_arr, [ndims])
         total_size = 1
         do i = 1, ndims
-            total_size = total_size * shape_arr(i)
+            total_size = total_size*shape_arr(i)
         end do
-        
-        allocate(data_arr(total_size))
+
+        allocate (data_arr(total_size))
         arr = create_dtype(ndims, total_size, shape_arr, data_arr)
     end function allocate_and_create
 
@@ -101,7 +101,7 @@ contains
         arr%total_size = total_size
         arr%shape_ptr = C_LOC(arr_shape)
         arr%data_ptr = C_LOC(arr_data)
-        
+
     end function create_dtype
 
     subroutine free_array(arr) bind(C, name='free_array')
@@ -115,7 +115,7 @@ contains
     end subroutine free_array
 
     !!!!!!!!!!!!!!!!!!END INITIALIZATION AND DEALLOCATION !!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+
     !!!!!!!!!!!!!!!!!! ACCESSING AND MANIPULATING ARRAYS !!!!!!!!!!!!!!!!!!!!!!!!!!
     function get_data_ptr(arr) result(data_) bind(C, name='get_data_ptr')
         implicit none
@@ -132,7 +132,7 @@ contains
 
         shape_ = arr%shape_ptr
     end function get_shape_ptr
-    
+
     subroutine set_element(arr, subscripts, elem)
         integer, dimension(:), intent(in) :: subscripts
         type(ND_Array), intent(inout) :: arr
@@ -150,10 +150,10 @@ contains
             if (subscripts(i) < 1 .or. subscripts(i) > f_shape(i)) then
                 error stop 'Subscript out of bounds'
             end if
-            offset = offset * f_shape(i) + (subscripts(i) - 1)
+            offset = offset*f_shape(i) + (subscripts(i) - 1)
         end do
 
-        data_(offset + 1) = elem 
+        data_(offset + 1) = elem
     end subroutine set_element
 
     function slice_array(arr, start, end_) result(slice)
@@ -171,13 +171,13 @@ contains
         slice_size = end_ - start + 1
         slice%ndims = 1
         slice%total_size = slice_size
-        allocate(slice_shape(1))
+        allocate (slice_shape(1))
         slice_shape(1) = slice_size
         slice%shape_ptr = C_LOC(slice_shape)
-        
-        allocate(slice_data(slice_size))
+
+        allocate (slice_data(slice_size))
         slice%data_ptr = C_LOC(slice_data)
-        
+
         slice_data = data_(start:end_)
 
     end function slice_array
@@ -197,7 +197,7 @@ contains
         ! Calculate the offset for linear index
         offset = 0
         do i = 1, arr%ndims
-        offset = offset * shape_(i) + (subscripts(i) - 1)
+            offset = offset*shape_(i) + (subscripts(i) - 1)
         end do
 
         elem = data_(offset + 1)
@@ -234,7 +234,7 @@ contains
         arr1%ndims = arr2%ndims
         arr1%total_size = arr2%total_size
         arr1%shape_ptr = arr2%shape_ptr
-        arr1%data_ptr = arr2%data_ptr        
+        arr1%data_ptr = arr2%data_ptr
 
     end subroutine assign_array
     !!!!!!!!!!!!!!!!!!END ACCESSING AND MANIPULATING ARRAYS !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -261,11 +261,11 @@ contains
         call C_F_POINTER(arr_res%data_ptr, data_res, [arr_res%total_size])
 
         !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
-            !$OMP DO
-            do i = 1, arr1%total_size
-                data_res(i) = data1(i) + data2(i)
-            end do
-            !$OMP END DO
+        !$OMP DO
+        do i = 1, arr1%total_size
+            data_res(i) = data1(i) + data2(i)
+        end do
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine add__
@@ -291,11 +291,11 @@ contains
         call C_F_POINTER(arr_res%data_ptr, data_res, [arr_res%total_size])
 
         !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
-            !$OMP DO
-            do i = 1, arr1%total_size
-                data_res(i) = data1(i) - data2(i)
-            end do
-            !$OMP END DO
+        !$OMP DO
+        do i = 1, arr1%total_size
+            data_res(i) = data1(i) - data2(i)
+        end do
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine sub__
@@ -321,11 +321,11 @@ contains
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
 
         !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
-            !$OMP DO
-            do i = 1, arr1%total_size
-                data_res(i) = data1(i) * data2(i)
-            end do
-            !$OMP END DO
+        !$OMP DO
+        do i = 1, arr1%total_size
+            data_res(i) = data1(i)*data2(i)
+        end do
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine mul__
@@ -350,13 +350,12 @@ contains
         call C_F_POINTER(arr1%data_ptr, data1, [arr1%total_size])
         call C_F_POINTER(arr2%data_ptr, data2, [arr2%total_size])
 
-        
         !$OMP PARALLEL SHARED(data1, data2, data_res) PRIVATE(i)
-            !$OMP DO
-            do i = 1, arr1%total_size
-                data_res(i) = data1(i) / data2(i)
-            end do
-            !$OMP END DO
+        !$OMP DO
+        do i = 1, arr1%total_size
+            data_res(i) = data1(i)/data2(i)
+        end do
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine div__
@@ -396,7 +395,6 @@ contains
 
     !!!!!!!!!!!!!!!!!!!!!END OPERATIONS ON ARRAYS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
     !!!!!!!!!!!!!!!!!!!!! CONVERSION FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     function from_intrinsic(data_array, shape_arr) result(arr)
         implicit none
@@ -404,7 +402,7 @@ contains
         integer(c_int), dimension(:), intent(in), target :: shape_arr
         real(c_double), pointer :: first_element
         type(ND_Array) :: arr
-        
+
         ! Local variables
         integer :: i, total_size
         integer, dimension(:), pointer :: shape_ptr
@@ -412,15 +410,15 @@ contains
 
         total_size = 1
         do i = 1, size(shape_arr)
-            total_size = total_size * shape_arr(i)
+            total_size = total_size*shape_arr(i)
         end do
 
-        allocate(shape_ptr(size(shape_arr)))
+        allocate (shape_ptr(size(shape_arr)))
         do i = 1, size(shape_arr)
             shape_ptr(i) = shape_arr(i)
         end do
 
-        ! I want to create a pointer that points to the data_array 
+        ! I want to create a pointer that points to the data_array
         ! Since the data_array is assumed to be contiguous, I can just point to the first element
         ! of the data_array
         ! first_element => data_array(1)
@@ -428,7 +426,7 @@ contains
 
         arr = create_dtype(size(shape_arr), total_size, shape_ptr, data_ptr)
     end function from_intrinsic
-    
+
     subroutine convert_to_1D_array(arr, f_1D)
         implicit none
         type(ND_Array), intent(in) :: arr
@@ -437,10 +435,10 @@ contains
         call C_F_POINTER(arr%data_ptr, f_1D, [arr%total_size])
     end subroutine convert_to_1D_array
 
-    subroutine convert_to_2D_array(arr,f_2D)
+    subroutine convert_to_2D_array(arr, f_2D)
         implicit none
         type(ND_Array), intent(in) :: arr
-        real(c_double), dimension(:,:), pointer :: f_2D
+        real(c_double), dimension(:, :), pointer :: f_2D
         integer(c_int), dimension(:), pointer :: f_shape
         integer :: i, j, k
         integer :: n1, n2, n3
@@ -455,7 +453,7 @@ contains
     subroutine convert_to_3D_array(arr, f_3D)
         implicit none
         type(ND_Array), intent(in) :: arr
-        real(c_double), dimension(:,:,:), pointer :: f_3D
+        real(c_double), dimension(:, :, :), pointer :: f_3D
         integer(c_int), dimension(:), pointer :: f_shape
         integer :: i, j, k
         integer :: n1, n2, n3
@@ -471,7 +469,7 @@ contains
     subroutine convert_to_4D_array(arr, f_4D)
         implicit none
         type(ND_Array), intent(in) :: arr
-        real(dp), pointer :: f_4D(:,:,:,:)
+        real(dp), pointer :: f_4D(:, :, :, :)
         integer(c_int), pointer :: f_shape(:)
         integer :: i, j, k, l
         integer :: n1, n2, n3, n4
@@ -512,17 +510,17 @@ contains
         ! Handling printing based on dimensions
         if (arr%ndims == 1) then
             do i = 1, shape_(1)
-                write(*,*) data_(i)
+                write (*, *) data_(i)
             end do
         else if (arr%ndims == 2) then
             do i = 1, shape_(1)
-                write(*,'(1000F8.2)') (data_((i-1)*shape_(2) + j), j = 1, shape_(2))
+                write (*, '(1000F8.2)') (data_((i - 1)*shape_(2) + j), j=1, shape_(2))
             end do
         else if (arr%ndims == 3) then
             do i = 1, shape_(1)
                 do j = 1, shape_(2)
                     do k = 1, shape_(3)
-                        write(*,*) "(", i, j, k, "):", data_((i-1)*shape_(2)*shape_(3) + (j-1)*shape_(3) + k)
+                        write (*, *) "(", i, j, k, "):", data_((i - 1)*shape_(2)*shape_(3) + (j - 1)*shape_(3) + k)
                     end do
                 end do
             end do

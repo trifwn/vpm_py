@@ -1,9 +1,11 @@
+import multiprocessing as mp
+from typing import Any
+
+import h5py
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
 from scipy.io import FortranFile
-import h5py
-from typing import Any  
+
 
 def process_particle_output_file_h5(filename: str, folder: str | None= None):
     """Process a single particle file stored in HDF5 format and return the data arrays."""
@@ -40,28 +42,31 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
         ZS = f['Z'][:]
         RHS = f['RHS'][:]
         SOL = f['SOL'][:]
-        UPM = f['VEL'][:]
-
-        try:
-            DEFORM = f['DEFORM'][:]
-        except KeyError:
-            pass 
 
         XS = np.moveaxis(XS, [0, 1, 2], [2, 1, 0])
         YS = np.moveaxis(YS, [0, 1, 2], [2, 1, 0])
         ZS = np.moveaxis(ZS, [0, 1, 2], [2, 1, 0])
-        UPM = np.moveaxis(UPM, [0, 1, 2, 3], [3, 2, 1, 0])
         RHS = np.moveaxis(RHS, [0, 1, 2, 3], [3, 2, 1, 0])
         SOL = np.moveaxis(SOL, [0, 1, 2, 3], [3, 2, 1, 0])
 
-    # Mesh grid needs to have shape adjusted (as done in the original function)
-    neq = RHS.shape[0]
-    mesh_positions = np.array([XS, YS, ZS])
-    mesh_velocities = np.array(UPM) 
-    mesh_charges = np.array(RHS)
-    mesh_solution = np.array(SOL)
-    # Create a placeholder for mesh deformations, as the original code assumes this array
-    mesh_deformations = np.zeros_like(mesh_positions)
+        # Mesh grid needs to have shape adjusted (as done in the original function)
+        neq = RHS.shape[0]
+        mesh_positions = np.array([XS, YS, ZS])
+        mesh_solution = np.array(SOL)
+        mesh_charges = np.array(RHS)
+        try:
+            UPM = f['VEL'][:]
+            UPM = np.moveaxis(UPM, [0, 1, 2, 3], [3, 2, 1, 0])
+            mesh_velocities = np.array(UPM) 
+        except KeyError:
+            mesh_velocities = np.zeros_like(mesh_positions)
+
+        try:
+            DEFORM = f['DEFORM'][:]
+            DEFORM = np.moveaxis(DEFORM, [0, 1, 2, 3], [3, 2, 1, 0])
+            mesh_deformations = np.array(DEFORM)
+        except KeyError:
+            mesh_deformations = np.zeros_like(mesh_positions)
     return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution
 
 def process_particle_ouput_file_dat(filename: str , folder: str | None = None):

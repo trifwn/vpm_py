@@ -1,7 +1,6 @@
 function(define_vpm_targets)
     set(VPM_LIB_FILES
         ${SRC_VPM}/vpm.f90
-        ${SRC_VPM}/vpm_remesh.f90
     )
 
     set(PM_LIB_FILES_MKL
@@ -34,12 +33,13 @@ function(define_vpm_targets)
         ${SRC_VPM}/vpm_vars.f90
         ${SRC_VPM}/vpm_size.f90
         ${SRC_VPM}/vpm_interpolate.f90
+        ${SRC_VPM}/vpm_remesh.f90
         # VPM_LIB
         ${SRC_VPM}/vpm.f90
-        ${SRC_VPM}/vpm_remesh.f90
         ${SRC_VPM}/vpm_interpolate.f90
         ${SRC_VPM}/vpm_gcalc.f90
         ${SRC_VPM}/vpm_mpi.f90
+        ${SRC_VPM}/vpm_functions.f90
         # PM_LIB
         ${SRC_VPM}/pmlib.f90
         ${SRC_VPM}/pmbound.f90
@@ -77,9 +77,9 @@ function(define_vpm_targets)
     # -------------------------------------------------------------------------------------------------
     #                                            VPM Library
     # -------------------------------------------------------------------------------------------------
-    add_library(constants OBJECT ${SRC_VPM}/base_types.f90)
-    add_library(types OBJECT ${SRC_VPM}/constants.f90)
-    target_link_libraries(types PRIVATE constants)
+    add_library(types OBJECT ${SRC_VPM}/base_types.f90)
+    add_library(constants OBJECT ${SRC_VPM}/constants.f90)
+    target_link_libraries(constants PRIVATE types)
     target_link_libraries(arrays PRIVATE types)
     
     add_library(console_io OBJECT ${SRC_VPM}/console_io.f90)
@@ -128,7 +128,7 @@ function(define_vpm_targets)
     add_library(pmproject OBJECT ${SRC_VPM}/pmproject.f90)
 
     add_library(yaps OBJECT ${YAPSLIB_FILES})
-    target_link_libraries(yaps PRIVATE mpi_matrices pmlib pmproject types console_io)
+    target_link_libraries(yaps PRIVATE mpi_matrices pmlib pmproject types console_io file_io)
 
     add_library(vpm_vars OBJECT ${SRC_VPM}/vpm_vars.f90)
     target_link_libraries(vpm_vars PRIVATE types console_io)
@@ -140,21 +140,39 @@ function(define_vpm_targets)
     target_link_libraries(vpm_interpolate PRIVATE types console_io pmproject vpm_size vpm_vars pmgrid parvar)
 
     add_library(vpm_gcalc OBJECT ${SRC_VPM}/vpm_gcalc.f90)
-    target_link_libraries(vpm_gcalc PRIVATE types console_io vpm_size vpm_vars)
+    target_link_libraries(vpm_gcalc PRIVATE types constants console_io vpm_size vpm_vars)
 
     add_library(vpm_mpi OBJECT ${SRC_VPM}/vpm_mpi.f90)
     target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars pmgrid)
 
+    add_library(vpm_functions OBJECT ${SRC_VPM}/vpm_functions.f90)
+    target_link_libraries(vpm_functions PRIVATE 
+        types constants console_io 
+        vpm_vars vpm_size vpm_mpi vpm_interpolate  
+        pmgrid pmproject parvar pmlib yaps operators_serial 
+    )
+
+    add_library(vpm_remesh OBJECT ${SRC_VPM}/vpm_remesh.f90)
+    target_link_libraries(vpm_remesh PRIVATE types console_io parvar pmgrid vpm_interpolate vpm_vars vpm_functions)
+
+
     add_library(vpm_lib OBJECT ${VPM_LIB_FILES}) 
     target_link_libraries(vpm_lib 
     PUBLIC 
-        yaps pmlib pmproject parvar pmgrid  
-        vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
-        console_io file_io types constants 
-        mpi_matrices operators_serial data_mpi 
-        $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
-        $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
-        h5fortran::h5fortran
+        types constants                     
+        console_io file_io 
+        operators_serial 
+
+        vpm_size vpm_vars vpm_interpolate vpm_gcalc 
+        vpm_mpi vpm_remesh vpm_functions
+
+        parvar pmgrid  
+        yaps pmlib pmproject 
+        # mpi_matrices 
+        # data_mpi 
+        # $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
+        # $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
+        # h5fortran::h5fortran
     )
 
     if (BUILD_STATIC)
@@ -165,7 +183,7 @@ function(define_vpm_targets)
     target_link_libraries(vpm 
     PUBLIC 
         vpm_lib arrays yaps pmlib pmproject parvar pmgrid  
-        vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi
+        vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi vpm_remesh vpm_functions
         console_io file_io types constants 
         mpi_matrices operators_serial data_mpi 
     PRIVATE 
@@ -251,6 +269,8 @@ function(define_vpm_targets)
     set_compiler_flags(vpm_interpolate)
     set_compiler_flags(vpm_gcalc)
     set_compiler_flags(vpm_mpi)
+    set_compiler_flags(vpm_functions)
+    set_compiler_flags(vpm_remesh)
     set_compiler_flags(vpm_lib)
     set_compiler_flags(vpm)
     set_compiler_flags(${EXE})

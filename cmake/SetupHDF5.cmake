@@ -7,6 +7,7 @@ function(setup_hdf5)
     enable_testing()
     # find_package(h5fortran)
 
+        include(BuildHDF5)
         include(FetchContent)
 
         option(h5fortran_BUILD_TESTING "h5fortran internal tests")
@@ -14,6 +15,7 @@ function(setup_hdf5)
 
         set(FETCHCONTENT_UPDATES_DISCONNECTED true)
 
+        message(STATUS "Fetching h5fortran")
         FetchContent_Declare(h5fortran
             GIT_REPOSITORY https://github.com/geospace-code/h5fortran.git
             GIT_TAG v4.10.2
