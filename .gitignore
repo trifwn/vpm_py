@@ -19,3 +19,4 @@ vpm_py/shared_libs
 notes/
 do_not_track/
 test/plot_deformation.py
+test/vpm_case

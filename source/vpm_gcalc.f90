@@ -1,5 +1,5 @@
 module vpm_gcalc
-    use base_types, only: dp
+    use vpm_types, only: dp
     use serial_vector_field_operators
     implicit none
 contains
@@ -8,7 +8,7 @@ contains
         use pmgrid, only: velocity_pm, SOL_pm
         use vpm_vars, only: neqpm
         use console_io, only: vpm_print, blue, yellow, dummy_string
-        use base_types, only: dp
+        use vpm_types, only: dp
         use vpm_size, only: fine_grid
         implicit none
         real(dp) ::  st, et
@@ -185,7 +185,7 @@ contains
         use vpm_vars, only: neqpm
         use vpm_size, only: fine_grid
         use console_io, only: vpm_print, blue, yellow, dummy_string
-        use base_types, only: dp
+        use vpm_types, only: dp
         implicit none
         real(dp) ::  DXpm2, DYpm2, DZpm2
         real(dp) ::  st, et
@@ -360,6 +360,28 @@ contains
         deallocate (laplace_vort)
     end subroutine calc_antidiffusion
 
+    subroutine compute_cross_product(vec1, vec2, cross_product)
+        real(dp), intent(in)  :: vec1(:, :, :, :)  
+        real(dp), intent(in)  :: vec2(:, :, :, :) 
+        real(dp), intent(out) :: cross_product(3, size(vec1,2), size(vec1,3), size(vec1,4))
+        integer :: i, j, k
+
+        !$OMP PARALLEL DO PRIVATE(i,j,k) SHARED(cross_product, vec1, vec2)
+        do i = 1, size(vec1,2)
+            do j = 1, size(vec1,3)
+                do k = 1, size(vec1,4)
+                    cross_product(1, i, j, k) = vec1(2, i, j, k)*vec2(3, i, j, k) - &
+                                                vec1(3, i, j, k)*vec2(2, i, j, k)
+                    cross_product(2, i, j, k) = vec1(3, i, j, k)*vec2(1, i, j, k) - &
+                                                vec1(1, i, j, k)*vec2(3, i, j, k)
+                    cross_product(3, i, j, k) = vec1(1, i, j, k)*vec2(2, i, j, k) - &
+                                                vec1(2, i, j, k)*vec2(1, i, j, k)
+                end do
+            end do
+        end do
+        !$OMP END PARALLEL DO
+    end subroutine compute_cross_product
+
     !> \brief Computes the divergence of a vector field on a grid using the Gauss divergence theorem.
     !>        For each cell, computes the net flux through all faces by considering:
     !>        1. Right face minus left face flux in x-direction
@@ -371,7 +393,7 @@ contains
     !> \param[in] Q The vector field (3 components) for which divergence is computed
     !> \param[out] divQ The resulting divergence at cell centers
     subroutine compute_gauss_divergence(grid, Q_nodes, divQ_center)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         ! Input arguments
@@ -446,7 +468,7 @@ contains
     !> \param[in] Q_center Cell-centered scalar field values.
     !> \param[out] gradQ_nodes Gradient at nodes in x, y, z directions.
     subroutine compute_gradient_at_nodes(grid, Q_center, gradQ_nodes)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         ! Input arguments
@@ -539,7 +561,7 @@ contains
     !> \param[in] f The source term
     !> \param[out] solution The solution to the poisson equation
     subroutine solve_3D_poisson_Biot(grid, f, solution)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         ! Input parameters

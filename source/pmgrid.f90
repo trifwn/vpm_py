@@ -1,13 +1,6 @@
 module pmgrid
-    use base_types, only: dp
-
-    type  :: cartesian_grid
-        real(dp) :: Xbound(6) ! Domain boundaries
-        real(dp) :: Dpm(3)    ! Grid spacing
-        integer  :: NN(3)     ! Number of nodes in each direction
-        integer  :: NN_bl(6)  ! Indices of the domain that do not include the dummy cells (start finish)
-    end type cartesian_grid
-
+    use vpm_types, only: dp, cartesian_grid
+    implicit none
     real(dp), allocatable, target, save :: velocity_pm(:, :, :, :)
     real(dp), allocatable, target, save :: deform_pm(:, :, :, :)
     real(dp), allocatable, target, save :: RHS_pm(:, :, :, :)
@@ -16,12 +9,12 @@ module pmgrid
     real(dp), allocatable, target       :: RHS_pm_bl(:, :, :, :)
 
     ! FINE GRID CHARACTERISTICS
-   real(dp), save                      :: XMIN_pm,     YMIN_pm,     ZMIN_pm,           &
-                                          XMAX_pm,     YMAX_pm,     ZMAX_pm
-   real(dp), save                      :: DXpm,        DYpm,        DZpm,        DVpm
-   integer, save                       :: NXpm_fine,   NYpm_fine,   NZpm_fine
-   integer, save                       :: NXs_fine_bl, NYs_fine_bl, NXf_fine_bl,       &
-                                          NYf_fine_bl, NZs_fine_bl, NZf_fine_bl
+    real(dp), save                      :: XMIN_pm,     YMIN_pm,     ZMIN_pm,           &
+                                           XMAX_pm,     YMAX_pm,     ZMAX_pm
+    real(dp), save                      :: DXpm,        DYpm,        DZpm,        DVpm
+    integer, save                       :: NXpm_fine,   NYpm_fine,   NZpm_fine
+    integer, save                       :: NXs_fine_bl, NYs_fine_bl, NXf_fine_bl,       &
+                                           NYf_fine_bl, NZs_fine_bl, NZf_fine_bl
 
    !! PMESH PARAMETERS
     integer, save                       :: nbound, ndumcell, ncoarse, IDVPM

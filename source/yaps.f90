@@ -1,6 +1,6 @@
 !This library solves the poisson problem using domain decomposition method
 Module yaps
-    use base_types, only: dp
+    use vpm_types, only: dp
     use mpi_matrices!, only: mpimat4, MPIMAT5_OLD, mpimat2, mpimat5, mpimat2_pm_
     use MPI
 

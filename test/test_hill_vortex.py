@@ -1,12 +1,14 @@
-from vpm_py import VPM
 from time import sleep
+
 import numpy as np
 from mpi4py import MPI
-import numpy as np
-
-from vpm_py.console_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization import StandardVisualizer
 from test_hill_problem import hill_assign_parallel
+
+from vpm_py import VPM
+from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
+                               print_red)
+from vpm_py.visualization import StandardVisualizer
+
 
 def main():
     # Initialize MPI
@@ -20,7 +22,7 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 2,
+        verbocity= 0,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1
@@ -58,17 +60,17 @@ def main():
     )
     comm.Barrier()
 
+    # Initialize Hill Vortex
     if rank == 0:
         st = MPI.Wtime()
-
-    print_IMPORTANT(f"Hill vortex initialization", rank)
+        print_IMPORTANT(f"Hill vortex initialization", rank)
     _, RHS_pm_hill = hill_assign_parallel(
         Dpm= vpm.dpm,
         NN= vpm.particle_mesh.nn,
         NN_bl= vpm.particle_mesh.nn_bl,
         Xbound= vpm.particle_mesh.xbound,
         neqpm= vpm.num_equations,
-        sphere_radius = 1.5,
+        sphere_radius = 2.0,
         u_freestream = 1.0,
         sphere_z_center = 0.0,
     )
@@ -78,7 +80,7 @@ def main():
     if rank == 0:
         st = MPI.Wtime()
         print_red(f"Remeshing")
-    XPR, QPR = vpm.remesh_particles(project_particles=False) 
+    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
     if rank == 0:
         et = MPI.Wtime()
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
@@ -90,8 +92,8 @@ def main():
     if rank == 0:
         plotter.update_particle_plots(
             iteration=0,
-            particle_positions= XPR[:,:],
-            particle_charges= QPR[:,:],
+            particle_positions= XPR_hill[:,:],
+            particle_charges= QPR_hill[:,:],
             particle_velocities= vpm.particles.UP[:,:],
             particle_deformations= vpm.particles.GP[:,:]
         )
@@ -100,14 +102,16 @@ def main():
     vpm.vpm(
         num_equations= vpm.num_equations,
         mode = 0,
-        particle_positions    =  XPR,
-        particle_charges    =  QPR,
+        particle_positions  =  XPR_hill[:,:],
+        particle_charges    =  QPR_hill[:,:],
         timestep=0,
         viscosity=NI,
     )
     # Main loop
     T = 0
     max_iter = 500
+    XPR = XPR_hill.copy()
+    QPR = QPR_hill.copy()
     for i in range(1, max_iter+1):
         comm.Barrier()
         NVR = vpm.particles.NVR
@@ -131,18 +135,18 @@ def main():
             print_IMPORTANT(f"INFO", rank)
             XPR = vpm.particles.XP
             QPR = vpm.particles.QP
-            UPR = vpm.particles.UP
-            GPR = vpm.particles.GP
+            UPR = vpm.particles.UP.to_numpy(copy=True)
+            GPR = vpm.particles.GP.to_numpy(copy=True)
             # Print the size of the particles
-            print(f"Number of particles: {NVR}")
-            print(f"Number of equations: {neq}")
-            print('\n')
+            # print(f"Number of particles: {NVR}")
+            # print(f"Number of equations: {neq}")
+            # print('\n')
 
-            print_green(f"UPR:")
-            print(f"Mean: {np.mean(UPR.data, axis=1)}")
-            print(f"Max: {np.max(UPR.data, axis=1)}")
-            print(f"Min: {np.min(UPR.data, axis=1)}")
-            print('\n')
+            # print_green(f"UPR:")
+            # print(f"Mean: {np.mean(UPR.data, axis=1)}")
+            # print(f"Max: {np.max(UPR.data, axis=1)}")
+            # print(f"Min: {np.min(UPR.data, axis=1)}")
+            # print('\n')
             
             U_PM = vpm.particle_mesh.U
             for name, u in zip(["Ux", "Uy", "Uz"], U_PM): 
@@ -156,13 +160,11 @@ def main():
             
             st = MPI.Wtime()
             # # Move the particles
-            XPR[:3, :] += (UPR[:3, :]) * DT
-            # for j in range(vpm.particles.NVR):
-            #     # Translate the particles
-            #     XPR[:3, j] += (UPR[:3, j] + UINF) * DT
-            #     # Diffusion of vorticity
-            #     # FACDEF = 1.0
-            #     # QPR[:3, j] -= FACDEF * GPR[:3, j] * DT
+            for j in range(vpm.particles.NVR):
+                # continue
+                # Translate the particles
+                XPR[:3, j] = XPR[:3, j] + UPR[:3,j] * DT
+                QPR[:3, j] -= GPR[:3, j] * DT
             et = MPI.Wtime()
 
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
@@ -189,10 +191,9 @@ def main():
             print_IMPORTANT(f"Saving the particles and particle mesh", rank)
 
             st = MPI.Wtime()
-            vpm.particles.save_to_file(filename= f"particles_test", folder="results_test")
-            vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="results_test")
+            vpm.particles.save_to_file(filename= f"particles_test", folder="vpm_case")
+            vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="vpm_case")
             et = MPI.Wtime()
-
             print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
         sleep(0.5)
@@ -202,12 +203,32 @@ def main():
         vpm.vpm(
             num_equations=neq,
             mode = 0,
-            particle_positions    =  XPR,
+            particle_positions  =  XPR,
             particle_charges    =  QPR,
             timestep=i,
             viscosity=NI,
         )
         comm.Barrier()
+        # XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-5)
+        comm.Barrier()
+
+        if i == 1:
+            repeate_correction = 20
+        else:
+            repeate_correction = 1
+        for _ in range(repeate_correction):
+            if rank == 0:
+                XPR = vpm.particles.XP
+                QPR = vpm.particles.QP
+            vpm.vpm(
+                num_equations=neq,
+                mode = 6,
+                particle_positions  =  XPR,
+                particle_charges    =  QPR,
+                timestep=i,
+                viscosity=NI,
+            )
+            comm.Barrier()
 
     MPI.Finalize()
     end_time = MPI.Wtime()

@@ -1,6 +1,6 @@
 Module vpm_size
-    use base_types, only: dp
-    use pmgrid, only: cartesian_grid
+    use vpm_types, only: dp
+    use vpm_types, only: cartesian_grid
 
     ! Fine grid
     type(cartesian_grid)                 :: fine_grid
@@ -31,7 +31,7 @@ contains
         use console_io, only: dummy_string, vpm_print, nocolor, blue, yellow, red, tab_level
         use MPI
 
-        Implicit None
+        implicit none
         integer    :: nsiz(3), nsiz_bl(3)
         integer    :: i, j, k, np, my_rank, ierr, nb, istep, lev
         integer    :: redifine_pm

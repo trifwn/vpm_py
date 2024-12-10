@@ -15,7 +15,7 @@ contains
     !----------------------------------------------------------------------------------!
     module subroutine infdomain(neqs, neqf)
         use MPI
-        Implicit None
+        implicit none
         integer, intent(in)  :: neqs, neqf
         integer              :: NXs, NXf, NYs, NYf, nn, ndum, neq_siz
         integer              :: my_rank, ierr
@@ -92,7 +92,7 @@ contains
     !------------------------------------------------------------------------!
     module subroutine infdomain_3d(neqs, neqf)
         use MPI
-        Implicit None
+        implicit none
         integer, intent(in)  :: neqs, neqf
         integer              :: NXs, NXf, NYs, NYf, NZs, NZf, nn, ndum, neq, nworkb, neq_siz, nb
 
@@ -189,7 +189,7 @@ contains
     !   and so the scheme is the same for MIN and MAX  boundaries             !
     !-------------------------------------------------------------------------!
     subroutine calc_normalderiv(NXs, NXf, NYs, NYf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in)  :: NXs, NXf, NYs, NYf, neqs, neqf
         integer              :: i, j, j1, i1, neq
         real(dp)             :: a1, a2, a3, a4, a5, psi1, psi2
@@ -305,7 +305,7 @@ contains
     !   and so the scheme is the same for MIN and MAX  boundaries             !
     !-------------------------------------------------------------------------!
     subroutine calc_normalderiv_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         integer              :: i, j, k, j1, i1, k1, neq
         real(dp)             :: a1, a2, a3, a4, a5, psi1, psi2, psi3, psi4
@@ -574,7 +574,7 @@ contains
     !This subroutine builds the nbounds_lev matrrix using the values calulated at the finer level.
 
     module subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, neqs, neqf
         integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, &
                                    ires, leafacc, lf
@@ -888,8 +888,8 @@ contains
     !   1/h((25/12)f(i,j)-4(i-1,j) + 3f(i-2,j) - 4/3 f(i-3),j) + 0.25f(i-4,j) !
     !-------------------------------------------------------------------------!
     module subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-        use mpi
-        Implicit None
+        use MPI
+        implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         integer                 :: icount, istep, lev, nleaf, leafcount, leafmax, leafstart, leaffin, ires, leafacc, lf
         integer                 :: nleaflev, nleafroot, ncountlev(0:levmax), istepj, n1s, n1f, n2s, n2f, nj, npre

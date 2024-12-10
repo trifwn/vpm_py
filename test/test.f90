@@ -1,18 +1,17 @@
 module test_mod
-   use base_types, only: dp
+   use vpm_types, only: dp
    real(dp), allocatable, target    :: XPR(:, :), QPR(:, :), UPR(:, :), GPR(:, :), &
                                        XPO(:, :), QPO(:, :), &
                                        XP_in(:, :), QP_in(:, :)
    real(dp), pointer       :: RHS_ptr(:,:,:,:)
    real(dp), pointer       :: SOL_ptr(:,:,:,:)
    real(dp), pointer       :: vel_ptr(:,:,:,:)
-   real(dp), pointer       :: deform_ptr(:,:,:,:)
    integer, allocatable    :: qflag(:)
    integer                 :: NVR_ext, NVR_ext_init
 end module test_mod
 
 Program test_pm
-   use base_types, only: dp
+   use vpm_types, only: dp
    use pmgrid, only:     XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm, ncoarse, IDVPM, &
                          SOL_pm, velocity_pm, deform_pm
    use vpm_vars, only:   mrem, interf_iproj,   &
@@ -22,7 +21,7 @@ Program test_pm
    use test_mod, only:   XPR, QPR, UPR, GPR, NVR_ext, &
                          QPO, XPO, Qflag, &
                          QP_in, XP_in, &
-                         RHS_ptr, vel_ptr, deform_ptr, SOL_ptr
+                         RHS_ptr, vel_ptr, SOL_ptr
    use test_app, only:   hill_assign
    use parvar, only:     NVR
    use vpm_lib, only:    vpm 
@@ -32,11 +31,11 @@ Program test_pm
    use serial_vector_field_operators, only: divergence
    use MPI
 
-   Implicit None
+   implicit none
    real(dp)             :: Vref, NI_in, DT_in, FACDEF, T, &
                            XMIN, XMAX, UINF(3)
    integer              :: NVR_size
-   integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
+   integer              :: my_rank, np, ierr, i,ieq, neq, j, max_iter, ncell_rem
    logical              :: pmfile_exists
    real(dp)             :: sphere_radius = 1.0_dp
    real(dp)             :: sphere_z_0 = 0.0_dp
@@ -106,7 +105,7 @@ Program test_pm
 
       IPMWRITE = 1; IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
    endif
-   VERBOCITY = 1
+   VERBOCITY = 0
    !--- END READ SETTINGS
    
    !--- Problem settings
@@ -295,7 +294,7 @@ Program test_pm
          call vpm_print(dummy_string, red, 1)
          st = MPI_WTIME()
          call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-         call write_pm_solution_hdf5(i, fine_grid, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
+         call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
          et = MPI_WTIME()
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
@@ -346,7 +345,7 @@ Program test_pm
 
       if (mod(i, 1).eq.0) then         
          ! Remesh the particles
-         call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+         ! call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
          NVR_size = NVR_EXT
@@ -366,14 +365,14 @@ Program test_pm
 end Program test_pm
 
 subroutine find_par_out
-   use base_types, only: dp
+   use vpm_types, only: dp
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm, &
                      NXf_fine_bl, NXs_fine_bl, NYf_fine_bl, NYs_fine_bl, NZf_fine_bl, NZs_fine_bl, &
                      NXpm_fine, NYpm_fine, NZpm_fine
    use vpm_vars, only: interf_iproj, neqpm, mrem
    use test_mod, only: NVR_ext, XPR, QPR
 
-   Implicit None
+   implicit none
    integer  :: neq
    integer  :: i, NVR_in, NVR_out, NVR_out_max
    integer, allocatable :: NVR_projout(:)
@@ -444,12 +443,12 @@ subroutine find_par_out
    XPR(1:3, 1:NVR_in) = XP_tmp(1:3, 1:NVR_in); QPR(1:neq, 1:NVR_in) = QP_tmp(1:neq, 1:NVR_in)
    NVR_ext = NVR_in
    !deallocate(XP_tmp,QP_tmp)
-   !allocate(ieq(neqpm+1),QINF(neqpm+1))
-   !QINF=0.d0
-   !do i=1,neqpm+1
+   ! allocate(ieq(neqpm+1),QINF(neqpm+1))
+   ! QINF=0.d0
+   ! do i=1,neqpm+1
    !   ieq(i)=i
-   !enddo
-   !call project_particles_3D(RHS_pm_out,QP_out,XP_out,NVR_projout,NVR_out,neqpm+1,ieq,neqpm+1,QINF,NVR_out_max)
+   ! enddo
+   ! call project_particles_3D(RHS_pm_out,QP_out,XP_out,NVR_projout,NVR_out,neqpm+1,ieq,neqpm+1,QINF,NVR_out_max)
    !RHS_pm_out(neqpm+1,:,:,:)=DVpm
    !write(*,*) maxval(abs(QP_out(1,:))),maxval(abs(QPR(1,:)))
    !call project_vol3d(RHS_pm_out,neqpm+1,ieq,neqpm+1,1)
@@ -458,7 +457,7 @@ subroutine find_par_out
 end subroutine find_par_out
 
 subroutine find_par_in(T_in, U)
-   use base_types, only: dp
+   use vpm_types, only: dp
    use vpm_vars, only: neqpm, mrem
    use test_mod, only: Qflag, QPO, QP_in, XPO, XP_in, NVR_ext, XPR, QPR, NVR_ext_init
    use pmgrid, only: XMIN_pm, NXs_fine_bl, DXpm, NXpm_fine, NYpm_fine, NZpm_fine
@@ -468,7 +467,7 @@ subroutine find_par_in(T_in, U)
    ! It also resets the inflow particles
    !
 
-   Implicit None
+   implicit none
    real(dp), intent(in)    :: T_in, U
    real(dp)                :: XO, XMIN
    integer                 :: NVR_in, neq
@@ -540,7 +539,7 @@ subroutine find_par_in(T_in, U)
 end subroutine find_par_in
 
 subroutine move_par_out(DT)
-   use base_types, only: dp
+   use vpm_types, only: dp
    use vpm_vars, only: interf_iproj
    use test_mod, only: NVR_ext, XPR, UPR
    use pmgrid, only: DXpm, DYpm, DZpm, XMIN_pm, NXf_fine_bl, NXs_fine_bl, &
@@ -549,7 +548,7 @@ subroutine move_par_out(DT)
    ! subroutine to move particles out of the domain
    ! It moves the particles out of the domain if they are outside the domain
    
-   Implicit None
+   implicit none
    real(dp), intent(in)::DT
    integer  :: i
    real(dp)             :: XMAX, XMIN, YMAX, YMIN, ZMIN, ZMAX, EPSX, EPSY, EPSZ
@@ -593,7 +592,7 @@ end subroutine move_par_out
 !    use pmgrid, only: NXf_bl, NXs_bl, NYf_bl, NYs_bl, NZf_bl, NZs_bl, &
 !                      DXpm, DYpm, DZpm, XMIN_pm, YMIN_pm, ZMIN_pm
 
-!    Implicit None
+!    implicit none
 !    real(dp), intent(in) :: UINF(3)
 !    real(dp) :: X(8), Y(8), Z(8)
 !    integer :: nxfin, nxstart, nyfin, nystart, nzfin, nzstart, NXpm1, NYpm1, NZpm1

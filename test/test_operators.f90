@@ -1,7 +1,7 @@
 module test_operators
    use iso_fortran_env, only: real64
    use MPI
-   use data_communication
+   use data_communication, only: commit_array, distribute, collect, free_vars
    use serial_vector_field_operators
    implicit none
 
@@ -108,10 +108,10 @@ contains
       if (my_rank == 0) print *, "  - Calculating x-derivative in parallel..."
      
       call commit_array(scalar_f, [3, 2, 1], 1)
-      call distribute_data(scalar_f, local_f)
-      call collect_data(collected_data, local_f)
+      call distribute(scalar_f, local_f)
+      call collect(collected_data, local_f)
       scalar_df = calculate_derivative(local_f, dx, dy, dz, 1, 1)
-      call collect_data(collected_data, scalar_df)
+      call collect(collected_data, scalar_df)
       call free_vars()
 
       if (my_rank == 0) then
@@ -778,9 +778,9 @@ contains
 
          ! Distribute data
          call commit_array(global_data, [1, 1 , 2 , 3], 1)
-         call distribute_data(global_data, local_data)
          ! Gather data
-         call collect_data(collected_data, local_data)
+         call distribute(global_data, local_data)
+         call collect(collected_data, local_data)
          call free_vars()
          
          ! Validate that collected data matches original global data

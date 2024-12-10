@@ -12,11 +12,11 @@ contains
                                     NVR, iproj, itype, NVRM)
         ! TODO: MAKE FLAGS FOR CALC U AND CALC G
         use projlib, only: projection_fun
-        use base_types, only: dp
+        use vpm_types, only: dp
         use vpm_size, only: fine_grid
         use vpm_vars, only: neqpm, OMPTHREADS
         use pmgrid, only: RHS_pm
-        Implicit None
+        implicit none
         integer, intent(in)     :: NVR, iproj, NVRM, itype
         real(dp), intent(in)    :: velocity_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
         real(dp), intent(in)    :: deform_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
@@ -41,6 +41,7 @@ contains
 
         UP(1:3, :) = 0.d0
         GP(1:3, :) = 0.d0
+        ! QP(1:3, :) = 0.d0
         do nv = 1, NVR
             !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
             inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
@@ -76,10 +77,10 @@ contains
                         UP(1, nv) = UP(1, nv) + f*(velocity_pm(1, i, j, k))
                         UP(2, nv) = UP(2, nv) + f*(velocity_pm(2, i, j, k))
                         UP(3, nv) = UP(3, nv) + f*(velocity_pm(3, i, j, k))
+
                         GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k))
                         GP(2, nv) = GP(2, nv) + f*(deform_pm(2, i, j, k))
                         GP(3, nv) = GP(3, nv) + f*(deform_pm(3, i, j, k))
-
                     end do
                 end do
             end do
@@ -104,10 +105,11 @@ contains
     !---------------------------------------------------------------------------!
     subroutine interpolate_particle_Q(Q_pm, XP, QP, NVR, iproj, NVR_size)
         use projlib, only: projection_fun
-        use base_types, only: dp
+        use vpm_types, only: dp
         use vpm_size, only: fine_grid!NN, XBound, Dpm
         use vpm_vars, only: neqpm, OMPTHREADS
-        Implicit None
+
+        implicit None
         integer, intent(in)     :: NVR, iproj, NVR_size
         real(dp), intent(in)    :: Q_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
         real(dp), intent(in)    :: XP(3, NVR_size)
@@ -117,8 +119,8 @@ contains
         integer                 :: inode, jnode, knode, i, j, k, nv, ips, ipf
         real(dp)                :: Xbound(6), Dpm(3)
 
-        Xbound = fine_grid%XBound
-        Dpm = fine_grid%Dpm
+        Xbound  = fine_grid%XBound
+        Dpm     = fine_grid%Dpm
 
         if (iproj .eq. 2) then
             ips = 0
@@ -127,6 +129,9 @@ contains
             ips = 1
             ipf = 2
         else if (iproj .eq. 4) then
+            ips = 1
+            ipf = 2
+        else 
             ips = 1
             ipf = 2
         end if
@@ -152,11 +157,12 @@ contains
 
                         f = fx*fy*fz
                         QP(1:neqpm, nv) = QP(1:neqpm, nv) + f*Q_pm(1:neqpm, i, j, k)
-
                     end do
                 end do
             end do
-            QP(1:neqpm, nv) = QP(1:neqpm, nv)*QP(neqpm + 1, nv)
+        end do
+        do i = 1, neqpm
+            QP(i, :) = QP(i, :)*QP(neqpm + 1, :)
         end do
     end subroutine interpolate_particle_Q
 

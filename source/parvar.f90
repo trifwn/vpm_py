@@ -1,9 +1,10 @@
 module parvar
-    use base_types, only: dp
+    use vpm_types, only: dp
     integer, save              :: neq_par
     ! PARTICLE VARIABLES
     integer                    :: NVR, NVR_size
     real(dp), pointer, save    :: XP(:, :), QP(:, :), UP(:, :), GP(:, :)
+    real(dp), pointer, save    :: VP(:, :)
 
     ! SCATTERED QUANTITIES
     integer                    :: NVR_p
@@ -20,7 +21,10 @@ module parvar
     !   -->5 Pseudopressure
     !   -->6 Mass
     !   -->7 Volume
-    !   -->neq+1: The volume fraction of the particle
+
+
+    !   -->neq+1: WAS The volume fraction of the particle
+    !   VP: Particle Volumes (old QP(neq+1, nv))
 
     !   UP: Particle velocites                -> U = grad x psi =
     !   GP: Particle deformation of vorticity -> deformation = - omega*\grad u

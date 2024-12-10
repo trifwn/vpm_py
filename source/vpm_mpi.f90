@@ -1,5 +1,5 @@
 module vpm_mpi
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
     ! Create interfaces for all module procedures
 contains
@@ -14,7 +14,7 @@ contains
     subroutine rhsbcast(RHS_pm, NN, neq)
         use MPI
         use mpi_matrices, only: mpimat4
-        Implicit None
+        implicit none
 
         integer, intent(in)        :: NN(3), neq
         real(dp), intent(inout)    :: RHS_pm(neq, NN(1), NN(2), NN(3))
@@ -32,9 +32,9 @@ contains
 
     subroutine rhsscat(fine_grid, RHS_pm, block_grid, RHS_pm_bl, nb_i, nb_j, nb_k)
         use vpm_vars, only: neqpm
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         use MPI
-        Implicit None
+        implicit none
         type(cartesian_grid), intent(in)  :: fine_grid, block_grid
         real(dp), intent(out)   :: RHS_pm_bl(neqpm, block_grid%NN(1), block_grid%NN(2), block_grid%NN(3))
         real(dp), intent(in)    :: RHS_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
@@ -71,12 +71,12 @@ contains
 
     subroutine solget(BLOCKS, NBI, NBJ, NBK, my_block, all_blocks, fine_grid, SOL_pm, SOL_pm_bl)
         use vpm_vars, only: neqpm
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         use mpi_matrices, only: mpimat4
         use console_io, only: vpm_print, blue
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)     :: BLOCKS, NBI, NBJ, NBK
         type(cartesian_grid), intent(in)  :: my_block, all_blocks(BLOCKS), fine_grid
         real(dp), intent(in)    :: SOL_pm_bl(neqpm, my_block%NN(1), my_block%NN(2), my_block%NN(3))
@@ -166,7 +166,7 @@ contains
         use vpm_size, only: fine_grid
         use mpi_matrices, only: mpimat4
         use MPI
-        Implicit None
+        implicit none
         integer :: my_rank, np, ierr, mat4
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -183,7 +183,7 @@ contains
         use vpm_size, only: fine_grid
         use mpi_matrices, only: mpimat4
         use MPI
-        Implicit None
+        implicit none
         integer :: my_rank, np, ierr, mat4
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -202,7 +202,7 @@ contains
         use MPI
         use console_io, only: vpm_print, blue, tab_level, dummy_string, nocolor, yellow
 
-        Implicit None
+        implicit none
         integer :: my_rank, np, ierr, i
         integer :: dest, NVR_pr, NVR_r, mat2
         integer :: status(MPI_STATUS_SIZE)
@@ -313,7 +313,7 @@ contains
         use mpi_matrices, only: mpimat2_pm
         use MPI
 
-        Implicit None
+        implicit none
         integer :: my_rank, np, ierr, i
         integer :: dest, NVR_pr, NVR_r, mat2
         integer :: status(MPI_STATUS_SIZE)
@@ -423,7 +423,7 @@ contains
         use mpi_matrices, only: mpimat4
         use MPI
 
-        Implicit None
+        implicit none
         integer               :: my_rank, np, ierr, NN_proj(6), nn1, nn2, nn3, NN_tmp(6)
         integer               :: source, mat4
         integer               :: status(MPI_STATUS_SIZE)

@@ -1,11 +1,10 @@
 module data_communication
     use iso_fortran_env, only: real64
-    use mpi
-    use omp_lib
+    use MPI
     implicit none
 
     private
-    public :: commit_array, free_vars, distribute_data, collect_data
+    public :: commit_array, free_vars, distribute, collect
 
     ! MPI-related variables
     integer :: rank, size_mpi, ierr
@@ -19,39 +18,39 @@ module data_communication
     integer, allocatable :: true_counts(:), true_starts(:, :), true_sizes(:, :)
     integer :: arr_padding = 1
 
-    interface collect_data
-        module subroutine collect_data_4D(global_data, local_data)
+    interface collect
+        module subroutine collect_4D(global_data, local_data)
             real(real64), allocatable, intent(inout) :: global_data(:, :, :, :)
             real(real64), allocatable, intent(in) :: local_data(:, :, :, :)
-        end subroutine collect_data_4D
+        end subroutine collect_4D
 
-        module subroutine collect_data_3D(global_data, local_data)
+        module subroutine collect_3D(global_data, local_data)
             real(real64), allocatable, intent(inout) :: global_data(:, :, :)
             real(real64), allocatable, intent(in) :: local_data(:, :, :)
-        end subroutine collect_data_3D
+        end subroutine collect_3D
 
-        module subroutine collect_data_2D(global_data, local_data)
+        module subroutine collect_2D(global_data, local_data)
             real(real64), allocatable, intent(inout) :: global_data(:, :)
             real(real64), allocatable, intent(in) :: local_data(:, :)
-        end subroutine collect_data_2D
-    end interface collect_data
+        end subroutine collect_2D
+    end interface collect
 
-    interface distribute_data
-        module subroutine distribute_data_4D(global_data, local_data)
-            real(real64), intent(in) :: global_data(:, :, :, :)
+    interface distribute
+        module subroutine distribute_4D(global_data, local_data)
+            real(real64), target, intent(in) :: global_data(:, :, :, :)
             real(real64), allocatable, intent(out) :: local_data(:, :, :, :)
-        end subroutine distribute_data_4D
+        end subroutine distribute_4D
 
-        module subroutine distribute_data_3D(global_data, local_data)
-            real(real64), intent(in) :: global_data(:, :, :)
+        module subroutine distribute_3D(global_data, local_data)
+            real(real64), target, intent(in) :: global_data(:, :, :)
             real(real64), allocatable, intent(out) :: local_data(:, :, :)
-        end subroutine distribute_data_3D
+        end subroutine distribute_3D
 
-        module subroutine distribute_data_2D(global_data, local_data)
-            real(real64), intent(in) :: global_data(:, :)
+        module subroutine distribute_2D(global_data, local_data)
+            real(real64), target, intent(in) :: global_data(:, :)
             real(real64), allocatable, intent(out) :: local_data(:, :)
-        end subroutine distribute_data_2D
-    end interface distribute_data
+        end subroutine distribute_2D
+    end interface distribute
 contains
 
     subroutine free_vars()
@@ -170,8 +169,8 @@ contains
         call MPI_Barrier(cart_comm, ierr)
     end subroutine calculate_access
 
-    module subroutine distribute_data_4D(global_data, local_data)
-        real(real64), intent(in) :: global_data(:, :, :, :)
+    module subroutine distribute_4D(global_data, local_data)
+        real(real64), target, intent(in) :: global_data(:, :, :, :)
         real(real64), allocatable, intent(out) :: local_data(:, :, :, :)
         integer :: source
         ! MPI
@@ -197,13 +196,12 @@ contains
             call recv_from_source(local_data, source)
         end if
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
-    end subroutine distribute_data_4D
+    end subroutine distribute_4D
 
-    module subroutine distribute_data_3D(global_data, local_data)
-        real(real64), intent(in) :: global_data(:, :, :)
+    module subroutine distribute_3D(global_data, local_data)
+        real(real64), target, intent(in) :: global_data(:, :, :)
         real(real64), allocatable, intent(out) :: local_data(:, :, :)
         integer :: source
-        ! MPI
 
         ! Allocate local data array
         if (allocated(local_data)) deallocate (local_data)
@@ -224,22 +222,18 @@ contains
             call recv_from_source(local_data, source)
         end if
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
-    end subroutine distribute_data_3D
+    end subroutine distribute_3D
 
-    module subroutine distribute_data_2D(global_data, local_data)
-        real(real64), intent(in) :: global_data(:, :)
+    module subroutine distribute_2D(global_data, local_data)
+        real(real64), target, intent(in) :: global_data(:, :)
         real(real64), allocatable, intent(out) :: local_data(:, :)
         integer :: source
-        ! MPI
-
         ! Allocate local data array
         if (allocated(local_data)) deallocate (local_data)
-        allocate (local_data(padded_sizes(rank + 1, 1), &
-                             padded_sizes(rank + 1, 2)))
+        allocate (local_data(padded_sizes(rank + 1, 1), padded_sizes(rank + 1, 2)))
         source = 0
         if (rank == source) then
             ! Root process sends data to all other processes
-
             call send_to_all(global_data)
             ! Root process copies its own portion of data
             local_data = global_data(padded_starts(1, 1) + 1:padded_starts(1, 1) + local_sizes(1), &
@@ -248,9 +242,9 @@ contains
             call recv_from_source(local_data, source)
         end if
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
-    end subroutine distribute_data_2D
+    end subroutine distribute_2D
 
-    module subroutine collect_data_4D(global_data, local_data)
+    module subroutine collect_4D(global_data, local_data)
         real(real64), allocatable, intent(inout) :: global_data(:, :, :, :)
         real(real64), allocatable, intent(in) :: local_data(:, :, :, :)
         integer :: source
@@ -273,9 +267,9 @@ contains
         else
             call send_to_source(local_data, source)
         end if
-    end subroutine collect_data_4D
+    end subroutine collect_4D
 
-    module subroutine collect_data_3D(global_data, local_data)
+    module subroutine collect_3D(global_data, local_data)
         real(real64), allocatable, intent(inout) :: global_data(:, :, :)
         real(real64), allocatable, intent(in) :: local_data(:, :, :)
         integer :: source
@@ -295,9 +289,9 @@ contains
         else
             call send_to_source(local_data, source)
         end if
-    end subroutine collect_data_3D
+    end subroutine collect_3D
 
-    module subroutine collect_data_2D(global_data, local_data)
+    module subroutine collect_2D(global_data, local_data)
         real(real64), allocatable, intent(inout) :: global_data(:, :)
         real(real64), allocatable, intent(in) :: local_data(:, :)
         integer :: source
@@ -316,7 +310,7 @@ contains
         else
             call send_to_source(local_data, source)
         end if
-    end subroutine collect_data_2D
+    end subroutine collect_2D
 
     subroutine recv_from_source(local_data, source)
         real(real64), intent(out) :: local_data(..)

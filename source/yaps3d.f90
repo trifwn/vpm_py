@@ -11,7 +11,7 @@ contains
         use pmlib, only: pmesh
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)              :: ibctyp, neqs, neqf, nc, ireturn, iyntree, ilevmax, npmsize
         integer, intent(in)              :: ND, BLOCKS, NNbl(3, BLOCKS), NNBl_bl(6, BLOCKS)
         integer, intent(in)              :: NN_coarse(3), NN_bl_coarse(6), nb_i, nb_j, nb_k, NBI, NBJ, NBK

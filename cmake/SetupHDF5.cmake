@@ -7,25 +7,23 @@ function(setup_hdf5)
     enable_testing()
     # find_package(h5fortran)
 
-        include(BuildHDF5)
-        include(FetchContent)
-
-        option(h5fortran_BUILD_TESTING "h5fortran internal tests")
-        # Add the -fPIC flag to the Fortran compiler
-
-        set(FETCHCONTENT_UPDATES_DISCONNECTED true)
-
-        message(STATUS "Fetching h5fortran")
-        FetchContent_Declare(h5fortran
-            GIT_REPOSITORY https://github.com/geospace-code/h5fortran.git
-            GIT_TAG v4.10.2
-            TLS_VERIFY true
-            FIND_PACKAGE_ARGS
-        )
-        FetchContent_MakeAvailable(H5FORTRAN)
+        # find_package(h5fortran)
+        # if(NOT h5fortran_FOUND)
+            include(FetchContent) 
+            include(FetchContent)
+            set(FETCHCONTENT_UPDATES_DISCONNECTED true)
+            option(h5fortran_BUILD_TESTING "h5fortran internal tests")
+            message(STATUS "Fetching h5fortran")
+            FetchContent_Declare(h5fortran
+                GIT_REPOSITORY https://github.com/geospace-code/h5fortran.git
+                TLS_VERIFY true
+                GIT_TAG v4.10.6
+            )
+            FetchContent_MakeAvailable(h5fortran)
+        # endif()
 
         # Get the include directories for h5fortran
-        get_target_property(H5FORTRAN_INCLUDES h5fortran INTERFACE_INCLUDE_DIRECTORIES)
+        get_target_property(H5FORTRAN_INCLUDES h5fortran::h5fortran INTERFACE_INCLUDE_DIRECTORIES)
 
         # Extract the BUILD_INTERFACE directory from the H5FORTRAN_INCLUDES
         string(REPLACE ";" "\n" H5FORTRAN_INCLUDES_LIST "${H5FORTRAN_INCLUDES}")

@@ -1,4 +1,4 @@
-module base_types
+module vpm_types
     implicit none
     public
 
@@ -18,4 +18,12 @@ module base_types
     integer, parameter :: i4 = selected_int_kind(9)
     !> Long length for integers, range -2⁶³ to 2⁶³-1; 64 bits
     integer, parameter :: i8 = selected_int_kind(18)
-end module base_types
+
+    type  :: cartesian_grid
+        real(dp) :: Xbound(6) ! Domain boundaries
+        real(dp) :: Dpm(3)    ! Grid spacing
+        integer  :: NN(3)     ! Number of nodes in each direction
+        integer  :: NN_bl(6)  ! Indices of the domain that do not include the dummy cells (start finish)
+    end type cartesian_grid
+
+end module vpm_types

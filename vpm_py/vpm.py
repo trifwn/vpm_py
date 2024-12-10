@@ -1,15 +1,17 @@
-import numpy as np
 import os
+from ctypes import (POINTER, byref, c_char, c_char_p, c_double, c_int, cast,
+                    create_string_buffer)
 
-from ctypes import c_int,  byref, c_double, POINTER, c_char, c_char_p, create_string_buffer, cast
+import numpy as np
+
 # Local imports
-from . import ParticleMesh
-from . import Particles
-from .console_io import  print_IMPORTANT, print_green, print_blue, print_red
-from .vpm_lib import VPM_Lib
-from .utils import divide_processors
+from . import ParticleMesh, Particles
 from .arrays import F_Array, F_Array_Struct
+from .console_io import print_blue, print_green, print_IMPORTANT, print_red
+from .utils import divide_processors
 from .vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
+from .vpm_lib import VPM_Lib
+
 
 class VPM(object):
     """
@@ -140,7 +142,7 @@ class VPM(object):
             num_equations (int): Number of equations to model
             particle_positions (np.ndarray): Particle positions array of shape (3, NVR_in)
             particle_charges (np.ndarray): Particle charges array of shape (num_equations + 1, NVR_in)
-            mode (int): 0 - initialize, 1 - solve, 2 - convect, 3 - project, 4 - back, 5 - diffuse
+            mode (int): 0 - initialize, 1 - solve, 2 - convect, 3 - project, 4 - back, 5 - diffuse, 6 - correct vorticity
             timestep (int): Timestep
             viscosity (float): Viscosity term for the diffusion equation
             num_particles (int, optional): Number of points to treat as particles. When None defaults

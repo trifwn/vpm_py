@@ -1,6 +1,6 @@
 program test_arrays
     use ND_Arrays
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
 
     type(ND_Array) :: arr1, arr2, arr_add, arr_sub, arr_mul, arr_div, arr_slice!, test_ndarr

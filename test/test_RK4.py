@@ -1,13 +1,12 @@
-from vpm_py import VPM
 import numpy as np
 from mpi4py import MPI
-import numpy as np
-
-from vpm_py.console_io import print_IMPORTANT, print_red, print_green, print_blue
-from vpm_py.visualization import StandardVisualizer
-from vpm_py.arrays import F_Array
 from test_hill_problem import hill_assign_parallel, visualize_vorticity
 
+from vpm_py import VPM
+from vpm_py.arrays import F_Array
+from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
+                               print_red)
+from vpm_py.visualization import StandardVisualizer
 
 # Initialize MPI
 comm = MPI.COMM_WORLD
@@ -20,7 +19,7 @@ vpm = VPM(
     number_of_equations=3,
     number_of_processors=np_procs,
     rank=rank,
-    verbocity=1,
+    verbocity=0,
     dx_particle_mesh=0.1,
     dy_particle_mesh=0.1,
     dz_particle_mesh=0.1,
@@ -226,12 +225,12 @@ def timestep(
         print_IMPORTANT(f"Convecting Particles", rank)
         # We do not convect the vorticity
         for j in range(vpm.particles.NVR):
-            XPR[:, j] = XPR[:, j] + U_mean[:,j] * DT
-            QPR[0:3, j] = QPR[0:3, j] + G_mean[:,j] * DT
+            XPR[:3, j] = XPR[:3, j] + U_mean[:3,j] * DT
+            # QPR[0:3, j] = QPR[0:3, j] + G_mean[:,j] * DT
 
         print_IMPORTANT(f"Saving to file", rank)
-        vpm.particles.save_to_file(filename=f"particles")
-        vpm.particle_mesh.save_to_file(filename=f"particle_mesh")
+        vpm.particles.save_to_file(filename=f"particles", folder = 'vpm_case' )
+        vpm.particle_mesh.save_to_file(filename=f"particle_mesh", folder = 'vpm_case' )
 
     print_IMPORTANT(f"Redefine Bounds", rank)
     vpm.vpm(
@@ -244,7 +243,7 @@ def timestep(
     )
     comm.Barrier()
 
-    XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-6)
+    # XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-6)
     return XPR, QPR
 
 # # Simulate

@@ -1,5 +1,5 @@
 module serial_vector_field_operators
-    use base_types, only: dp
+    use vpm_types, only: dp
     use omp_lib
     implicit none
 

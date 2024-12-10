@@ -1,5 +1,5 @@
 Module vpm_vars
-    use base_types, only: dp
+    use vpm_types, only: dp
     integer, save              :: ND = 3
     integer                    :: NTIME_pm
     integer                    :: neqpm

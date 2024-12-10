@@ -147,7 +147,7 @@ contains
     subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out, cuttof_value) &
         bind(C, name='remesh_particles_3d')
         use vpm_remesh, only: remesh_particles_3d
-        use base_types, only: dp
+        use vpm_types, only: dp
         use ND_Arrays
 
         implicit none
@@ -244,10 +244,10 @@ contains
         end if
 
         if (allocated(deform_pm)) then
-            call write_pm_solution_hdf5(NTIME_pm, fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm, &
+            call write_pm_solution_hdf5(NTIME_pm, fine_grid%NN, fine_grid%NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm, &
                                         deform_pm)
         else
-            call write_pm_solution_hdf5(NTIME_pm, fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm)
+            call write_pm_solution_hdf5(NTIME_pm, fine_grid%NN, fine_grid%NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm)
         end if
     end subroutine write_particle_mesh_solution_hdf5
 

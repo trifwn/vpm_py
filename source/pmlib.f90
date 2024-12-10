@@ -7,7 +7,7 @@
 !>@brief This module defines the variables that will be used internally in the library
 !>       All variables are private
 module pmlib
-    use base_types, only: dp
+    use vpm_types, only: dp
     use constants, only: pi, pi2, pi4
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
     implicit none
@@ -41,26 +41,26 @@ module pmlib
 ! pinfdomain.f90
     interface infdomain
         module subroutine infdomain(neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in) :: neqs, neqf
         end subroutine infdomain
     end interface
     interface build_level_nbound
         module subroutine build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in)     :: NXs, NXf, NYs, NYf, neqs, neqf
         end subroutine build_level_nbound
     end interface
     interface infdomain_3D
         module subroutine infdomain_3D(neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in) :: neqs, neqf
         end subroutine infdomain_3D
     end interface
 
     interface build_level_nbound_3d
         module subroutine build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         end subroutine build_level_nbound_3d
     end interface
@@ -68,28 +68,28 @@ module pmlib
 ! pmsolve.f90
     interface solve_eq
         module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
-            Implicit None
+            implicit none
             integer, intent(in)  :: NXs, NXf, NYs, NYf, neq
         end subroutine solve_eq
     end interface
 
     interface solve_eq_0
         module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
-            Implicit None
+            implicit none
             integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
         end subroutine solve_eq_0
     end interface
 
     interface solve_eq_3D
         module subroutine solve_eq_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-            Implicit None
+            implicit none
             integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         end subroutine solve_eq_3D
     end interface
 
     interface solve_eq_0_3D
         module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-            Implicit None
+            implicit none
             integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         end subroutine solve_eq_0_3D
     end interface
@@ -97,28 +97,28 @@ module pmlib
 ! pmbound.f90
     interface Bounds2D
         module subroutine Bounds2d(itype, NXs, NXf, NYs, NYf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in)  :: itype, NXs, NXf, NYs, NYf, neqs, neqf
         end subroutine Bounds2D
     end interface
 
     interface Bounds2d_lev
         module subroutine Bounds2d_lev(itype, NXs, NXf, NYs, NYf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
         end subroutine Bounds2d_lev
     end interface
 
     interface Bounds3d
         module subroutine Bounds3d(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         end subroutine Bounds3d
     end interface
 
     interface Bounds3d_lev
         module subroutine Bounds3d_lev(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-            Implicit None
+            implicit none
             integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         end subroutine Bounds3d_lev
     end interface
@@ -163,7 +163,7 @@ contains
                      neqs, neqf, iynbc, NVR_in, itree_in, levmax_in)
         ! use parvar, only : XP, QP
         use MPI
-        Implicit None
+        implicit none
         real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :), DQP(:, :), DXP(:, :)
         integer, intent(in)              :: ibctyp_in, itree_in, NVR_in, levmax_in, iynbc, neqs, neqf
         real(dp), intent(in)             :: Xbound(6), Dpm(3)

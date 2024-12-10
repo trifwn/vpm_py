@@ -1,5 +1,5 @@
 module file_io
-    use base_types, only: dp
+    use vpm_types, only: dp
     use console_io, only: vpm_print, nocolor, dummy_string
 
     implicit none
@@ -24,7 +24,7 @@ module file_io
 contains
 
     subroutine write_pm_solution(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
 
         implicit none
         type(cartesian_grid), intent(in) :: comp_grid
@@ -137,7 +137,7 @@ contains
     end subroutine write_pm_solution
 
     subroutine write_particles(NTIME, XPR, UPR, QPR, GPR, neq, NVR, NVR_size)
-        Implicit None
+        implicit none
         integer, intent(in) :: NTIME, NVR, neq, NVR_size
         real(dp), intent(in):: XPR(3, NVR_size), QPR(neq + 1, NVR_size), UPR(3, NVR), GPR(3, NVR)
         integer ::i
@@ -245,7 +245,7 @@ contains
     !>
     !> \param[in] NTIME        Time step.
     !> \param[in] NN_in        Number of nodes.
-    !> \param[in] NNbl_in      Number of nodes excluding dumb cells
+    !> \param[in] NNbl_in      Number of nodes excluding dumb cells 
     !> \param[in] neqpm        Number of equations in the PM solver.
     !> \param[in] RHS          Right-hand side of PM equation (Charges).
     !> \param[in] SOL          Solution vector.
@@ -253,66 +253,54 @@ contains
     !> \param[in] deformation  Deformation components.
     !> \param[in] compression  Compression level.
     !----------------------------------------------------------------------
-    subroutine write_pm_solution_hdf5(                                          &
-        NTIME, comp_grid, neqpm, RHS, SOL, velocity, deformation, compression   &
+    subroutine write_pm_solution_hdf5(                                  &
+        NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velocity,               &
+        deformation, compression                 &
     )
-        use pmgrid, only: cartesian_grid
+        use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
         use h5fortran
 
         integer, intent(in)              :: NTIME
-        type(cartesian_grid), intent(in) :: comp_grid
+        integer, intent(in)              :: NN_in(3), NNbl_in(6)
         integer, intent(in)              :: neqpm
-        real(dp), intent(in)             :: RHS(neqpm, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        real(dp), intent(in)             :: SOL(neqpm, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        real(dp), intent(in), optional   :: velocity(3, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        real(dp), intent(in), optional   :: deformation(3, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        integer, optional                :: compression
+        real(dp), intent(in)             :: RHS(neqpm, NN_in(1), NN_in(2), NN_in(3)), &
+                                            SOL(neqpm, NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in)             :: velocity(3, NN_in(1), NN_in(2), NN_in(3))
+        real(dp), intent(in), optional   :: deformation(3, NN_in(1), NN_in(2), NN_in(3))
+        integer, optional                :: compression 
         integer                          :: comp_level = 4
-
+        
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
         character(len=MAX_STRING_LENGTH) :: filout
         integer                          :: i, j, k
-        real(dp), dimension(comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3)) :: X, Y, Z
-        real(dp)                        :: DXpm, DYpm, DZpm
-        real(dp)                        :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
+        real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
 
         type(hdf5_file)                  :: h5f
 
         ! Construct file name
-        write (filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
-            NTIME, trim(mesh_output_file)//".h5"
+        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
+                NTIME, trim(mesh_output_file) // ".h5"
         ! Informative print statement
-        write (dummy_string, "(A)") achar(9)//'Writing PM solution to HDF5 file: '//trim(filout)
+        write(dummy_string, "(A)") achar(9)//'Writing PM solution to HDF5 file: '//trim(filout)
         call vpm_print(dummy_string, nocolor, 2)
 
-        NXs = comp_grid%NN_bl(1)
-        NYs = comp_grid%NN_bl(2)
-        NZs = comp_grid%NN_bl(3)
-        NXf = comp_grid%NN_bl(4)
-        NYf = comp_grid%NN_bl(5)
-        NZf = comp_grid%NN_bl(6)
-
-        XMIN_pm = comp_grid%Xbound(1)
-        YMIN_pm = comp_grid%Xbound(2)
-        ZMIN_pm = comp_grid%Xbound(3)
-        XMAX_pm = comp_grid%Xbound(4)
-        YMAX_pm = comp_grid%Xbound(5)
-        ZMAX_pm = comp_grid%Xbound(6)
-
-        DXpm = comp_grid%Dpm(1)
-        DYpm = comp_grid%Dpm(2)
-        DZpm = comp_grid%Dpm(3)
+        NXs = NNbl_in(1)
+        NYs = NNbl_in(2)
+        NZs = NNbl_in(3)
+        NXf = NNbl_in(4)
+        NYf = NNbl_in(5)
+        NZf = NNbl_in(6)
 
         if (present(compression)) then
             comp_level = compression
         end if
         ! Open HDF5 file
-        call h5f%open(trim(filout), action='w', comp_lvl=comp_level)
+        call h5f%open(trim(filout), action='w', comp_lvl= comp_level)
         ! Write Attributes
-        call h5f%writeattr('/', 'NTIME', NTIME)
-        call h5f%writeattr('/', 'dims', comp_grid%NN)
-        call h5f%writeattr('/', 'neqpm', neqpm)
-        call h5f%writeattr('/', 'NN_bl', comp_grid%NN_bl)
+        call h5f%writeattr('/','NTIME', NTIME)
+        call h5f%writeattr('/','neqpm', neqpm)
+        call h5f%writeattr('/','NN_in', NN_in)
+        call h5f%writeattr('/','NNbl_in', NNbl_in)
 
         ! Create datasets for each variable
         call h5f%create('/X', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
@@ -325,47 +313,42 @@ contains
         do k = NZs, NZf
             do j = NYs, NYf
                 do i = NXs, NXf
-                    ! Structured grid coordinates
-                    X(i - NXs + 1, j - NYs + 1, k - NZs + 1) = XMIN_pm + (i - 1)*DXpm
-                    Y(i - NXs + 1, j - NYs + 1, k - NZs + 1) = YMIN_pm + (j - 1)*DYpm
-                    Z(i - NXs + 1, j - NYs + 1, k - NZs + 1) = ZMIN_pm + (k - 1)*DZpm
+                ! Structured grid coordinates
+                X(i - NXs + 1, j - NYs + 1, k - NZs + 1) = XMIN_pm + (i - 1) * DXpm
+                Y(i - NXs + 1, j - NYs + 1, k - NZs + 1) = YMIN_pm + (j - 1) * DYpm
+                Z(i - NXs + 1, j - NYs + 1, k - NZs + 1) = ZMIN_pm + (k - 1) * DZpm
                 end do
             end do
         end do
 
-        ! Write the structured grid coordinates to the HDF5 file
+                ! Write the structured grid coordinates to the HDF5 file
         call h5f%write('/X', X)
         call h5f%write('/Y', Y)
         call h5f%write('/Z', Z)
-
+        
         ! Write the vorticity field to the HDF5 file
-        call h5f%create('/RHS', H5T_NATIVE_REAL, dset_dims=[neqpm, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%write('/RHS', RHS(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
 
         ! Write the solution field to the HDF5 file
-        call h5f%create('/SOL', H5T_NATIVE_REAL, dset_dims=[neqpm, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%write('/SOL', SOL(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
-
+        
         ! Write the velocity field to the HDF5 file
-        if (present(velocity)) then
-            call h5f%create('/VEL', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%write('/VEL', velocity(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
-        end if
-
+        call h5f%write('/VEL', velocity(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
+        
         ! Write the deformation field to the HDF5 file
         if (present(deformation)) then
             call h5f%create('/DEFORM', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%write('/DEFORM', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
+            call h5f%write('/DEFORM', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
         end if
 
         ! Close HDF5 file
         call h5f%close()
-
+        
     end subroutine write_pm_solution_hdf5
 
     subroutine write_field_h5(neq, comp_grid, field, field_name, compression)
         use h5fortran
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         integer, intent(in)              :: neq
@@ -411,7 +394,7 @@ contains
     end subroutine write_field_h5
 
     subroutine write_vector_field(neq, comp_grid, field, field_name)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         integer, intent(in)              :: neq
@@ -484,7 +467,7 @@ contains
     end subroutine write_vector_field
 
     subroutine write_scalar_field(comp_grid, field, field_name)
-        use pmgrid, only: cartesian_grid
+        use vpm_types, only: cartesian_grid
         implicit none
 
         type(cartesian_grid), intent(in) :: comp_grid

@@ -8,7 +8,7 @@ contains
     !-----------------------------------------------------------------------!
     subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
         use fishpack
-        Implicit None
+        implicit none
         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         Integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
         real(dp)             :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
@@ -80,7 +80,7 @@ contains
 
     subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
         use fishpack
-        Implicit None
+        implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         Integer                 :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
         real(dp)                :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
@@ -130,7 +130,7 @@ contains
 
     module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
         use fishpack
-        Implicit None
+        implicit none
         integer, intent(in)            :: NXs, NXf, NYs, NYf, neq
         Integer                       :: i, j, INFO, NX, NY
         integer                       :: NN
@@ -187,7 +187,7 @@ contains
 
     module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
         use fishpack
-        Implicit None
+        implicit none
         integer, intent(in)            :: NXs, NXf, NYs, NYf, neq
         Integer                       :: i, j, INFO, NX, NY
         integer                       :: NN

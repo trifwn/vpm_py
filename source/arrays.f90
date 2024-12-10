@@ -1,6 +1,6 @@
 module ND_Arrays
     use ISO_C_BINDING
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
 
     type, bind(C) :: ND_Array

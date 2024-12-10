@@ -1,5 +1,5 @@
 module constants
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
     private
     public :: pi, pi2, pi4, e, I

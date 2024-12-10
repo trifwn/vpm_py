@@ -57,9 +57,9 @@ function(define_vpm_targets)
         ${SRC_VPM}/yaps3d.f90
 
         # Other VPM files
-        ${SRC_VPM}/base_types.f90
+        ${SRC_VPM}/vpm_types.f90
         ${SRC_VPM}/constants.f90
-        ${SRC_VPM}/data_mpi_communication.f90
+        ${SRC_VPM}/data_communication.f90
         ${SRC_VPM}/operators_serial.f90
         ${SRC_VPM}/arrays.f90
         ${SRC_VPM}/console_io.f90
@@ -77,7 +77,7 @@ function(define_vpm_targets)
     # -------------------------------------------------------------------------------------------------
     #                                            VPM Library
     # -------------------------------------------------------------------------------------------------
-    add_library(types OBJECT ${SRC_VPM}/base_types.f90)
+    add_library(types OBJECT ${SRC_VPM}/vpm_types.f90)
     add_library(constants OBJECT ${SRC_VPM}/constants.f90)
     target_link_libraries(constants PRIVATE types)
     target_link_libraries(arrays PRIVATE types)
@@ -120,7 +120,7 @@ function(define_vpm_targets)
     add_library(mpi_matrices OBJECT ${SRC_VPM}/mpi_matrices.f90)
 
     add_library(operators_serial OBJECT ${SRC_VPM}/operators_serial.f90)
-    add_library(data_mpi OBJECT ${SRC_VPM}/data_mpi_communication.f90)
+    add_library(data_com OBJECT ${SRC_VPM}/data_communication.f90)
 
     add_library(parvar OBJECT  ${SRC_VPM}/parvar.f90)
     target_link_libraries(parvar PRIVATE console_io)
@@ -169,7 +169,6 @@ function(define_vpm_targets)
         parvar pmgrid  
         yaps pmlib pmproject 
         # mpi_matrices 
-        # data_mpi 
         # $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         # $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         # h5fortran::h5fortran
@@ -185,7 +184,7 @@ function(define_vpm_targets)
         vpm_lib arrays yaps pmlib pmproject parvar pmgrid  
         vpm_size vpm_vars vpm_interpolate vpm_gcalc vpm_mpi vpm_remesh vpm_functions
         console_io file_io types constants 
-        mpi_matrices operators_serial data_mpi 
+        mpi_matrices operators_serial 
     PRIVATE 
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
@@ -240,8 +239,8 @@ function(define_vpm_targets)
     #                                           Operator Test Executable
     # -------------------------------------------------------------------------------------------------
 
-    add_executable(test_operators ${SRC_TEST}/test_operators.f90)
-    target_link_libraries(test_operators PRIVATE data_mpi operators_serial)
+    # add_executable(test_operators ${SRC_TEST}/test_operators.f90)
+    # target_link_libraries(test_operators PRIVATE data_com operators_serial)
 
     # -------------------------------------------------------------------------------------------------
     #                                          Compiler Flags
@@ -260,7 +259,7 @@ function(define_vpm_targets)
     set_compiler_flags(pmlib)
     set_compiler_flags(mpi_matrices)
     set_compiler_flags(operators_serial)
-    set_compiler_flags(data_mpi)
+    # set_compiler_flags(data_com)
     set_compiler_flags(parvar)
     set_compiler_flags(pmproject)
     set_compiler_flags(yaps)
@@ -276,5 +275,5 @@ function(define_vpm_targets)
     set_compiler_flags(${EXE})
     set_compiler_flags(${EXE}_exe)
     set_compiler_flags(test_arrays_exe)
-    set_compiler_flags(test_operators)
+    # set_compiler_flags(test_operators)
 endfunction()

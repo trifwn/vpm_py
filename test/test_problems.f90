@@ -1,5 +1,5 @@
 module test_app
-    use base_types, only: dp
+    use vpm_types, only: dp
     real(dp), allocatable    :: analytic_sol(:, :, :, :)
 
 contains

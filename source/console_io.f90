@@ -1,5 +1,5 @@
 module console_io
-    use base_types, only: dp
+    use vpm_types, only: dp
     integer, save :: VERBOCITY = 2
     ! Verbose level
     ! 0: No output

@@ -119,7 +119,7 @@ setup(
 
         # Visualization
         "matplotlib",
-        "pyQt5",
+        "pyQt6",
 
         # Data
         "h5py",
@@ -127,7 +127,7 @@ setup(
         "tqdm",
 
         # Parallelism
-        "mpi4py", # CONDA-FORGE
+        "mpi4py", # CONDA-FORGE also install openmpi
 
         # MATH
         "mkl", # CONDA
@@ -135,6 +135,7 @@ setup(
 
         # Intel libraries
         'intel-fortran-rt', 
+        # ifx_win-64
         'intel-cmplr-lib-rt',
         'intel-cmplr-lic-rt',
         "dpcpp-cpp-rt",

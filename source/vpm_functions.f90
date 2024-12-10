@@ -1,12 +1,12 @@
 module vpm_functions
-    use mpi
+    use MPI
 
     use vpm_vars
     use vpm_size
 
     ! Constants
     use constants, only: pi, pi2, pi4
-    use base_types, only: dp
+    use vpm_types, only: dp
     ! Printing
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
     use parvar, only:     print_particle_info, print_particle_positions, associate_particles
@@ -276,13 +276,7 @@ contains
         ! SCATTER PARTICLES ON EACH PROCESSOR
         call particles_scat
         ! INITIALIZATION OF PROJECTION LIBRARY
-        if (my_rank .eq. 0) then
-            write (dummy_string, "(A)") "Initializing Projection Library"
-            call vpm_print(dummy_string, blue, 1)
-        end if
-
-        call projlibinit(fine_grid%Xbound, fine_grid%Dpm, fine_grid%NN, fine_grid%NN_bl, IDVPM, ND)
-
+        call projlibinit(fine_grid, IDVPM, ND)
         ! PROJECT PARTICLES TO PM
         st = MPI_WTIME()
         if (my_rank .eq. 0) then
@@ -293,29 +287,22 @@ contains
         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
         ! From QP_scatt we get RHS_pm
         call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projtype_scatt, NVR_p, neqpm, ieq, neqpm, QINF, NVR_p)
-
-        if (my_rank .eq. 0) then
-            write (dummy_string, "(A)") "Gathering RHS from all processors"
-            call vpm_print(dummy_string, blue, 1)
-        end if
-
         call proj_gath ! RHS IS NOW FILLED
 
         tab_level = tab_level - 1
         if (my_rank .eq. 0) then
             write (dummy_string, "(A)") achar(9)//"Normalizing RHS by volume"
             call vpm_print(dummy_string, blue, 1)
-
-            ! RHS_pm(neqpm+1,:,:,:)=DVpm
             ! RHS_pm IS NOW NORMALIZED BY VOLUME (DENSITY)
             call project_vol3d(RHS_pm, neqpm, ieq, neqpm, IDVPM)
+        endif
 
+        if (my_rank .eq. 0) then
             et = MPI_WTIME()
             write (dummy_string, "(A, I2, A, F8.3, A)") &
                 achar(9)//'finished in:'//achar(9), int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
             call vpm_print(dummy_string, yellow, 1)
         end if
-
         ! DEALLOCATE
         deallocate (ieq, QINF)
         deallocate (XP_scatt, QP_scatt, NVR_projtype_scatt)

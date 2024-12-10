@@ -12,7 +12,7 @@ contains
     !-----------------------------------------------------------------------!
     module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
 
-        Implicit None
+        implicit none
         integer, intent(in)              :: NXs, NXf, NYs, NYf, neq
         Integer                          :: i, j, NX, NY
         integer                          :: ipar(128), stat
@@ -96,7 +96,7 @@ contains
     end subroutine solve_eq
 
     module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
-        Implicit None
+        implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, neq
         Integer                 :: i, j, NX, NY
         integer                 :: ipar(128), stat
@@ -178,7 +178,7 @@ contains
     end subroutine solve_eq_0
 
     module subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-        Implicit None
+        implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         integer                 :: i, j, k, NX, NY, NZ
         real(dp)                :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
@@ -287,7 +287,7 @@ contains
 
     module subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
 
-        Implicit None
+        implicit none
         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         integer              :: i, j, k, NX, NY, NZ
         real(dp)     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc

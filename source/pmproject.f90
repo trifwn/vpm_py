@@ -1,5 +1,5 @@
 Module projlib
-    use base_types, only: dp
+    use vpm_types, only: dp, cartesian_grid
 
     private
     real(dp), save       :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
@@ -13,35 +13,37 @@ Module projlib
               projection_fun
 
 contains
-    subroutine projlibinit(Xbound, Dpm, NN, NN_bl, IDVPM_in, ND_in)
+    subroutine projlibinit(grid, IDVPM_in, ND_in)
         implicit none
-        real(dp), intent(in) :: Xbound(6), Dpm(3)
-        integer, intent(in) :: NN(3), IDVPM_in, ND_in, NN_bl(6)
+        type(cartesian_grid), intent(in) :: grid
+        integer, intent(in)              :: IDVPM_in, ND_in
+        real(dp)                         :: Xbound(6), Dpm(3)
+        integer                          :: NN(3), NN_bl(6)
 
         IDVPM = IDVPM_in
         ND = ND_in
 
-        XMIN_pm = Xbound(1)
-        YMIN_pm = Xbound(2)
-        ZMIN_pm = Xbound(3)
-        XMAX_pm = Xbound(4)
-        YMAX_pm = Xbound(5)
-        ZMAX_pm = Xbound(6)
+        XMIN_pm = grid%Xbound(1)
+        YMIN_pm = grid%Xbound(2)
+        ZMIN_pm = grid%Xbound(3)
+        XMAX_pm = grid%Xbound(4)
+        YMAX_pm = grid%Xbound(5)
+        ZMAX_pm = grid%Xbound(6)
 
-        DXpm = Dpm(1)
-        DYpm = Dpm(2)
-        DZpm = Dpm(3)
+        DXpm = grid%Dpm(1)
+        DYpm = grid%Dpm(2)
+        DZpm = grid%Dpm(3)
 
-        NXpm = NN(1)
-        NYpm = NN(2)
-        NZpm = NN(3)
+        NXpm = grid%NN(1)
+        NYpm = grid%NN(2)
+        NZpm = grid%NN(3)
 
-        NXs = NN_bl(1)
-        NYs = NN_bl(2)
-        NZs = NN_bl(3)
-        NXf = NN_bl(4)
-        NYf = NN_bl(5)
-        NZf = NN_bl(6)
+        NXs = grid%NN_bl(1)
+        NYs = grid%NN_bl(2)
+        NZs = grid%NN_bl(3)
+        NXf = grid%NN_bl(4)
+        NYf = grid%NN_bl(5)
+        NZf = grid%NN_bl(6)
 
         DVpm = DXpm*DYpm
         if (ND .eq. 3) then
@@ -73,9 +75,9 @@ contains
         ! QINF -> Inflow values
         ! iparsize -> Number of particles NVR_p
 
-        use mpi
+        use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)     :: ipar, isize, ieq(neq), iparsize, neq
         real(dp), intent(out)   :: Q_pm(neq, NXpm, NYpm, NZpm)
         real(dp), intent(in)    :: QP(neq + 1, iparsize), XP(3, iparsize), QINF(neq)
@@ -185,9 +187,9 @@ contains
     !      - PsiX , PsiY                                                       !
     !--------------------------------------------------------------------------!
     subroutine project_vol3d(Qproj, isize, ieq, neq, iflag)
-        Implicit None
+        implicit none
         integer, intent(in)                 :: neq, isize, iflag
-        integer, intent(in), dimension(neq) ::  ieq
+        integer, intent(in), dimension(neq) :: ieq
         real(dp), intent(inout)             :: Qproj(isize, NXpm, NYpm, NZpm)
         integer                             :: i, j, k, IDVPMt
 
@@ -225,6 +227,7 @@ contains
             STOP
         end if
     end subroutine project_vol3d
+    
     !--------------------------------------------------------------------------!
     !-->subroutine project_particles                                           !
     !   This subroutine projects particle values on the PM grid                !
@@ -238,7 +241,7 @@ contains
     subroutine project_particles_2D( &
         Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq, QINF &
         )
-        Implicit None
+        implicit none
         integer, intent(in)     :: ipar, isize, ieq(neq)
         real(dp), intent(out)   :: Qproj(isize, NXpm, NYpm, NZpm)
         real(dp), intent(in)    :: Qpar(isize, ipar), QpX(3, ipar), QINF(neq)
@@ -305,7 +308,7 @@ contains
     end subroutine project_particles_2D
 
     subroutine project_particles_2D_vol(Qproj, Qpar, QpX, Qprojtype, ipar, isize, ieq, neq)
-        Implicit None
+        implicit none
         integer, intent(in) :: ipar, isize, ieq(neq)
         ! real(dp), intent(out), dimension(:,:,:) :: Qproj
         real(dp), intent(out):: Qproj(NXpm, NYpm, NZpm)
@@ -384,7 +387,7 @@ contains
     !      - PsiX , PsiY                                                       !
     !--------------------------------------------------------------------------!
     subroutine project_vol2d(Qproj, isize, ieq, neq, iflag)
-        Implicit None
+        implicit none
         integer, intent(in) :: isize, ieq(neq), iflag
         ! real(dp) , intent(out), dimension(:,:, :, :) :: Qproj
         real(dp)   :: Qproj(isize, NXpm, NYpm, NZpm)
@@ -445,8 +448,8 @@ contains
     !      itype       : type of projection function                              !
     !      x           : position of projection
     !-----------------------------------------------------------------------------!
-    real(dp) function projection_fun(itype, x) !result(projection_fun)
-        Implicit None
+    real(dp) function projection_fun(itype, x) 
+        implicit none
         real(dp), intent(in) :: x
         integer, intent(in)          :: itype
 

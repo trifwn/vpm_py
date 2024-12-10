@@ -16,7 +16,7 @@ contains
     !   The boundary values is the sum for all particles at each i,j             !
     !----------------------------------------------------------------------------!
     module subroutine Bounds2d(itype, NXs, NXf, NYs, NYf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in)  :: itype, NXs, NXf, NYs, NYf, neqs, neqf
         integer              :: iconst, jconst, iplane, i, j
         real(dp)             :: X, Y
@@ -81,7 +81,7 @@ contains
     !>   The boundary values is the sum for all particles at each i,j             !
     !>----------------------------------------------------------------------------!
     module subroutine Bounds3d(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         integer           :: iconst, jconst, kconst, iplane
         !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX, ZMIN,ZMAX)
@@ -164,7 +164,7 @@ contains
     !        iconst : Calculation side in nodal value                             !
     !-----------------------------------------------------------------------------!
     subroutine calc_bound2d(iplane, iconst, Ns, Nf, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in)  :: iplane, iconst, Ns, Nf, neqs, neqf
         real(dp)             :: X, Y, XR, YR, r
@@ -215,7 +215,7 @@ contains
     !        iconst : Calculation side in nodal value                             !
     !-----------------------------------------------------------------------------!
     subroutine calc_bound3d(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
@@ -292,7 +292,7 @@ contains
     !   Same as particles
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_2d(iplane, iconst, Ns, Nf, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
@@ -349,7 +349,7 @@ contains
     !   Same as particles
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_2d_s(iplane, iconst, Ns, Nf, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
@@ -405,7 +405,7 @@ contains
     !   This subroutine calculates boundary conditions for the sources              !
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_3d(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
@@ -513,7 +513,7 @@ contains
     !   This subroutine calculates boundary conditions for the sources              !
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_3d_s(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
         real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
@@ -635,7 +635,7 @@ contains
     end subroutine calc_boundinf_3d_s
 
     module subroutine Bounds2d_lev(itype, NXs, NXf, NYs, NYf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
         integer           :: iconst, jconst, iplane, i, j
         real(dp)          :: X, Y
@@ -698,7 +698,7 @@ contains
     !   Same as particles
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_2d_lev(iplane, iconst, Ns, Nf, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
@@ -741,7 +741,7 @@ contains
     end subroutine calc_boundinf_2d_lev
 
     Recursive subroutine tree_calc_2d(nv, nlev, leafstart, X, Y, SOURCE, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in) :: nlev, nv, neqs, neqf
         integer, intent(inout) :: leafstart
         real(dp), intent(in)  :: X, Y
@@ -843,7 +843,7 @@ contains
     !-------------------------------------------------------------------------------!
 
     subroutine calc_boundinf_2d_lev_s(iplane, iconst, Ns, Nf, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
@@ -886,7 +886,7 @@ contains
     end subroutine calc_boundinf_2d_lev_s
 
     Recursive subroutine tree_calc_2d_s(nv, nlev, leafstart, X, Y, cosb, sinb, SOURCE, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in)     :: nlev, nv, neqs, neqf
         integer, intent(inout)  :: leafstart
         real(dp), intent(in)    :: X, Y, cosb, sinb
@@ -959,7 +959,7 @@ contains
     !   The boundary values is the sum for all particles at each i,j             !
     !----------------------------------------------------------------------------!
     module subroutine Bounds3d_lev(itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
-        Implicit None
+        implicit none
         integer, intent(in):: itype, NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf
         integer           :: iconst, jconst, kconst, iplane
         !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
@@ -1035,7 +1035,7 @@ contains
     end subroutine Bounds3d_lev
 
     subroutine calc_boundinf_3d_lev(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
@@ -1109,8 +1109,8 @@ contains
     end subroutine calc_boundinf_3d_lev
 
     Recursive subroutine tree_calc_3d(nv, nlev, leafstart, X, Y, Z, SOURCE, neqs, neqf)
-        use mpi
-        Implicit None
+        use MPI
+        implicit none
         integer, intent(in) :: nlev, nv, neqs, neqf
         integer, intent(inout) :: leafstart
         real(dp), intent(in)  :: X, Y, Z
@@ -1227,7 +1227,7 @@ contains
     !   This subroutine calculates boundary conditions for the sources              !
     !-------------------------------------------------------------------------------!
     subroutine calc_boundinf_3d_lev_s(iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf)
-        Implicit None
+        implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
@@ -1350,7 +1350,7 @@ contains
 
     Recursive subroutine tree_calc_3d_s(nv, nlev, leafstart, XO, SOURCE, neqs, neqf, &
                                         DIAG, E1, E2, E3, COSB, SINB, S, T, D, NSIDE, EPSS, ISING)
-        Implicit None
+        implicit none
         integer, intent(in)     :: nlev, nv, neqs, neqf
         integer, intent(inout)  :: leafstart
         real(dp), intent(in)    :: DIAG, E1(3), E2(3), E3(3)
@@ -1474,7 +1474,7 @@ contains
     ! XO is the point of calculation X1,Y1 is the first corner of the constant panel
     ! DS is the area of the face cosb,sinb give the direction assumed.
     subroutine PHIELS(X0, Y0, X1, Y1, DS, COSB, SINB, PHILS)
-        Implicit None
+        implicit none
         real(dp), intent(in) :: X0, Y0, X1, Y1, DS, COSB, SINB
         real(dp), intent(out):: PHILS
         real(dp)             :: AKSIL, HTAL, TA1, TA2

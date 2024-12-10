@@ -30,7 +30,7 @@ contains
     subroutine mpimat2_pm(mat2, orig1, orig2, nsize1, nsize2, istart)
         use MPI
 
-        Implicit None
+        implicit none
         integer ierr
         integer::typelist(2)
         integer ::imat(2), mat(2), start(2)
@@ -66,7 +66,7 @@ contains
     subroutine mpimat3_pm(mat3, nsize1, nsize2, nsize3)
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)::nsize1, nsize2, nsize3
         integer ierr
         integer ::imat(3), mat(3), start(3)
@@ -89,7 +89,7 @@ contains
     subroutine mpimat4(mat4, nsize1, nsize2, nsize3, nsize4)
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)::nsize1, nsize2, nsize3, nsize4
         integer ierr
         integer ::imat(4), mat(4), start(4)
@@ -115,7 +115,7 @@ contains
     subroutine mpimat4int(mat4int, nsize1, nsize2, nsize3, nsize4)
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)::nsize1, nsize2, nsize3, nsize4
         integer ierr
         integer ::imat(4), mat(4), start(4)
@@ -141,7 +141,7 @@ contains
     subroutine mpimat5_old(mat5, nsize1, nsize2, nsize3, nsize4, nsize5)
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)::nsize1, nsize2, nsize3, nsize4, nsize5
         integer ierr
         integer ::imat(5), mat(5), start(5)
@@ -170,7 +170,7 @@ contains
     subroutine mpimat5(mat5, nsize1, nsize2, nsize3, nsize4, nsize5, isize5, nbstart)
         use MPI
 
-        Implicit None
+        implicit none
         integer, intent(in)::nsize1, nsize2, nsize3, nsize4, nsize5, isize5, nbstart
         integer ierr
         integer ::imat(5), mat(5), start(5)

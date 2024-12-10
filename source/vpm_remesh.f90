@@ -1,5 +1,5 @@
 module vpm_remesh
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
 
 contains
@@ -30,10 +30,10 @@ contains
         implicit None
 
         ! PARAMETERS
-        integer, intent(in)                                       :: iflag, npar_per_cell
+        integer, intent(in)                                         :: iflag, npar_per_cell
         real(dp), intent(out), allocatable, target, dimension(:, :) :: XP_out, QP_out, GP_OUT, UP_OUT
-        integer, intent(out)                                      :: NVR_out
-        real(dp), intent(in), optional                             :: cutoff_value
+        integer, intent(out)                                        :: NVR_out
+        real(dp), intent(in), optional                              :: cutoff_value
 
         ! LOCAL VARIABLES
         real(dp), dimension(8)           :: X, Y, Z, Q
@@ -60,7 +60,7 @@ contains
 
         if (my_rank .eq. 0) then
             st = MPI_WTIME()
-            write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value:', cutoff
+            write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value: ', cutoff
             call vpm_print(dummy_string, red, 1)
             write (dummy_string, "(A)") 'RHS_PM will be used to remesh the particles'
             call vpm_print(dummy_string, nocolor, 2)
@@ -81,8 +81,8 @@ contains
         Xbound(1) = XMIN_pm
         Xbound(2) = YMIN_pm
         Xbound(3) = ZMIN_pm
-        Xbound(4) = XMAX_pm; 
-        Xbound(5) = YMAX_pm; 
+        Xbound(4) = XMAX_pm 
+        Xbound(5) = YMAX_pm 
         Xbound(6) = ZMAX_pm
 
         NN(1) = NXpm_fine
@@ -105,7 +105,6 @@ contains
 
         ! Project particles on PM grid to get RHS
         if (iflag .eq. 1) then
-            ! RHS_pm(neqpm+1,:,:,:)=DVpm
             call project_particles_parallel
         end if
 
@@ -156,8 +155,8 @@ contains
             npar = 0
             V_ref = 1.d0/float(ncell)*DVpm
 
-            ! !$omp parallel private(i,j,k,npar,X,Y,Z) num_threads(OMPTHREADS)
-            ! !$omp do
+            !!$omp parallel private(i,j,k,npar,X,Y,Z) num_threads(OMPTHREADS)
+            !!$omp do
             do k = nzstart, nzfin
                 do j = nystart, nyfin
                     do i = nxstart, nxfin
@@ -215,9 +214,8 @@ contains
                     end do
                 end do
             end do
-         !!$omp enddo
-         !!$omp endparallel
-            if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP, NVR, 4, NVR_size)
+            !!$omp enddo
+            !!$omp endparallel
 
             NVR = npar
             NVR_size = NVR
@@ -253,6 +251,7 @@ contains
         UP => UP_OUT
 
         if (my_rank .eq. 0) then
+            if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP(1:neqpm, :), NVR, 4, NVR_size)
             write (dummy_string, *) 'After remesh'
             call vpm_print(dummy_string, nocolor, 2)
             write (dummy_string, *) achar(9), 'Number of particles before', NVR_old
@@ -354,8 +353,8 @@ contains
     !>@param [out] KSI(2*N),HTA(2*N) local position
     !--------------------------------------------------------------------------------
     subroutine get_ksi_ita_pos_3d(N, M, KSIC, HTAC, ZETAC, KSI, HTA, ZETA)
-        use base_types, only: dp
-        Implicit None
+        use vpm_types, only: dp
+        implicit none
 
         integer, intent(in)           :: M
         integer, intent(in)           :: N

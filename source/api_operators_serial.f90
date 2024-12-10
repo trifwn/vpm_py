@@ -2,7 +2,7 @@ module vector_field_operators_bindings
     use, intrinsic :: iso_c_binding
     use serial_vector_field_operators
     use ND_Arrays
-    use base_types, only: dp
+    use vpm_types, only: dp
     implicit none
 
 contains
