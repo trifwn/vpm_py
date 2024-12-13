@@ -7,17 +7,24 @@ function(setup_hdf5)
     enable_testing()
     # find_package(h5fortran)
 
-        # find_package(h5fortran)
         # if(NOT h5fortran_FOUND)
             include(FetchContent) 
-            include(FetchContent)
             set(FETCHCONTENT_UPDATES_DISCONNECTED true)
             option(h5fortran_BUILD_TESTING "h5fortran internal tests")
+
+            set(H5FORTRAN_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/h5fortran_install")
+            set(H5FORTRAN_LIB_DIR "${H5FORTRAN_INSTALL_PREFIX}/lib")
+            set(H5FORTRAN_INCLUDE_DIR "${H5FORTRAN_INSTALL_PREFIX}/include")
+
             message(STATUS "Fetching h5fortran")
             FetchContent_Declare(h5fortran
                 GIT_REPOSITORY https://github.com/geospace-code/h5fortran.git
                 TLS_VERIFY true
                 GIT_TAG v4.10.6
+                CMAKE_ARGS 
+                    -DCMAKE_INSTALL_PREFIX=${H5FORTRAN_INSTALL_PREFIX}
+                    -DCMAKE_INSTALL_LIBDIR=${H5FORTRAN_LIB_DIR}
+                    -DCMAKE_INSTALL_INCLUDEDIR=${H5FORTRAN_INCLUDE_DIR}
             )
             FetchContent_MakeAvailable(h5fortran)
         # endif()

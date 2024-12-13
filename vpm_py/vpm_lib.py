@@ -7,7 +7,7 @@ from .arrays import F_Array_Struct
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
 
-lib_vpm_path = glob.glob(os.path.join(lib_locations, 'libvpm_*.so'))[0]
+lib_vpm_path = glob.glob(os.path.join(lib_locations, 'vpm_py_api.so'))[0]
 lib_vpm_ext = lib_vpm_path[lib_vpm_path.rfind('.'):]
 
 class VPM_Lib:

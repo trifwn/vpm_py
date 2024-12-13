@@ -120,6 +120,7 @@ function(define_vpm_targets)
     add_library(mpi_matrices OBJECT ${SRC_VPM}/mpi_matrices.f90)
 
     add_library(operators_serial OBJECT ${SRC_VPM}/operators_serial.f90)
+    target_link_libraries(operators_serial PRIVATE types)
     add_library(data_com OBJECT ${SRC_VPM}/data_communication.f90)
 
     add_library(parvar OBJECT  ${SRC_VPM}/parvar.f90)
@@ -210,10 +211,17 @@ function(define_vpm_targets)
     # -------------------------------------------------------------------------------------------------
     #                                            API Shared Library
     # -------------------------------------------------------------------------------------------------
-    add_library(${EXE} SHARED ${SRC_VPM}/api.f90)
-    add_dependencies(${EXE} vpm arrays operators_api) # Ensure proper dependency resolution
-    target_link_libraries(${EXE} PRIVATE vpm)
+    # add_library(${EXE} SHARED ${SRC_VPM}/api.f90)
+    # add_dependencies(${EXE} vpm arrays operators_api) # Ensure proper dependency resolution
+    # target_link_libraries(${EXE} PRIVATE vpm)
 
+    python_add_library(vpm_py_api ${SRC_VPM}/api.f90)
+    add_dependencies(vpm_py_api vpm arrays operators_api) # Ensure proper dependency resolution
+    target_link_libraries(vpm_py_api PRIVATE vpm)
+    set_target_properties(vpm_py_api PROPERTIES
+        OUTPUT_NAME "vpm_py_api"
+        # LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/vpm_py_api
+    )
     # -------------------------------------------------------------------------------------------------
     #                                            VPM Executable
     # -------------------------------------------------------------------------------------------------
@@ -272,7 +280,7 @@ function(define_vpm_targets)
     set_compiler_flags(vpm_remesh)
     set_compiler_flags(vpm_lib)
     set_compiler_flags(vpm)
-    set_compiler_flags(${EXE})
+    set_compiler_flags(vpm_py_api)
     set_compiler_flags(${EXE}_exe)
     set_compiler_flags(test_arrays_exe)
     # set_compiler_flags(test_operators)

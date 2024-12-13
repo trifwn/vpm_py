@@ -14,7 +14,7 @@ from vpm_py.vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
-lib_arrays_path = glob.glob(os.path.join(lib_locations, 'libvpm_*.so'))[0]
+lib_arrays_path = glob.glob(os.path.join(lib_locations, 'vpm_py_api.so'))[0]
 lib_arrays_ext = lib_arrays_path[lib_arrays_path.rfind('.'):]
 
 class F_Array_Struct(ctypes.Structure):

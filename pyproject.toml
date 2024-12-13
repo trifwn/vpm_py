@@ -1,0 +1,52 @@
+[build-system]
+requires = ["scikit-build-core[cmake]>=0.5.1", "numpy"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "vpm_py"
+version = "0.0.1"  
+description = "Vortex Particle Method in Fortran/Python"
+readme = "README.md"
+requires-python = ">=3.8"
+
+authors = [
+    {name = "Tryfonas Themas", email = "tryfonthem@gmail.com"}
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Fortran",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering"
+]
+
+keywords = ["vpm", "aerodynamic", "fluid mechanics"]
+
+dependencies = [
+    # Numerics
+    "numpy",
+    "scipy",
+
+    # Visualization
+    "matplotlib",
+
+    # Data
+    "h5py",
+    "pandas",
+    "tqdm",
+
+    # Parallelism
+    "mpi4py"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mypy"
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "vpm_py.__version__"}
+
+

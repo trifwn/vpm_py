@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 message(NOTICE "Configuring VPM")
 
+find_package(Python COMPONENTS Interpreter Development.Module NumPy REQUIRED)
 # Define options
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -40,6 +41,9 @@ else()
 endif()
 # Setup HDF5
 # find_package(HDF5 REQUIRED)
+set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
+set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/include")
+
 include(SetupHDF5)
 setup_hdf5()
 
@@ -69,17 +73,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIB_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LIB_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIRECTORY})
 
-# Make the directories
-# file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILD_TYPE})
-# file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILD_TYPE}/${COMPILER_NAME})
-# file(MAKE_DIRECTORY ${LIB_DIRECTORY})
-# file(MAKE_DIRECTORY ${MOD_DIRECTORY})
-# file(MAKE_DIRECTORY ${BIN_DIRECTORY})
-
 
 set(FISHPACK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../fishpack)
-set(EXE "vpm_${BUILD_TYPE}_${COMPILER_NAME}")
-
 
 include(VpmLibraries)
 define_vpm_targets()
@@ -123,7 +118,41 @@ endif()
 message("-------------------------------------------------------------------------------------------------------------------")
 
 # Install the libraries to the folder VPM_SOURCE_DIR/../vpm_py/shared_libs
-install(TARGETS operators_api DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
-install(TARGETS vpm DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
-install(TARGETS arrays DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
-install(TARGETS ${EXE} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+# install(TARGETS operators_api DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+# install(TARGETS vpm DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+# install(TARGETS arrays DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+# install(TARGETS vpm_py_api DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
+
+# Define the installation directories
+
+# Install the operators_api library
+install(TARGETS operators_api
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
+
+# Install the vpm library
+install(TARGETS vpm
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
+
+# Install the arrays library
+install(TARGETS arrays
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
+
+# Install the vpm_py_api library
+install(TARGETS vpm_py_api
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
