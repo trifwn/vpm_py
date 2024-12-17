@@ -40,20 +40,18 @@ contains
 
     subroutine vpm( &
         XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-        RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in, &
-        deform_ptr &
+        RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in       &
     )
         use parvar, only: NVR
         implicit None
 
         ! ARGUEMENTS
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)           :: NVR_in
+        integer, intent(in)              :: NVR_in
         integer, intent(in)              :: neqpm_in, WhatToDo, NVR_size_in, NTIME_in
         real(dp), intent(in)             :: NI_in
         real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
         real(dp), intent(out), pointer   :: vel_ptr(:, :, :, :)
-        real(dp), intent(out), pointer, optional   :: deform_ptr(:, :, :, :)
 
         ! LOCAL VARIABLES
         integer                           :: ierr, my_rank, np
@@ -105,7 +103,6 @@ contains
         if (NVR .eq. 0) return
         if (associated(RHS_pm_ptr)) nullify (RHS_pm_ptr)
         call associate_velocities(vel_ptr)
-        if (present(deform_ptr)) call associate_deformations(deform_ptr)
 
         select case (WhatToDo)
         case (DEFINE_PROBLEM)
@@ -116,8 +113,7 @@ contains
 
         case (SOLVE_VELOCITY_DELATATION)
             call vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, &
-                                                NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr, &
-                                                deform_ptr)
+                                                NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr )
 
         case (PROJECT_AND_SOLVE)
             call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, &
@@ -125,11 +121,11 @@ contains
 
         case (INTERPOLATE)
             call vpm_interpolate(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
-                                 RHS_pm_ptr, deform_ptr)
+                                 RHS_pm_ptr)
 
         case (DIFFUSE)
-            call vpm_diffuse(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
-                             RHS_pm_ptr, deform_ptr, NI_in)
+            call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
+                             RHS_pm_ptr)
 
         case (CORRECT_VORTICITY)
             call vpm_correct_vorticity(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in)
@@ -164,7 +160,7 @@ contains
 
     subroutine vpm_interpolate( &
         XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
-        RHS_pm_ptr, deform_ptr &
+        RHS_pm_ptr &
     )
         use pmgrid, only: RHS_pm, velocity_pm, deform_pm
         use parvar, only: NVR
@@ -172,10 +168,9 @@ contains
         implicit none
 
         real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)                    :: NVR_in
+        integer, intent(in)                       :: NVR_in
         integer, intent(in)                       :: neqpm_in, NVR_size_in
         real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
-        real(dp), intent(out), pointer, optional   :: deform_ptr(:, :, :, :)
         integer :: ierr, my_rank, np
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -186,7 +181,6 @@ contains
         ND = 3
         neqpm = neqpm_in
         call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-        if (present(deform_ptr)) call associate_deformations(deform_ptr)
         call allocate_sol_and_rhs(my_rank + 1)
         RHS_pm_ptr => RHS_pm
 
@@ -208,20 +202,18 @@ contains
     end subroutine vpm_interpolate
 
     subroutine vpm_diffuse( &
-        XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
-        RHS_pm_ptr, deform_ptr, &
-        NI_in &
+        NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, neqpm_in, &
+        RHS_pm_ptr &
     )
         use MPI
         use pmgrid, only: RHS_pm
         use parvar, only: NVR
         implicit none
         real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)                    :: NVR_in
+        integer, intent(in)                       :: NVR_in
         integer, intent(in)                       :: neqpm_in, NVR_size_in
         real(dp), intent(in)                      :: NI_in
         real(dp), intent(out), pointer            :: RHS_pm_ptr(:, :, :, :)
-        real(dp), intent(out), pointer, optional  :: deform_ptr(:, :, :, :)
         integer :: ierr, my_rank, np
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -233,7 +225,6 @@ contains
         neqpm = neqpm_in
         NI = NI_in
         call associate_particles(NVR_in, NVR_size_in, neqpm_in, XP_in, QP_in, UP_in, GP_in)
-        if (present(deform_ptr)) call associate_deformations(deform_ptr)
         call allocate_sol_and_rhs(my_rank + 1)
         RHS_pm_ptr => RHS_pm
 
@@ -266,7 +257,7 @@ contains
         use parvar, only: NVR
         implicit none
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :)
-        integer, intent(inout)           :: NVR_in
+        integer, intent(in)              :: NVR_in
         integer, intent(in)              :: neqpm_in, NVR_size_in
         real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
         integer, intent(in)              :: NTIME_in
@@ -311,7 +302,7 @@ contains
     )
         use MPI
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)           :: NVR_in
+        integer, intent(in)              :: NVR_in
         integer, intent(in)              :: neqpm_in, NVR_size_in
         real(dp), intent(out), pointer   :: RHS_pm_ptr(:, :, :, :)
         real(dp), intent(out), pointer   :: vel_ptr(:, :, :, :)
@@ -345,7 +336,7 @@ contains
         implicit none
         integer, intent(in)                        :: NTIME_in
         real(dp), intent(inout), target            :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)                     :: NVR_in
+        integer, intent(in)                        :: NVR_in
         integer, intent(in)                        :: neqpm_in, NVR_size_in
         real(dp), intent(out), pointer             :: RHS_pm_ptr(:, :, :, :)
         real(dp), intent(out), pointer             :: vel_ptr(:, :, :, :)
@@ -397,7 +388,7 @@ contains
 
         ! ARGUEMENTS
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
-        integer, intent(inout)           :: NVR_in
+        integer, intent(in)              :: NVR_in
         integer, intent(in)              :: NVR_size_in
         
         ! LOCAL PARAMETERS

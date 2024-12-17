@@ -1,8 +1,8 @@
 Module api
     use ND_Arrays
-    use vpm_lib
-    use vpm_vars
-    use vpm_size
+    ! use vpm_lib
+    ! use vpm_vars
+    ! use vpm_size
     ! use openmpth
     use, intrinsic :: iso_c_binding, only: c_float, c_int, c_bool, c_null_ptr, c_double, c_ptr
 
@@ -74,6 +74,10 @@ contains
 
     end subroutine initialize
 
+    subroutine finalize() bind(C, name='finalize')
+        implicit none
+    end subroutine finalize
+
     subroutine set_verbose_level(verbocity_in) bind(C, name='set_verbosity')
         use console_io, only: verbocity
         implicit none
@@ -81,13 +85,11 @@ contains
         verbocity = verbocity_in
     end subroutine set_verbose_level
 
-    subroutine finalize() bind(C, name='finalize')
-        implicit none
-    end subroutine finalize
-
+!!! VPM API 
     subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                         RHS_pm_out, Vel_out, NTIME_in, NI_in,                   &
-                        NVR_size_in, deform_out) bind(C, name='vpm')
+                        NVR_size_in                                             &
+    ) bind(C, name='vpm')
         !  -> XP : particle positions (3 * NVR)
         !  -> QP : particle quantities (neqpm * NVR)
         !  -> UP : particle velocities (3 * NVR)
@@ -102,9 +104,6 @@ contains
         !  -> NVRM : NVR MAX
         use vpm_lib, only: vpm
         use ND_Arrays
-        use, intrinsic :: ieee_arithmetic
-
-        ! Fortran to C bindings
         implicit none
         ! Interface for the arguments
         integer(c_int), intent(inout)          :: NVR_in
@@ -113,39 +112,152 @@ contains
         real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
         real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
         type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out
-        type(ND_Array), intent(out), optional  :: deform_out
 
         real(c_double), pointer          :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
         real(c_double), pointer          :: deform_ptr(:, :, :, :)
-        integer :: ierr, my_rank
-
-        call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
-        if (ierr .ne. 0) then
-            print *, 'Error getting the rank of the process'
-            stop
-        end if
 
         call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
-                 RHS_pm_ptr, Vel_ptr, NTIME_in, NI_in, NVR_size_in, &
-                 deform_ptr)
+                 RHS_pm_ptr, Vel_ptr, NTIME_in, NI_in, NVR_size_in)
 
-        ! Copy the data back to the arrays
         ! Assign the pointers to the arrays
-        if (associated(RHS_pm_ptr)) then
-            RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
-        end if
-
-        if (associated(Vel_ptr)) then
-            Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
-        end if
-
-        if ((associated(deform_ptr)) .and. (present(deform_out))) then
-            deform_out = from_intrinsic(deform_ptr, shape(deform_ptr))
-        end if
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+        if (associated(Vel_ptr)) Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
     end subroutine call_vpm
 
-    subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr, NVR_out, cuttof_value) &
-        bind(C, name='remesh_particles_3d')
+    subroutine call_vpm_project_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, &
+                                      RHS_pm_out                                             &
+    ) bind(C, name='vpm_project_solve')
+        use vpm_lib, only: vpm_project_and_solve
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NTIME_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        type(ND_Array), intent(out)            :: RHS_pm_out
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :)
+        call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, &
+                                   neqpm_in, RHS_pm_ptr)
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+    end subroutine call_vpm_project_solve
+
+    subroutine call_vpm_define(                                                             &
+        NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in                               &
+    ) bind(C, name='vpm_define')
+        use vpm_lib, only: vpm_define_problem
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NTIME_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        call vpm_define_problem(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in)
+    end subroutine call_vpm_define
+
+    subroutine call_vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                                       neqpm_in, RHS_pm_out, Vel_out                              &
+    ) bind(C, name='vpm_solve_velocity')
+        use vpm_lib, only: vpm_solve_velocity
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments 
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NTIME_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+        type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        
+        call vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                                neqpm_in, RHS_pm_ptr, vel_ptr)
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+        if (associated(Vel_ptr)) Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
+    end subroutine call_vpm_solve_velocity
+
+    subroutine call_vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, &
+                                                   NVR_size_in,                                  &
+                                                   neqpm_in, RHS_pm_out, Vel_out, Deform_out     &
+    ) bind(C, name='vpm_solve_velocity_deformation')
+        use vpm_lib, only: vpm_solve_velocity_deformation
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NTIME_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+        type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out, Deform_out
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        
+        call vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                                            neqpm_in, RHS_pm_ptr, vel_ptr, deform_ptr)
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+        if (associated(Vel_ptr)) Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
+        if ((associated(deform_ptr)))  Deform_out = from_intrinsic(deform_ptr, shape(deform_ptr))
+    end subroutine call_vpm_solve_velocity_deformation
+
+    subroutine call_vpm_interpolate(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,  &
+                                    neqpm_in, RHS_pm_out                                        &
+    ) bind(C, name='vpm_interpolate')
+        use vpm_lib, only: vpm_solve_velocity_deformation
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NTIME_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+        type(ND_Array), intent(out)            :: RHS_pm_out
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        
+        call vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                                            neqpm_in, RHS_pm_ptr, vel_ptr, deform_ptr)
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+    end subroutine call_vpm_interpolate
+
+    subroutine call_vpm_diffuse(NI_in , XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,        &
+                                neqpm_in, RHS_pm_out                                            &
+    ) bind(C, name='vpm_diffuse')
+        use vpm_lib, only: vpm_diffuse
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        real(c_double), intent(in)             :: NI_in
+        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NVR_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+        type(ND_Array), intent(out)            :: RHS_pm_out
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        
+        call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                         neqpm_in, RHS_pm_ptr)
+        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+    end subroutine call_vpm_diffuse
+
+    subroutine call_vpm_correct_vorticity(                                                      &
+        XP_in, QP_in, UP_in, GP_in, NVR_in,NVR_size_in, neqpm_in &
+    ) bind(C, name='vpm_correct_vorticity')
+        use vpm_lib, only: vpm_solve_velocity_deformation
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments
+        integer(c_int), intent(in)             :: NVR_size_in, NVR_in, neqpm_in
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
+        ! Local variables
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
+        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        
+        call vpm_correct_vorticity(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in)
+    end subroutine call_vpm_correct_vorticity
+
+    subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr,   &
+        NVR_out, cuttof_value &
+    )bind(C, name='remesh_particles_3d')
         use vpm_remesh, only: remesh_particles_3d
         use vpm_types, only: dp
         use ND_Arrays
@@ -170,6 +282,7 @@ contains
         UP_arr = from_intrinsic(UP_out, shape(UP_out))
     end subroutine call_remesh_particles_3d
 
+!! FILE IO
     subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
         use file_io, only: write_pm_solution, case_folder, mesh_output_file
         use pmgrid, only: velocity_pm, deform_pm, RHS_pm, SOL_pm
@@ -251,6 +364,7 @@ contains
         end if
     end subroutine write_particle_mesh_solution_hdf5
 
+!! GETTERS
     subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
         use ND_Arrays
         use parvar, only: XP
@@ -307,8 +421,6 @@ contains
         real(c_double), dimension(:, :, :, :), pointer :: deform_ptr
         deform_ptr => deform_pm
     end subroutine get_deformation_pm
-
-!! VPM SIZE
 
 !! LIBRARY PRINTS
     subroutine print_projlib() bind(C, name='print_projlib')

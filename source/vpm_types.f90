@@ -26,4 +26,24 @@ module vpm_types
         integer  :: NN_bl(6)  ! Indices of the domain that do not include the dummy cells (start finish)
     end type cartesian_grid
 
+    type :: particleCollection
+        integer :: NVR
+        integer :: NVR_size
+        real(dp), allocatable :: XP(:,:)
+        real(dp), allocatable :: QP(:,:)
+        real(dp), allocatable :: UP(:,:)
+        real(dp), allocatable :: GP(:,:)
+        real(dp), allocatable :: VP(:,:)
+    end type particleCollection
+
+    type :: particleCollectionRef
+        integer :: NVR
+        integer :: NVR_size
+        real(dp), pointer :: XP(:,:)
+        real(dp), pointer :: QP(:,:)
+        real(dp), pointer :: UP(:,:)
+        real(dp), pointer :: GP(:,:)
+        real(dp), pointer :: VP(:,:)
+    end type particleCollectionRef
+
 end module vpm_types
