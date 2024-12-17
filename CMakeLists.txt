@@ -39,11 +39,25 @@ else()
     message(STATUS "Using Fishpack")
     setup_fishpack()
 endif()
-# Setup HDF5
-# find_package(HDF5 REQUIRED)
-set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
-set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/include")
 
+# Define the installation directories
+# If the Install directory is not set, then set it to the current directory
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+if (CMAKE_INSTALL_LOCAL_ONLY)
+    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+if (CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
+    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+# set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
+set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/")
+message(NOTICE "LIB_INSTALL_DIR: ${LIB_INSTALL_DIR}")
+message(NOTICE "INCLUDE_INSTALL_DIR: ${INCLUDE_INSTALL_DIR}")
+
+# Setup HDF5
 include(SetupHDF5)
 setup_hdf5()
 
@@ -123,7 +137,6 @@ message("-----------------------------------------------------------------------
 # install(TARGETS arrays DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
 # install(TARGETS vpm_py_api DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs)
 
-# Define the installation directories
 
 # Install the operators_api library
 install(TARGETS operators_api
@@ -151,6 +164,13 @@ install(TARGETS arrays
 
 # Install the vpm_py_api library
 install(TARGETS vpm_py_api
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
+
+install(TARGETS h5fortran
     LIBRARY DESTINATION ${LIB_INSTALL_DIR}
     ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
     RUNTIME DESTINATION ${LIB_INSTALL_DIR}

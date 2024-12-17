@@ -26,7 +26,12 @@ function(setup_hdf5)
                     -DCMAKE_INSTALL_LIBDIR=${H5FORTRAN_LIB_DIR}
                     -DCMAKE_INSTALL_INCLUDEDIR=${H5FORTRAN_INCLUDE_DIR}
             )
-            FetchContent_MakeAvailable(h5fortran)
+            # FetchContent_MakeAvailable(h5fortran)
+            FetchContent_GetProperties(h5fortran)
+            if(NOT h5fortran_POPULATED)
+                FetchContent_Populate(h5fortran)
+                add_subdirectory(${h5fortran_SOURCE_DIR} ${h5fortran_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
         # endif()
 
         # Get the include directories for h5fortran

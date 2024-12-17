@@ -135,7 +135,7 @@ function(define_vpm_targets)
     target_link_libraries(vpm_vars PRIVATE types console_io)
 
     add_library(vpm_size OBJECT ${SRC_VPM}/vpm_size.f90)
-    target_link_libraries(vpm_size PRIVATE types console_io pmlib)
+    target_link_libraries(vpm_size PRIVATE types console_io pmlib parvar)
 
     add_library(vpm_interpolate OBJECT ${SRC_VPM}/vpm_interpolate.f90)
     target_link_libraries(vpm_interpolate PRIVATE types console_io pmproject vpm_size vpm_vars pmgrid parvar)
