@@ -11,8 +11,20 @@ endif()
 # Add option for static build
 option(BUILD_STATIC "Build static executable" ON)
 option(CMAKE_INSTALL_LOCAL_ONLY "Install only the local project" ON)
+set(CMAKE_INSTALL_LOCAL_ONLY ON)
 SET(CMAKE_INSTALL_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/vpm_py/shared_libs")
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Define the installation directories
+if (CMAKE_INSTALL_PREFIX STREQUAL "" OR 
+    NOT DEFINED CMAKE_INSTALL_PREFIX OR 
+    CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT
+)
+    SET(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "install prefix" FORCE)
+    message(NOTICE "SETTING CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+endif()
+set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
+set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/")
 
 # Include custom modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -39,23 +51,6 @@ else()
     message(STATUS "Using Fishpack")
     setup_fishpack()
 endif()
-
-# Define the installation directories
-# If the Install directory is not set, then set it to the current directory
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-if (CMAKE_INSTALL_LOCAL_ONLY)
-    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-if (CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
-    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-# set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
-set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
-set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/")
-message(NOTICE "LIB_INSTALL_DIR: ${LIB_INSTALL_DIR}")
-message(NOTICE "INCLUDE_INSTALL_DIR: ${INCLUDE_INSTALL_DIR}")
 
 # Setup HDF5
 include(SetupHDF5)

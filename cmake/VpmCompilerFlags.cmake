@@ -29,7 +29,6 @@ function(setup_vpm_compiler_flags)
                     -ffpe-trap=invalid,overflow,underflow
                     -fimplicit-none 
                     -fstack-protector-all
-                    # -Wall
                     PARENT_SCOPE
         )
         set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} -O3 -ffast-math -march=native PARENT_SCOPE)

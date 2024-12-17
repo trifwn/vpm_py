@@ -211,10 +211,6 @@ function(define_vpm_targets)
     # -------------------------------------------------------------------------------------------------
     #                                            API Shared Library
     # -------------------------------------------------------------------------------------------------
-    # add_library(${EXE} SHARED ${SRC_VPM}/api.f90)
-    # add_dependencies(${EXE} vpm arrays operators_api) # Ensure proper dependency resolution
-    # target_link_libraries(${EXE} PRIVATE vpm)
-
     python_add_library(vpm_py_api ${SRC_VPM}/api.f90)
     add_dependencies(vpm_py_api vpm arrays operators_api) # Ensure proper dependency resolution
     target_link_libraries(vpm_py_api PRIVATE vpm)
@@ -226,12 +222,12 @@ function(define_vpm_targets)
     #                                            VPM Executable
     # -------------------------------------------------------------------------------------------------
     # We need to add the link options for the MKL library
-    add_executable(${EXE}_exe ${TEST_EXE_SRC})
-    target_link_libraries(${EXE}_exe PRIVATE 
+    add_executable(vpm_exe ${TEST_EXE_SRC})
+    target_link_libraries(vpm_exe PRIVATE 
         vpm
         h5fortran::h5fortran
     )
-    target_link_options(${EXE}_exe PRIVATE 
+    target_link_options(vpm_exe PRIVATE 
         # $<$<BOOL:${BUILD_STATIC}>:-static>                      # Link statically
         $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                   # Link MKL
     )
@@ -281,7 +277,7 @@ function(define_vpm_targets)
     set_compiler_flags(vpm_lib)
     set_compiler_flags(vpm)
     set_compiler_flags(vpm_py_api)
-    set_compiler_flags(${EXE}_exe)
+    set_compiler_flags(vpm_exe)
     set_compiler_flags(test_arrays_exe)
     # set_compiler_flags(test_operators)
 endfunction()
