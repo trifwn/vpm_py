@@ -1,4 +1,4 @@
-Module api
+module api
     use ND_Arrays
     ! use vpm_lib
     ! use vpm_vars
@@ -75,7 +75,19 @@ contains
     end subroutine initialize
 
     subroutine finalize() bind(C, name='finalize')
+        use pmgrid, only: SOL_pm, RHS_pm, velocity_pm, deform_pm
+        use parvar, only: XP, QP, UP, GP, VP
         implicit none
+        if (allocated(SOL_pm)) deallocate(SOL_pm)
+        if (allocated(RHS_pm)) deallocate(RHS_pm)
+        if (allocated(velocity_pm)) deallocate(velocity_pm)
+        if (allocated(deform_pm)) deallocate(deform_pm)
+        if (allocated(XP)) deallocate(XP)
+        if (allocated(QP)) deallocate(QP)
+        if (allocated(UP)) deallocate(UP)
+        if (allocated(GP)) deallocate(GP)
+        if (allocated(VP)) deallocate(VP)
+
     end subroutine finalize
 
     subroutine set_verbose_level(verbocity_in) bind(C, name='set_verbosity')
@@ -239,20 +251,19 @@ contains
     end subroutine call_vpm_diffuse
 
     subroutine call_vpm_correct_vorticity(                                                      &
-        XP_in, QP_in, UP_in, GP_in, NVR_in,NVR_size_in, neqpm_in &
+        XP_in, QP_in,  NVR_in,NVR_size_in, neqpm_in &
     ) bind(C, name='vpm_correct_vorticity')
-        use vpm_lib, only: vpm_solve_velocity_deformation
+        use vpm_lib, only: vpm_correct_vorticity
         use ND_Arrays
         implicit none
         ! Interface for the arguments
         integer(c_int), intent(in)             :: NVR_size_in, NVR_in, neqpm_in
         real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
-        real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
         ! Local variables
         real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
         real(c_double), pointer                :: deform_ptr(:, :, :, :)
         
-        call vpm_correct_vorticity(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in)
+        call vpm_correct_vorticity(XP_in, QP_in, NVR_in, NVR_size_in)
     end subroutine call_vpm_correct_vorticity
 
     subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr,   &

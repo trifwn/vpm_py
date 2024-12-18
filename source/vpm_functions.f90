@@ -236,7 +236,7 @@ contains
     end subroutine convect_first_order
 
     subroutine project_particles_parallel
-        use pmgrid, only:    RHS_pm, SOL_pm, IDVPM
+        use pmgrid, only:    RHS_pm, SOL_pm, IDVPM 
         use parvar, only:    NVR, XP, QP, XP_scatt, QP_scatt, NVR_projtype_scatt, NVR_p
         use projlib, only:   projlibinit, project_particles_3D, project_vol3d
         use vpm_mpi, only:   particles_scat, proj_gath

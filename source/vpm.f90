@@ -128,7 +128,7 @@ contains
                              RHS_pm_ptr)
 
         case (CORRECT_VORTICITY)
-            call vpm_correct_vorticity(XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in)
+            call vpm_correct_vorticity(XP_in, QP_in, NVR_in, NVR_size_in)
 
         end select
         return
@@ -375,8 +375,7 @@ contains
     end subroutine vpm_solve_velocity_deformation
 
     subroutine vpm_correct_vorticity(       &
-        XP_in, QP_in, UP_in, GP_in,         &
-        NVR_in, NVR_size_in                 &
+        XP_in, QP_in, NVR_in, NVR_size_in  &
     )
         use parvar, only: QP, XP, UP, GP, NVR, NVR_size
         use serial_vector_field_operators, only: divergence, curl
@@ -387,7 +386,7 @@ contains
         implicit none
 
         ! ARGUEMENTS
-        real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
+        real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :)
         integer, intent(in)              :: NVR_in
         integer, intent(in)              :: NVR_size_in
         
@@ -400,7 +399,7 @@ contains
         real(dp)                         :: DXpm, DYpm, DZpm    
         ! LOCAL VARIABLES
         integer                          :: ierr, my_rank, np, nb
-        integer                          :: i, j, k, iter, max_iterations
+        integer                          :: i, j, k 
         character(len=256)               :: file_name
         ! OlD parameters
         real(dp), allocatable            :: XP_old(:,:), QP_old(:,:)
@@ -409,6 +408,17 @@ contains
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
         
+        tab_level = 1
+        if (my_rank .eq. 0) then
+            write (*, *) ""
+            tab_level = tab_level - 1
+            write (dummy_string, "(A)") 'Solving Poisson for the vorticity field correction'
+            call vpm_print(dummy_string, blue, 0)
+            tab_level = tab_level + 1
+            st = MPI_WTIME()
+            vorticity => RHS_pm(1:3, :, :, :) 
+        end if
+
         call project_particles_parallel
         DXpm = fine_grid%Dpm(1)
         DYpm = fine_grid%Dpm(2)
@@ -424,15 +434,6 @@ contains
         allocate (SOL2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
         allocate (RHS2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
 
-        if (my_rank .eq. 0) then
-            write (*, *) ""
-            tab_level = tab_level - 1
-            write (dummy_string, "(A,I3,A,I3)") 'Solving Secondary Problem - Iteration: ', iter, ' of ', max_iterations
-            call vpm_print(dummy_string, blue, 0)
-            tab_level = tab_level + 1
-            st = MPI_WTIME()
-            vorticity => RHS_pm(1:3, :, :, :) 
-        end if
         
         SOL2_pm = 0.d0
         RHS2_pm = 0.d0
