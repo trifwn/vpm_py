@@ -173,7 +173,6 @@ class VPM(object):
         # Get the pointers to arrays for the grid values
         RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
         Velocity_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
-        Deformation_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
 
         if num_particles is None:
             num_particles = NVR_size
@@ -182,8 +181,7 @@ class VPM(object):
             XP_ptr, QP_ptr, UP_ptr, GP_ptr,
             byref(c_int(num_particles)), byref(c_int(num_equations)),byref(c_int(mode)), 
             byref(RHS_pm_ptr), byref(Velocity_ptr),
-            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(NVR_size)),
-            byref(Deformation_ptr)
+            byref(c_int(timestep)), byref(c_double(viscosity)),byref(c_int(NVR_size))
         )
         # store the results of the particles
         self.particles.particle_positions = pointer_to_dp_array(XP_ptr, particle_positions.shape)
@@ -203,9 +201,259 @@ class VPM(object):
             RHS_arr = F_Array.from_ctype(RHS_pm_ptr, ownership=True, name = "RHS")
             self.particle_mesh.RHS = RHS_arr.transfer_data_ownership()
 
-        if not Deformation_ptr.is_null():
-            G_arr = F_Array.from_ctype(Deformation_ptr, ownership=True, name = "G")
-            self.particle_mesh.deformation = G_arr.transfer_data_ownership()
+    def vpm_project_solve(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        timestep: int,
+        num_particles: int | None = None,
+    ):
+        """Project and solve VPM equations."""
+        # Convert arrays
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        
+        # Validate
+        NVR_size = self._validate_particle_counts(positions, charges)
+        if num_particles is None:
+            num_particles = NVR_size
+
+        # Create pointers
+        XP_ptr, QP_ptr = self._create_array_pointers(positions, charges)
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        # Call Fortran
+        self._lib.vpm_project_solve(
+            byref(c_int(timestep)),
+            XP_ptr, QP_ptr,
+            byref(c_int(num_particles)),
+            byref(c_int(NVR_size)),
+            byref(c_int(num_equations)),
+            byref(RHS_pm_ptr),
+        )
+
+        # Store results
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape)
+        )
+        self._store_mesh_results(RHS_pm_ptr)
+
+    def vpm_define(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        timestep: int,
+        num_particles: int | None = None,
+    ):
+        """Define VPM problem."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        
+        NVR_size = self._validate_particle_counts(positions, charges)
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr = self._create_array_pointers(positions, charges)
+
+        self._lib.vpm_define(
+            byref(c_int(timestep)), XP_ptr, QP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations))
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape)
+    )
+
+    def vpm_solve_velocity(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        timestep: int,
+        num_particles: int | None = None,
+    ):
+        """Solve velocity field."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        
+        NVR_size = self._validate_particle_counts(positions, charges)
+        velocities, deformations = self._initialize_particle_arrays(positions.shape)
+        
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr, UP_ptr, GP_ptr = self._create_array_pointers(
+            positions, charges, velocities, deformations
+        )
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+        Velocity_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        self._lib.vpm_solve_velocity(
+            byref(c_int(timestep)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations)), byref(RHS_pm_ptr), byref(Velocity_ptr)
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape),
+            pointer_to_dp_array(UP_ptr, velocities.shape),
+            pointer_to_dp_array(GP_ptr, deformations.shape)
+        )
+        self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
+
+    def vpm_solve_velocity_deformation(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        timestep: int,
+        num_particles: int | None = None,
+    ):
+        """Solve velocity and deformation fields."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        
+        NVR_size = self._validate_particle_counts(positions, charges)
+        velocities, deformations = self._initialize_particle_arrays(positions.shape)
+        
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr, UP_ptr, GP_ptr = self._create_array_pointers(
+            positions, charges, velocities, deformations
+        )
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+        Velocity_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+        Deform_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        self._lib.vpm_solve_velocity_deformation(
+            byref(c_int(timestep)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations)), byref(RHS_pm_ptr),
+            byref(Velocity_ptr), byref(Deform_ptr)
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape),
+            pointer_to_dp_array(UP_ptr, velocities.shape),
+            pointer_to_dp_array(GP_ptr, deformations.shape)
+        )
+        self._store_mesh_results(RHS_pm_ptr, Velocity_ptr, Deform_ptr)
+
+    def vpm_interpolate(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        particle_velocities: np.ndarray | F_Array,
+        particle_deformations: np.ndarray | F_Array,
+        timestep: int,
+        num_particles: int | None = None,
+    ):
+        """Interpolate particle fields."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        velocities = self._convert_to_numpy(particle_velocities)
+        deformations = self._convert_to_numpy(particle_deformations)
+        
+        NVR_size = self._validate_particle_counts(positions, charges, velocities, deformations)
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr, UP_ptr, GP_ptr = self._create_array_pointers(
+            positions, charges, velocities, deformations
+        )
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        self._lib.vpm_interpolate(
+            byref(c_int(timestep)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations)), byref(RHS_pm_ptr)
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape),
+            pointer_to_dp_array(UP_ptr, velocities.shape),
+            pointer_to_dp_array(GP_ptr, deformations.shape)
+        )
+        self._store_mesh_results(RHS_pm_ptr)
+
+    def vpm_diffuse(
+        self,
+        num_equations: int,
+        viscosity: float,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        particle_velocities: np.ndarray | F_Array,
+        particle_deformations: np.ndarray | F_Array,
+        num_particles: int | None = None,
+    ):
+        """Apply diffusion to particles."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        velocities = self._convert_to_numpy(particle_velocities)
+        deformations = self._convert_to_numpy(particle_deformations)
+        
+        NVR_size = self._validate_particle_counts(positions, charges, velocities, deformations)
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr, UP_ptr, GP_ptr = self._create_array_pointers(
+            positions, charges, velocities, deformations
+        )
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        self._lib.vpm_diffuse(
+            byref(c_double(viscosity)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations)), byref(RHS_pm_ptr)
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape),
+            pointer_to_dp_array(UP_ptr, velocities.shape),
+            pointer_to_dp_array(GP_ptr, deformations.shape)
+        )
+        self._store_mesh_results(RHS_pm_ptr)
+
+    def vpm_correct_vorticity(
+        self,
+        num_equations: int,
+        particle_positions: np.ndarray | F_Array,
+        particle_charges: np.ndarray | F_Array,
+        num_particles: int | None = None,
+    ):
+        """Correct vorticity field."""
+        positions = self._convert_to_numpy(particle_positions)
+        charges = self._convert_to_numpy(particle_charges)
+        
+        NVR_size = self._validate_particle_counts(positions, charges)
+        if num_particles is None:
+            num_particles = NVR_size
+
+        XP_ptr, QP_ptr  = self._create_array_pointers(
+            positions, charges
+        )
+
+        self._lib.vpm_correct_vorticity(
+            XP_ptr, QP_ptr,
+            byref(c_int(num_particles)), byref(c_int(NVR_size)),
+            byref(c_int(num_equations))
+        )
+
+        self._store_particle_results(
+            pointer_to_dp_array(XP_ptr, positions.shape),
+            pointer_to_dp_array(QP_ptr, charges.shape),
+        )
 
     def remesh_particles(self, project_particles: bool, particles_per_cell: int= 1, cut_off: float = 1e-9):
         """Remesh particles in 3D
@@ -240,41 +488,6 @@ class VPM(object):
         self.particles.particle_deformations = GP_arr.transfer_data_ownership()
         return XP_arr, QP_arr
 
-    def print_projlib_parameters(self):
-        """
-            Print the parameters of the projection library
-        """
-        print_IMPORTANT(f"Proj lib parameters {self.rank}/{self.num_processors - 1}")
-        self._lib.print_projlib()
-
-    def print_pmgrid_parameters(self):
-        """
-            Print the parameters of the particle mesh grid
-        """
-        print_IMPORTANT(f"PM grid parameters {self.rank}/{self.num_processors - 1}")
-        self._lib.print_pmgrid()
-
-    def print_vpm_vars(self):
-        """
-            Print the variables of the VPM
-        """
-        print_IMPORTANT(f"VPM variables {self.rank}/{self.num_processors - 1}")
-        self._lib.print_vpm_vars()
-    
-    def print_vpm_size(self):
-        """
-            Print the size of the VPM
-        """
-        print_IMPORTANT(f"VPM size {self.rank}/{self.num_processors - 1}")
-        self._lib.print_vpm_size()
-
-    def print_parvar(self):
-        """
-            Print the particle variables
-        """
-        print_IMPORTANT(f"Particle variables {self.rank}/{self.num_processors - 1}")
-        self._lib.print_parvar()
-    
     def set_verbosity(self, verbosity: int):
         """
             Set the verbosity of the VPM
@@ -289,3 +502,45 @@ class VPM(object):
     def __del__(self):
         self.finalize()
         os.remove(self.vpm_lib._lib_vpm_path)
+
+    ### Helper functions ###
+    def _initialize_particle_arrays(self, shape: tuple) -> tuple[np.ndarray, np.ndarray]:
+        """Initialize velocity and deformation arrays."""
+        return (
+            np.zeros(shape, dtype=np.float64, order='A'),
+            np.zeros(shape, dtype=np.float64, order='A')
+        )
+
+    def _convert_to_numpy(self, array: np.ndarray | F_Array) -> np.ndarray:
+        """Convert F_Array to numpy array if needed."""
+        return array.data if isinstance(array, F_Array) else array
+
+    def _validate_particle_counts(self, positions: np.ndarray, *arrays: np.ndarray) -> int:
+        """Validate particle counts match across arrays and return NVR_size."""
+        NVR_size = positions.shape[1]
+        if any(arr.shape[1] != NVR_size for arr in arrays):
+            raise ValueError("Mismatched particle counts between arrays")
+        return NVR_size
+
+    def _create_array_pointers(self, *arrays: np.ndarray) -> list[POINTER]:
+        """Create pointers for arrays with copy."""
+        return [dp_array_to_pointer(arr, copy=True) for arr in arrays]
+
+    def _store_particle_results(self, positions, charges, velocities=None, deformations=None):
+        """Store particle results back to class attributes."""
+        self.particles.particle_positions = positions
+        self.particles.particle_charges = charges
+        if velocities is not None:
+            self.particles.particle_velocities = velocities
+        if deformations is not None:
+            self.particles.particle_deformations = deformations
+
+    def _store_mesh_results(self, RHS_ptr, Velocity_ptr=None, Deform_ptr=None):
+        """Store mesh results if pointers are not null."""
+        if not RHS_ptr.is_null():
+            self.particle_mesh.RHS = F_Array.from_ctype(RHS_ptr, ownership=True, name="RHS").transfer_data_ownership()
+        if Velocity_ptr and not Velocity_ptr.is_null():
+            self.particle_mesh.U = F_Array.from_ctype(Velocity_ptr, ownership=True, name="U").transfer_data_ownership()
+        if Deform_ptr and not Deform_ptr.is_null():
+            self.particle_mesh.deformation = F_Array.from_ctype(Deform_ptr, ownership=True, name="Deform").transfer_data_ownership()
+

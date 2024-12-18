@@ -1,9 +1,6 @@
 from mpi4py import MPI
 import numpy as np
 from vpm_py.operators_lib import OperatorsLib
-from ctypes import c_int, byref
-from vpm_py.arrays import F_Array, F_Array_Struct
-from vpm_py.vpm_dtypes import dp_array_to_pointer
 
 # Initialize MPI and OperatorsLib
 comm = MPI.COMM_WORLD
@@ -113,22 +110,22 @@ df2_dydz = 1.0 * np.ones_like(X)            # ∂²f2/∂y∂z
 #############################################################################
 
 # Test 1: Derivative (of a scalar field)
-print(f"Running Derivative Test")
+print("Running Derivative Test")
 run_test("Derivative", scalar_field, scalar_df_dx, operators.calc_derivative, 1, 1) 
 
 # Test 2: Gradient (of a scalar field)
 gradient_field = np.stack([scalar_df_dx, scalar_df_dy, scalar_df_dz])
-print(f"Running Gradient Test")
+print("Running Gradient Test")
 run_test("Gradient", scalar_field, gradient_field, operators.calc_gradient)
 
 # Test 3: Laplacian (of a scalar field)
 laplacian_field = scalar_df_dx2 + scalar_df_dy2 + scalar_df_dz2
-print(f"Running Scalar Field Laplacian Test")
+print("Running Scalar Field Laplacian Test")
 run_test("Laplacian", scalar_field, laplacian_field, operators.calc_laplacian)
 
 # Test 4: Jacobian (of a scalar field) (same as Gradient)
 jacobian_field = np.stack([scalar_df_dx, scalar_df_dy, scalar_df_dz])
-print(f"Running Scalar Field Jacobian Test")
+print("Running Scalar Field Jacobian Test")
 run_test("Jacobian", scalar_field, jacobian_field, operators.calc_jacobian)
 
 # Test 5: Hessian (of a scalar field)
@@ -137,7 +134,7 @@ hessian_field = np.stack([
     [scalar_df_dxdy, scalar_df_dy2, scalar_df_dydz],
     [scalar_df_dxdz, scalar_df_dydz, scalar_df_dz2]
 ]) 
-print(f"Running Scalar Field Hessian Test")
+print("Running Scalar Field Hessian Test")
 run_test("Hessian", scalar_field, hessian_field, operators.calc_hessian)
 
 
@@ -147,12 +144,12 @@ run_test("Hessian", scalar_field, hessian_field, operators.calc_hessian)
 
 # Test 6: Derivative (of a vector field) with respect to X
 df_field = np.stack([df1_dx, df2_dx, df3_dx])
-print(f"Running Vector Derivative Test")
+print("Running Vector Derivative Test")
 run_test("Derivative", vector_field, df_field, operators.calc_derivative, 1,1)
 
 # Test 7: Divergence (of a vector field)
 div_field = df1_dx + df2_dy + df3_dz  # Sum of the components for divergence
-print(f"Running Divergence Test")
+print("Running Divergence Test")
 run_test("Divergence", vector_field, div_field, operators.calc_divergence)
 
 # Test 8: Curl (of a vector field)
@@ -161,7 +158,7 @@ curl_field = np.stack([
     df1_dz - df3_dx,  # d(f1)/dz - d(f3)/dx
     df2_dx - df1_dy   # d(f2)/dx - d(f1)/dy
 ])
-print(f"Running Curl Test")
+print("Running Curl Test")
 run_test("Curl", vector_field, curl_field, operators.calc_curl)
 
 # Test 9: Vector Laplacian
@@ -169,7 +166,7 @@ lap_f1 = df1_dx2 + df1_dy2 + df1_dz2
 lap_f2 = df2_dx2 + df2_dy2 + df2_dz2
 lap_f3 = df3_dx2 + df3_dy2 + df3_dz2
 vector_laplacian_field = np.stack([lap_f1, lap_f2, lap_f3])
-print(f"Running Vector Laplacian Test")
+print("Running Vector Laplacian Test")
 run_test("Vector Laplacian", vector_field, vector_laplacian_field, operators.calc_vector_laplacian)
 
 # Test 10: Jacobian matrix 
@@ -178,7 +175,7 @@ jacobian_field = np.stack([
     [df2_dx, df2_dy, df2_dz],
     [df3_dx, df3_dy, df3_dz]
 ])
-print(f"Running Jacobian Test")
+print("Running Jacobian Test")
 run_test("Jacobian", vector_field, jacobian_field, operators.calc_jacobian)
 
 # Test 11: Hessian (of a vector field)
@@ -198,7 +195,7 @@ hessian_f3 = np.stack([ # Hessian of f3 = sin(X)*cos(Y)*Z^2
     [df3_dxdz, df3_dydz, df3_dz2 ]
 ])
 hessian_field = np.stack([hessian_f1, hessian_f2, hessian_f3])
-print(f"Running Vector Hessian Test")
+print("Running Vector Hessian Test")
 run_test("Vector Hessian", vector_field, hessian_field, operators.calc_hessian)
 
 if rank == 0:

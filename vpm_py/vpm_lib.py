@@ -50,6 +50,98 @@ class VPM_Lib:
         ]
         cls._lib_vpm.vpm.restype = None
 
+        # Add bindings for vpm_project_solve
+        cls._lib_vpm.vpm_project_solve.argtypes = [
+            POINTER(c_int),          # NTIME_in
+            POINTER(c_double),       # XP_in
+            POINTER(c_double),       # QP_in
+            POINTER(c_int),          # NVR_in
+            POINTER(c_int),          # NVR_size_in
+            POINTER(c_int),          # neqpm_in
+            POINTER(F_Array_Struct)  # RHS_pm_out
+        ]
+        cls._lib_vpm.vpm_project_solve.restype = None
+
+        # Add bindings for vpm_define
+        cls._lib_vpm.vpm_define.argtypes = [
+            POINTER(c_int),    # NTIME_in
+            POINTER(c_double), # XP_in
+            POINTER(c_double), # QP_in
+            POINTER(c_int),    # NVR_in
+            POINTER(c_int),    # NVR_size_in
+            POINTER(c_int)     # neqpm_in
+        ]
+        cls._lib_vpm.vpm_define.restype = None
+
+        # Add bindings for vpm_solve_velocity
+        cls._lib_vpm.vpm_solve_velocity.argtypes = [
+            POINTER(c_int),          # NTIME_in
+            POINTER(c_double),       # XP_in
+            POINTER(c_double),       # QP_in
+            POINTER(c_double),       # UP_in
+            POINTER(c_double),       # GP_in
+            POINTER(c_int),          # NVR_in
+            POINTER(c_int),          # NVR_size_in
+            POINTER(c_int),          # neqpm_in
+            POINTER(F_Array_Struct), # RHS_pm_out
+            POINTER(F_Array_Struct)  # Vel_out
+        ]
+        cls._lib_vpm.vpm_solve_velocity.restype = None
+
+        # Add bindings for vpm_solve_velocity_deformation
+        cls._lib_vpm.vpm_solve_velocity_deformation.argtypes = [
+            POINTER(c_int),          # NTIME_in
+            POINTER(c_double),       # XP_in
+            POINTER(c_double),       # QP_in
+            POINTER(c_double),       # UP_in
+            POINTER(c_double),       # GP_in
+            POINTER(c_int),          # NVR_in
+            POINTER(c_int),          # NVR_size_in
+            POINTER(c_int),          # neqpm_in
+            POINTER(F_Array_Struct), # RHS_pm_out
+            POINTER(F_Array_Struct), # Vel_out
+            POINTER(F_Array_Struct)  # Deform_out
+        ]
+        cls._lib_vpm.vpm_solve_velocity_deformation.restype = None
+
+        # Add bindings for vpm_interpolate
+        cls._lib_vpm.vpm_interpolate.argtypes = [
+            POINTER(c_int),          # NTIME_in
+            POINTER(c_double),       # XP_in
+            POINTER(c_double),       # QP_in
+            POINTER(c_double),       # UP_in
+            POINTER(c_double),       # GP_in
+            POINTER(c_int),          # NVR_in
+            POINTER(c_int),          # NVR_size_in
+            POINTER(c_int),          # neqpm_in
+            POINTER(F_Array_Struct)  # RHS_pm_out
+        ]
+        cls._lib_vpm.vpm_interpolate.restype = None
+
+        # Add bindings for vpm_diffuse
+        cls._lib_vpm.vpm_diffuse.argtypes = [
+            POINTER(c_double),       # NI_in
+            POINTER(c_double),       # XP_in
+            POINTER(c_double),       # QP_in
+            POINTER(c_double),       # UP_in
+            POINTER(c_double),       # GP_in
+            POINTER(c_int),          # NVR_in
+            POINTER(c_int),          # NVR_size_in
+            POINTER(c_int),          # neqpm_in
+            POINTER(F_Array_Struct)  # RHS_pm_out
+        ]
+        cls._lib_vpm.vpm_diffuse.restype = None
+
+        # Add bindings for vpm_correct_vorticity
+        cls._lib_vpm.vpm_correct_vorticity.argtypes = [
+            POINTER(c_double), # XP_in
+            POINTER(c_double), # QP_in
+            POINTER(c_int),    # NVR_in
+            POINTER(c_int),    # NVR_size_in
+            POINTER(c_int)     # neqpm_in
+        ]
+        cls._lib_vpm.vpm_correct_vorticity.restype = None
+
         # API.finalize
         cls._lib_vpm.finalize.argtypes = []
         cls._lib_vpm.finalize.restype = None
