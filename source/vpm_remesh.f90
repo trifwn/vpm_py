@@ -270,7 +270,6 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
         end if
 
-        if (allocated(RHS_pm)) deallocate (RHS_pm)
         if (my_rank .eq. 0) then
             et = MPI_WTIME()
             write (dummy_string, "(A,I5,A,F8.2,A)") &
