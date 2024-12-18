@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpi4py import MPI
 
-def HillsVortex(control_point, sphere_radius, u_freestream, z_0):    
+def hills_vortex(control_point, sphere_radius, u_freestream, z_0):    
     """
 
     Args:
@@ -106,13 +106,13 @@ def hill_assign(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_freestream=-
 
 
     with open('results/hill_spherical_vortex.dat', 'w') as f:
-        f.write(f'Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
+        f.write('Variables = "x", "y", "z", "u", "v", "w", "omega_x", "omega_y", "omega_z"\n')
         f.write(f'Zone T="Hill\'s Spherical Vortex", I={NN[0]-1}, J={NN[1]-1}, K={NN[2]-1}, F=POINT\n')
         for k in range(k_start -1, k_end -1):
             for j in range(j_start -1, j_end -1):
                 for i in range(i_start -1, i_end -1):
                         # Call fUi_HillsVortex_1 function
-                        Uind, Defm, Vort = HillsVortex(
+                        Uind, Defm, Vort = hills_vortex(
                             CP[i,j,k,:], sphere_radius, u_freestream, sphere_z_center
                         )
                         # Update RHS_pm_bl with negative vorticity values and analytic_sol with the computed values
@@ -168,7 +168,7 @@ def hill_assign_parallel(NN, NN_bl, Xbound, Dpm, neqpm, sphere_radius=1.0, u_fre
     for idx, k in enumerate(k_range):
         for j in range(j_start - 1, j_end - 1):
             for i in range(i_start - 1, i_end - 1):
-                Uind, Defm, Vort = HillsVortex(
+                Uind, Defm, Vort = hills_vortex(
                     CP[i-(i_start-1), j-(j_start-1), idx], sphere_radius, u_freestream, sphere_z_center
                 )
                 local_RHS_pm_bl[:3, i-(i_start-1), j-(j_start-1), idx] = -Vort[:3]

@@ -39,7 +39,6 @@ def main():
     DT =  0.1
     NI = -0.1
     neq = 3 
-    UINF = np.array([0., 0., 0.])
 
     # Create particles
     NVR = 100
@@ -63,7 +62,7 @@ def main():
     # Initialize Hill Vortex
     if rank == 0:
         st = MPI.Wtime()
-        print_IMPORTANT(f"Hill vortex initialization", rank)
+        print_IMPORTANT("Hill vortex initialization", rank)
     _, RHS_pm_hill = hill_assign_parallel(
         Dpm= vpm.dpm,
         NN= vpm.particle_mesh.nn,
@@ -75,19 +74,18 @@ def main():
         sphere_z_center = 0.0,
     )
     vpm.particle_mesh.set_rhs_pm(RHS_pm_hill)
-    print_red(f"Setting RHS_pm as computed from the hill vortex", rank)
+    print_red("Setting RHS_pm as computed from the hill vortex", rank)
     
     if rank == 0:
         st = MPI.Wtime()
-        print_red(f"Remeshing")
+        print_red("Remeshing")
     XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
     if rank == 0:
         et = MPI.Wtime()
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
-    print_IMPORTANT(f"Particles initialized", rank)
+    print_IMPORTANT("Particles initialized", rank)
 
-    
     # Create the plot to live update the particles
     if rank == 0:
         plotter.update_particle_plots(
@@ -132,7 +130,7 @@ def main():
         )
 
         if rank == 0:
-            print_IMPORTANT(f"INFO", rank)
+            print_IMPORTANT("INFO", rank)
             XPR = vpm.particles.XP
             QPR = vpm.particles.QP
             UPR = vpm.particles.UP.to_numpy(copy=True)
@@ -156,7 +154,7 @@ def main():
                 print(f"Min: {np.min(u)}")
                 print('\n')
 
-            print_IMPORTANT(f"Convecting Particles", rank)
+            print_IMPORTANT("Convecting Particles", rank)
             
             st = MPI.Wtime()
             # # Move the particles
@@ -168,7 +166,7 @@ def main():
             et = MPI.Wtime()
 
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
-            print_IMPORTANT(f"Updating the plot", rank)
+            print_IMPORTANT("Updating the plot", rank)
 
             st = MPI.Wtime()
             # Update the plot
@@ -188,16 +186,16 @@ def main():
             )
             et = MPI.Wtime()
             print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
-            print_IMPORTANT(f"Saving the particles and particle mesh", rank)
+            print_IMPORTANT("Saving the particles and particle mesh", rank)
 
             st = MPI.Wtime()
-            vpm.particles.save_to_file(filename= f"particles_test", folder="vpm_case")
-            vpm.particle_mesh.save_to_file(filename= f"particle_mesh_test", folder="vpm_case")
+            vpm.particles.save_to_file(filename= "particles_test", folder="vpm_case")
+            vpm.particle_mesh.save_to_file(filename= "particle_mesh_test", folder="vpm_case")
             et = MPI.Wtime()
             print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
         sleep(0.5)
-        print_IMPORTANT(f"Redefine Bounds", rank)
+        print_IMPORTANT("Redefine Bounds", rank)
 
         comm.Barrier()
         vpm.vpm(
@@ -208,8 +206,7 @@ def main():
             timestep=i,
             viscosity=NI,
         )
-        comm.Barrier()
-        # XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-5)
+        XPR, QPR = vpm.remesh_particles(project_particles=True)
         comm.Barrier()
 
         if i == 1:
@@ -220,13 +217,14 @@ def main():
             if rank == 0:
                 XPR = vpm.particles.XP
                 QPR = vpm.particles.QP
-            vpm.vpm(
+                NVR = vpm.particles.NVR
+            else:
+                NVR = None
+            vpm.vpm_correct_vorticity(
                 num_equations=neq,
-                mode = 6,
-                particle_positions  =  XPR,
-                particle_charges    =  QPR,
-                timestep=i,
-                viscosity=NI,
+                particle_positions=XPR,
+                particle_charges=QPR,
+                num_particles=NVR,
             )
             comm.Barrier()
 
