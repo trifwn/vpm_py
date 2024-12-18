@@ -335,7 +335,7 @@ class F_Array(object):
     
     def __str__(self):
         string = f"Array with shape {self.shape}\n"
-        string += f"Data:\n"
+        string += "Data:\n"
         string += np.array2string(
             self.data, separator=',', prefix='\t',
             formatter={'float': lambda x: "%.3f" % x}
@@ -348,11 +348,11 @@ def benchmark(name, func, iter = 1000, *args, **kwargs):
     for _ in range(iter):
         func(*args, **kwargs)
     end = time.time()
-    print(f"-"*100)
+    print("-"*100)
     print_green(f"Benchmarking {name}")
     print(f"\tfinished in {(end-start) * 1000} ms for {iter} iterations")
     print(f"\tAverage time: {(end-start) * 1000 / iter} ms")
-    print(f"-"*100)
+    print("-"*100)
 
 
 def main():

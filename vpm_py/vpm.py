@@ -1,6 +1,5 @@
 import os
-from ctypes import (POINTER, byref, c_char, c_char_p, c_double, c_int, cast,
-                    create_string_buffer)
+from ctypes import (_Pointer, byref,  c_double, c_int)
 
 import numpy as np
 
@@ -11,6 +10,7 @@ from .console_io import print_blue, print_green, print_IMPORTANT, print_red
 from .utils import divide_processors
 from .vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
 from .vpm_lib import VPM_Lib
+from .visualization import Visualizer
 
 
 class VPM(object):
@@ -18,6 +18,7 @@ class VPM(object):
     Interface to the VPM Fortran routines.
     """
 
+    ### Initialization ###
     def __init__(
         self,
         number_of_equations: int = 3,
@@ -52,6 +53,7 @@ class VPM(object):
         self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK)
         self.particle_mesh = ParticleMesh()
         self.particles = Particles(number_equations= self.num_equations)
+        self.plotter: Visualizer | None = None
 
     def initialize(
         self, 
@@ -125,7 +127,32 @@ class VPM(object):
             print(f"\tIPMWRITE= {IPMWRITE}")
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
-    
+
+    def attach_plotter(self, plotter: Visualizer):
+        if not isinstance(plotter, Visualizer):
+            raise ValueError("Invalid plotter type")
+        self.plotter = plotter
+
+    def update_plot(self, iteration: int):
+        if self.plotter is None:
+            return
+        
+        self.plotter.update_particle_plots(
+                iteration= iteration,
+                particle_positions= self.particles.XP,
+                particle_charges= self.particles.QP,
+                particle_velocities= self.particles.UP,
+                particle_deformations= self.particles.GP
+            )
+        self.plotter.update_mesh_plots(
+                iteration= iteration,
+                pm_positions= self.particle_mesh.grid_positions,
+                pm_velocities= self.particle_mesh.U,
+                pm_charges= self.particle_mesh.RHS,
+                pm_deformations= self.particle_mesh.deformation
+            )
+
+    ### VPM functions ###
     def vpm(
         self, 
         num_equations: int,
@@ -136,7 +163,8 @@ class VPM(object):
         viscosity: float,
         num_particles: int | None = None,
     ):
-        """_summary_
+        """
+        Wrapper function for calling Fortran subroutine `vpm`.
 
         Args:
             num_equations (int): Number of equations to model
@@ -243,12 +271,16 @@ class VPM(object):
     def vpm_define(
         self,
         num_equations: int,
-        particle_positions: np.ndarray | F_Array,
-        particle_charges: np.ndarray | F_Array,
-        timestep: int,
+        particle_positions: np.ndarray | F_Array | None = None,
+        particle_charges: np.ndarray | F_Array | None = None,
+        timestep: int = 0,
         num_particles: int | None = None,
     ):
         """Define VPM problem."""
+        if particle_positions is None or particle_charges is None:
+            particle_positions = self.particles.particle_positions
+            particle_charges = self.particles.particle_charges
+
         positions = self._convert_to_numpy(particle_positions)
         charges = self._convert_to_numpy(particle_charges)
         
@@ -267,7 +299,7 @@ class VPM(object):
         self._store_particle_results(
             pointer_to_dp_array(XP_ptr, positions.shape),
             pointer_to_dp_array(QP_ptr, charges.shape)
-    )
+        )
 
     def vpm_solve_velocity(
         self,
@@ -309,13 +341,20 @@ class VPM(object):
 
     def vpm_solve_velocity_deformation(
         self,
-        num_equations: int,
-        particle_positions: np.ndarray | F_Array,
-        particle_charges: np.ndarray | F_Array,
-        timestep: int,
+        timestep: int = 0,
+        num_equations: int | None = None,
+        particle_positions: np.ndarray | F_Array | None = None,
+        particle_charges: np.ndarray | F_Array | None = None,
         num_particles: int | None = None,
     ):
         """Solve velocity and deformation fields."""
+        if particle_positions is None or particle_charges is None:
+            particle_positions = self.particles.particle_positions
+            particle_charges = self.particles.particle_charges
+        
+        if num_equations is None:
+            num_equations = self.num_equations
+
         positions = self._convert_to_numpy(particle_positions)
         charges = self._convert_to_numpy(particle_charges)
         
@@ -507,13 +546,22 @@ class VPM(object):
     def _initialize_particle_arrays(self, shape: tuple) -> tuple[np.ndarray, np.ndarray]:
         """Initialize velocity and deformation arrays."""
         return (
-            np.zeros(shape, dtype=np.float64, order='A'),
-            np.zeros(shape, dtype=np.float64, order='A')
+            np.zeros(shape, dtype=np.float64, order='F'),
+            np.zeros(shape, dtype=np.float64, order='F')
         )
 
     def _convert_to_numpy(self, array: np.ndarray | F_Array) -> np.ndarray:
         """Convert F_Array to numpy array if needed."""
-        return array.data if isinstance(array, F_Array) else array
+        if isinstance(array, F_Array):
+            return array.data
+        
+        if not isinstance(array, np.ndarray):
+            raise ValueError("Invalid array type")
+        
+        if not array.flags['F_CONTIGUOUS']:
+            return np.asfortranarray(array, dtype=np.float64)
+        else:
+            return array
 
     def _validate_particle_counts(self, positions: np.ndarray, *arrays: np.ndarray) -> int:
         """Validate particle counts match across arrays and return NVR_size."""
@@ -522,7 +570,7 @@ class VPM(object):
             raise ValueError("Mismatched particle counts between arrays")
         return NVR_size
 
-    def _create_array_pointers(self, *arrays: np.ndarray) -> list[POINTER]:
+    def _create_array_pointers(self, *arrays: np.ndarray) -> list[_Pointer]:
         """Create pointers for arrays with copy."""
         return [dp_array_to_pointer(arr, copy=True) for arr in arrays]
 

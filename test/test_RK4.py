@@ -49,13 +49,10 @@ QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
 
 # Initialization VPM
 comm.Barrier()
-vpm.vpm(
+vpm.vpm_define(
     num_equations=neq,
-    mode=0,
     particle_positions=XPR_zero,
     particle_charges=QPR_zero,
-    timestep=0,
-    viscosity=NI,
 )
 comm.Barrier()
 
@@ -63,7 +60,7 @@ comm.Barrier()
 # # Initialize Hill Vortex
 if rank == 0:
     st = MPI.Wtime()
-print_IMPORTANT(f"Hill vortex initialization", rank)
+print_IMPORTANT("Hill vortex initialization", rank)
 _, RHS_pm_hill = hill_assign_parallel(
     Dpm=vpm.dpm,
     NN=vpm.particle_mesh.nn,
@@ -77,17 +74,17 @@ _, RHS_pm_hill = hill_assign_parallel(
 # visualize_vorticity(RHS_pm_hill, vpm.nn_bl)
 
 vpm.particle_mesh.set_rhs_pm(RHS_pm_hill)
-print_red(f"Setting RHS_PM as computed from the hill vortex", rank)
+print_red("Setting RHS_PM as computed from the hill vortex", rank)
 
 if rank == 0:
     st = MPI.Wtime()
-    print_red(f"Remeshing")
+    print_red("Remeshing")
 XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False)
 if rank == 0:
     et = MPI.Wtime()
     print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")
 
-print_IMPORTANT(f"Particles initialized", rank)
+print_IMPORTANT("Particles initialized", rank)
 
 # Create the plot to live update the particles
 if rank == 0:
@@ -121,13 +118,11 @@ def check_redefine(i: int, XPR: F_Array, QPR: F_Array):
     redefine = comm.bcast(redefine, root=0)
 
     if redefine == 1:
-        vpm.vpm(
+        vpm.vpm_define(
             num_equations=neq,
-            mode = 0,
             particle_positions = XPR,
             particle_charges = QPR,
             timestep=i,
-            viscosity=NI,
         )
         comm.Barrier()
 
@@ -187,28 +182,28 @@ def timestep(
     U1, G1 = solve(i, t, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U1)):
-            print_red(f"U1 has NaN values", rank)
+            print_red("U1 has NaN values", rank)
             raise ValueError("U1 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U1[:, :]
     U2, G2 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U2)):
-            print_red(f"U2 has NaN values", rank)
+            print_red("U2 has NaN values", rank)
             raise ValueError("U2 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + (DT / 2) * U2[:, :]
     U3, G3 = solve(i, t + DT / 2, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U3)):
-            print_red(f"U3 has NaN values", rank)
+            print_red("U3 has NaN values", rank)
             raise ValueError("U3 has NaN values")
 
     XPR_TMP.data[:, :] = XPR.data[:, :] + DT * U3[:, :]
     U4, G4 = solve(i, t + DT, XPR_TMP, QPR_TMP)
     if rank == 0:
         if np.any(np.isnan(U4)):
-            print_red(f"U4 has NaN values", rank)
+            print_red("U4 has NaN values", rank)
             raise ValueError("U4 has NaN values")
 
     # U_mean = U1
@@ -216,30 +211,28 @@ def timestep(
         U_mean = 1/6 * (U1[:, :] + 2 * U2[:, :] + 2 * U3[:, :] + U4[:, :])
         G_mean = 1/6 * (G1[:, :] + 2 * G2[:, :] + 2 * G3[:, :] + G4[:, :])
         if np.any(np.isnan(U_mean)):
-            print_red(f"U_mean has NaN values", rank)
+            print_red("U_mean has NaN values", rank)
             print_red(f"U1: {U1}", rank)
             print_red(f"U2: {U2}", rank)
             print_red(f"U3: {U3}", rank)
             print_red(f"U4: {U4}", rank)
             raise ValueError("U_mean has NaN values")
-        print_IMPORTANT(f"Convecting Particles", rank)
+        print_IMPORTANT("Convecting Particles", rank)
         # We do not convect the vorticity
         for j in range(vpm.particles.NVR):
             XPR[:3, j] = XPR[:3, j] + U_mean[:3,j] * DT
             # QPR[0:3, j] = QPR[0:3, j] + G_mean[:,j] * DT
 
-        print_IMPORTANT(f"Saving to file", rank)
-        vpm.particles.save_to_file(filename=f"particles", folder = 'vpm_case' )
-        vpm.particle_mesh.save_to_file(filename=f"particle_mesh", folder = 'vpm_case' )
+        print_IMPORTANT("Saving to file", rank)
+        vpm.particles.save_to_file(filename="particles", folder = 'vpm_case' )
+        vpm.particle_mesh.save_to_file(filename="particle_mesh", folder = 'vpm_case' )
 
-    print_IMPORTANT(f"Redefine Bounds", rank)
-    vpm.vpm(
+    print_IMPORTANT("Redefine Bounds", rank)
+    vpm.vpm_define(
         num_equations=neq,
-        mode=0,
         particle_positions=XPR,
         particle_charges=QPR,
         timestep=i,
-        viscosity=NI,
     )
     comm.Barrier()
 

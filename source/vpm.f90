@@ -1,4 +1,4 @@
-Module vpm_lib
+module vpm_lib
     ! SPEED
 #ifdef USE_INTEL
     use mkl_service
@@ -143,7 +143,7 @@ contains
         integer :: ierr, my_rank, np
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-        tab_level = 1
+        tab_level = 0
 
         ! Set Input
         ND = 3
@@ -175,7 +175,7 @@ contains
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-        tab_level = 1
+        tab_level = 0
 
         ! Set Input
         ND = 3
@@ -218,7 +218,7 @@ contains
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
-        tab_level = 1
+        tab_level = 0
 
         ! Set Input
         ND = 3
@@ -267,7 +267,7 @@ contains
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
         ! Set Input
-        tab_level = 1
+        tab_level = 0
         ND = 3
         NTIME_pm = NTIME_in
         neqpm = neqpm_in
@@ -285,8 +285,8 @@ contains
             write (*, *) ""
             tab_level = tab_level - 1
             write (dummy_string, "(A)") 'Solving Primary Problem'
-            tab_level = tab_level + 1
             call vpm_print(dummy_string, blue, 0)
+            tab_level = tab_level + 1
             st = MPI_WTIME()
         end if
         call project_particles_parallel
@@ -408,7 +408,7 @@ contains
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
         
-        tab_level = 1
+        tab_level = 0
         if (my_rank .eq. 0) then
             write (*, *) ""
             tab_level = tab_level - 1
@@ -490,7 +490,7 @@ contains
             print *, 'Difference between the old and the new Q'
             print *, achar(9)//'Max percentage difference in Q', &
                                 100 * maxval(abs(QP - QP_old))/maxval(abs(QP_old)), " %"
-            print *, achar(9)//'Percentage diff in Q', &
+            print *, achar(9)//'Tot Percentage difference in Q', &
                                 100 - sum(abs(QP))/sum(abs(QP_old)) * 100, " %"
             deallocate (XP_old, QP_old)
         end if

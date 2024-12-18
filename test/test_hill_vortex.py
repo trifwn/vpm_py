@@ -22,13 +22,14 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 0,
+        verbocity= 1,
         dx_particle_mesh= 0.1,
         dy_particle_mesh= 0.1,
         dz_particle_mesh= 0.1
     )
     if rank == 0:
         plotter = StandardVisualizer(plot_particles=("charge","magnitude"))
+        vpm.attach_plotter(plotter)
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
@@ -36,8 +37,7 @@ def main():
     print_blue(f"Rank: {rank}")
     comm.Barrier()
      
-    DT =  0.1
-    NI = -0.1
+    DT =  0.5
     neq = 3 
 
     # Create particles
@@ -49,13 +49,10 @@ def main():
 
     # Initialization VPM
     comm.Barrier()
-    vpm.vpm(
+    vpm.vpm_define(
         num_equations=neq,
-        mode = 0,
         particle_positions= XPR_zero, 
         particle_charges= QPR_zero, 
-        timestep=0,
-        viscosity=NI,
     )
     comm.Barrier()
 
@@ -85,25 +82,13 @@ def main():
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
     print_IMPORTANT("Particles initialized", rank)
-
-    # Create the plot to live update the particles
-    if rank == 0:
-        plotter.update_particle_plots(
-            iteration=0,
-            particle_positions= XPR_hill[:,:],
-            particle_charges= QPR_hill[:,:],
-            particle_velocities= vpm.particles.UP[:,:],
-            particle_deformations= vpm.particles.GP[:,:]
-        )
+    vpm.update_plot(0)
 
     comm.Barrier()
-    vpm.vpm(
+    vpm.vpm_define(
         num_equations= vpm.num_equations,
-        mode = 0,
         particle_positions  =  XPR_hill[:,:],
         particle_charges    =  QPR_hill[:,:],
-        timestep=0,
-        viscosity=NI,
     )
     # Main loop
     T = 0
@@ -120,33 +105,21 @@ def main():
             color_divider="green",
             color_text="green"
         )
-        vpm.vpm(
+        vpm.vpm_solve_velocity_deformation(
+            timestep=i,
             num_equations=neq,
-            mode = 2,
             particle_positions    =  XPR,
             particle_charges      =  QPR,
-            timestep=i,
-            viscosity=NI,
         )
 
         if rank == 0:
             print_IMPORTANT("INFO", rank)
             XPR = vpm.particles.XP
             QPR = vpm.particles.QP
-            UPR = vpm.particles.UP.to_numpy(copy=True)
-            GPR = vpm.particles.GP.to_numpy(copy=True)
-            # Print the size of the particles
-            # print(f"Number of particles: {NVR}")
-            # print(f"Number of equations: {neq}")
-            # print('\n')
-
-            # print_green(f"UPR:")
-            # print(f"Mean: {np.mean(UPR.data, axis=1)}")
-            # print(f"Max: {np.max(UPR.data, axis=1)}")
-            # print(f"Min: {np.min(UPR.data, axis=1)}")
-            # print('\n')
-            
+            UPR = vpm.particles.UP
+            GPR = vpm.particles.GP
             U_PM = vpm.particle_mesh.U
+
             for name, u in zip(["Ux", "Uy", "Uz"], U_PM): 
                 print_green(f"{name}:")
                 print(f"Mean: {np.mean(u)}")
@@ -157,37 +130,21 @@ def main():
             print_IMPORTANT("Convecting Particles", rank)
             
             st = MPI.Wtime()
-            # # Move the particles
+            # Convect the particles and apply vortex stretching
             for j in range(vpm.particles.NVR):
-                # continue
-                # Translate the particles
-                XPR[:3, j] = XPR[:3, j] + UPR[:3,j] * DT
-                QPR[:3, j] -= GPR[:3, j] * DT
+                XPR[:3, j] = XPR[:3, j] + UPR[:3, j] * DT
+                QPR[:3, j] = QPR[:3, j] - GPR[:3, j] * DT
             et = MPI.Wtime()
 
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
             print_IMPORTANT("Updating the plot", rank)
 
             st = MPI.Wtime()
-            # Update the plot
-            plotter.update_particle_plots(
-                iteration=i,
-                particle_positions= XPR[:,:],
-                particle_charges= QPR[:,:],
-                particle_velocities= UPR[:,:],
-                particle_deformations= GPR[:,:]
-            )
-            plotter.update_mesh_plots(
-                iteration=i,
-                pm_positions= vpm.particle_mesh.grid_positions,
-                pm_velocities= vpm.particle_mesh.U,
-                pm_charges= vpm.particle_mesh.RHS,
-                pm_deformations= vpm.particle_mesh.deformation
-            )
+            vpm.update_plot(i)
             et = MPI.Wtime()
             print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
-            print_IMPORTANT("Saving the particles and particle mesh", rank)
 
+            print_IMPORTANT("Saving the particles and particle mesh", rank)
             st = MPI.Wtime()
             vpm.particles.save_to_file(filename= "particles_test", folder="vpm_case")
             vpm.particle_mesh.save_to_file(filename= "particle_mesh_test", folder="vpm_case")
@@ -198,14 +155,22 @@ def main():
         print_IMPORTANT("Redefine Bounds", rank)
 
         comm.Barrier()
-        vpm.vpm(
+        vpm.vpm_define(
             num_equations=neq,
-            mode = 0,
             particle_positions  =  XPR,
             particle_charges    =  QPR,
             timestep=i,
-            viscosity=NI,
         )
+
+        # vpm.vpm_diffuse(
+        #     num_equations=neq,
+        #     particle_positions= XPR,
+        #     particle_charges= QPR,
+        #     particle_velocities= UPR,
+        #     particle_deformations= GPR,
+        #     viscosity= -0.1
+        # )
+
         XPR, QPR = vpm.remesh_particles(project_particles=True)
         comm.Barrier()
 
