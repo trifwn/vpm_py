@@ -82,12 +82,6 @@ contains
         if (allocated(RHS_pm)) deallocate(RHS_pm)
         if (allocated(velocity_pm)) deallocate(velocity_pm)
         if (allocated(deform_pm)) deallocate(deform_pm)
-        if (allocated(XP)) deallocate(XP)
-        if (allocated(QP)) deallocate(QP)
-        if (allocated(UP)) deallocate(UP)
-        if (allocated(GP)) deallocate(GP)
-        if (allocated(VP)) deallocate(VP)
-
     end subroutine finalize
 
     subroutine set_verbose_level(verbocity_in) bind(C, name='set_verbosity')
