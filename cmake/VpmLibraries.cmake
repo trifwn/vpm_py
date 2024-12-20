@@ -25,7 +25,7 @@ function(define_vpm_targets)
 
     set(TEST_EXE_SRC
         ${SRC_TEST}/test.f90
-        ${SRC_TEST}/test_problems.f90
+        ${SRC_TEST}/utils/problems.f90
     )
 
     set(ALL_VPM_OBJECTS_SRC
@@ -232,19 +232,12 @@ function(define_vpm_targets)
         $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                   # Link MKL
     )
 
-    # # -------------------------------------------------------------------------------------------------
-    #                                           Arrays Test Executable 
-    # # -------------------------------------------------------------------------------------------------
-    add_executable(test_arrays_exe ${SRC_TEST}/test_arrays.f90)
-    add_dependencies(test_arrays_exe arrays)
-    target_link_libraries(test_arrays_exe PRIVATE arrays)
-
     # -------------------------------------------------------------------------------------------------
     #                                           Operator Test Executable
     # -------------------------------------------------------------------------------------------------
 
     # add_executable(test_operators ${SRC_TEST}/test_operators.f90)
-    # target_link_libraries(test_operators PRIVATE data_com operators_serial)
+    # target_link_libraries(test_operators PUBLIC operators_serial data_com)
 
     # -------------------------------------------------------------------------------------------------
     #                                          Compiler Flags
@@ -262,8 +255,8 @@ function(define_vpm_targets)
     endif()
     set_compiler_flags(pmlib)
     set_compiler_flags(mpi_matrices)
+    set_compiler_flags(data_com)
     set_compiler_flags(operators_serial)
-    # set_compiler_flags(data_com)
     set_compiler_flags(parvar)
     set_compiler_flags(pmproject)
     set_compiler_flags(yaps)
@@ -278,6 +271,5 @@ function(define_vpm_targets)
     set_compiler_flags(vpm)
     set_compiler_flags(vpm_py_api)
     set_compiler_flags(vpm_exe)
-    set_compiler_flags(test_arrays_exe)
     # set_compiler_flags(test_operators)
 endfunction()

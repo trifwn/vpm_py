@@ -28,6 +28,7 @@ class VPM(object):
         dx_particle_mesh: float = 0.2,
         dy_particle_mesh: float = 0.2,
         dz_particle_mesh: float = 0.2,
+        case_folder: str | None = None,
     ):
         lib = VPM_Lib()
         self._lib = lib._lib_vpm
@@ -49,11 +50,16 @@ class VPM(object):
         self.num_equations = number_of_equations
 
         self.set_verbosity(verbocity)
+        if case_folder is not None:
+            self.set_case_folder(case_folder)
         # Initialize the VPM
         self.initialize(self.dpm[0], self.dpm[1], self.dpm[2], NBI, NBJ, NBK)
         self.particle_mesh = ParticleMesh()
         self.particles = Particles(number_equations= self.num_equations)
-        self.plotter: Visualizer | None = None
+
+        # Visualization
+        self.visualizer: Visualizer | None = None
+        self.has_animation_writer = False
 
     def initialize(
         self, 
@@ -128,29 +134,50 @@ class VPM(object):
             print(f"\tIPMWSTART= {IPMWSTART}")
             print(f"\tIPMWSTEPS= {IPMWSTEPS}")
 
-    def attach_plotter(self, plotter: Visualizer):
+    def attach_visualizer(self, plotter: Visualizer):
         if not isinstance(plotter, Visualizer):
             raise ValueError("Invalid plotter type")
-        self.plotter = plotter
+        self.visualizer = plotter
 
-    def update_plot(self, iteration: int):
-        if self.plotter is None:
+    def setup_animation_writer(
+            self, 
+            filename: str, 
+            fps: int = 30, 
+            codec: str = 'libx264', 
+            bitrate: int = 1800,
+            dpi: int = 100
+    ):
+        if self.visualizer is None:
+            raise ValueError("No visualizer attached")
+        self.visualizer.setup_animation_writer(
+            filename = filename, 
+            fps = fps, 
+            codec =codec, 
+            bitrate= bitrate,
+            dpi= dpi
+        )
+        self.has_animation_writer = True
+
+    def update_plot(self, title: int):
+        if self.visualizer is None:
             return
         
-        self.plotter.update_particle_plots(
-                iteration= iteration,
+        self.visualizer.update_particle_plots(
+                title = title,
                 particle_positions= self.particles.XP,
                 particle_charges= self.particles.QP,
                 particle_velocities= self.particles.UP,
                 particle_deformations= self.particles.GP
             )
-        self.plotter.update_mesh_plots(
-                iteration= iteration,
+        self.visualizer.update_mesh_plots(
+                title = title,
                 pm_positions= self.particle_mesh.grid_positions,
                 pm_velocities= self.particle_mesh.U,
                 pm_charges= self.particle_mesh.RHS,
                 pm_deformations= self.particle_mesh.deformation
             )
+        if self.has_animation_writer:
+            self.visualizer.grab_frame()
 
     ### VPM functions ###
     def vpm(
@@ -431,13 +458,13 @@ class VPM(object):
         viscosity: float,
         particle_positions: np.ndarray | F_Array,
         particle_charges: np.ndarray | F_Array,
-        particle_velocities: np.ndarray | F_Array,
-        particle_deformations: np.ndarray | F_Array,
         num_particles: int | None = None,
     ):
         """Apply diffusion to particles."""
         positions = self._convert_to_numpy(particle_positions)
         charges = self._convert_to_numpy(particle_charges)
+
+        (particle_velocities, particle_deformations) = self._initialize_particle_arrays(positions.shape)
         velocities = self._convert_to_numpy(particle_velocities)
         deformations = self._convert_to_numpy(particle_deformations)
         
@@ -532,7 +559,13 @@ class VPM(object):
             Set the verbosity of the VPM
         """
         self._lib.set_verbosity(byref(c_int(verbosity)))
-
+    
+    def set_case_folder(self, case_folder: str):
+        """Set the case folder for VPM."""
+        folder_b = case_folder.encode('utf-8')
+        os.makedirs(case_folder, exist_ok=True)
+        self._lib.set_case_folder(folder_b)
+        
     def finalize(self):
         self._lib.finalize()
         if self.rank == 0:

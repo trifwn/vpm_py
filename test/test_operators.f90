@@ -1,6 +1,6 @@
 module test_operators
-   use iso_fortran_env, only: real64
    use MPI
+   use iso_fortran_env, only: real64
    use data_communication, only: commit_array, distribute, collect, free_vars
    use serial_vector_field_operators
    implicit none
@@ -741,8 +741,8 @@ contains
 
    subroutine test_distribute_and_collect(total_tests, passed_tests)
       integer, intent(inout) :: total_tests, passed_tests
-      real(real64), allocatable :: global_data(:,:,:,:), local_data(:,:,:,:)
       real(real64), allocatable :: collected_data(:,:,:,:)
+      real(real64), allocatable :: global_data(:,:,:,:), local_data(:,:,:,:)
       integer :: dim, nx, ny, nz, neq, elements, i, j, k, local_nx, local_ny, local_nz,eq
       real(real64) :: st, et
       character(len=1024) :: filename
@@ -768,10 +768,8 @@ contains
                "  - Testing with ", neq *nx *ny *nz,                 &
                ", elements (", neq, "x",  nx, "x", ny, "x", nz, ")"
             st = MPI_Wtime()
-         end if
 
-         ! Allocate and initialize global data on root process
-         if (my_rank == 0) then
+            ! Allocate and initialize global data on root process
             allocate(global_data(neq,nx, ny, nz))
             global_data = reshape([(real(i, real64), i = 1, neq *nx * ny * nz)], [neq, nx, ny, nz])
          end if
@@ -797,10 +795,7 @@ contains
          end if
          ! Cleanup
          deallocate(local_data)
-         if (my_rank == 0) then
-            deallocate(global_data)
-            deallocate(collected_data)
-         end if
+         if (my_rank == 0) deallocate(global_data, collected_data)
       enddo
       if (my_rank == 0) print *
    end subroutine test_distribute_and_collect

@@ -147,6 +147,7 @@ class Particles:
 
         # If folder does not exist, create it
         os.makedirs(folder, exist_ok=True)
+        os.makedirs(os.path.join(folder,'results'), exist_ok=True)
 
         # Call the Fortran routine using ctypes
         if filetype == "h5":

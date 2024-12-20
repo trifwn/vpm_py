@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
+from matplotlib.animation import FFMpegWriter
 
 import numpy as np
 import os
@@ -45,7 +46,7 @@ class Visualizer:
         self.rows = 1 if self.num_plots <= 2 else 2
         # We need to make sure that the number of columns is such that the number of plots is 
         # evenly distributed across the rows
-        self.columns = self.num_plots // self.rows 
+        self.columns = int(np.ceil(self.num_plots / self.rows)) 
         print(f"Rows: {self.rows}, Columns: {self.columns}")
         gs = gridspec.GridSpec( self.rows, self.columns)
 
@@ -227,13 +228,39 @@ class Visualizer:
                 mesh_solutions,
                 neq
             )
+        title = f"Frame {frame}, Realtime = {frame* 0.1:.1f}s"
         if time:
-            self._update_figure_title(frame, total_frames, time)
-        else:
-            self._update_figure_title(frame, total_frames)
-
+            title += f", Time = {time:.2f}s"
+        self._update_figure_title(title)
+        
         if render:
             self._render_plot()
+
+    def setup_animation_writer(
+        self, 
+        filename: str, 
+        fps: int = 10,
+        codec: str = 'libx264',
+        bitrate: int = 1800,
+        dpi: int = 200
+    ):
+        """
+        Set up the writer for the animation.
+        """
+        self.writer = FFMpegWriter(fps=fps, codec=codec, bitrate=bitrate)
+        self.writer.setup(self.fig, outfile = filename, dpi = dpi)
+    
+    def grab_frame(self):
+        """
+        Capture the current frame of the animation.
+        """
+        self.writer.grab_frame()
+    
+    def finish_animation(self):
+        """
+        Finish the animation and save the file.
+        """
+        self.writer.finish()
 
     def animate_result_folder(
         self, 
@@ -368,7 +395,7 @@ class Visualizer:
         pm_positions: np.ndarray, 
         pm_charges: np.ndarray, 
         pm_velocities: np.ndarray, 
-        pm_deformations: np.ndarray,
+        pm_deformations: np.ndarray | None,
         pm_solutions: np.ndarray | None = None,
         neq: int = 3,
     ):
@@ -384,7 +411,7 @@ class Visualizer:
 
     def update_particle_plots(
         self,
-        iteration: int,
+        title: str,
         particle_positions: np.ndarray,
         particle_charges: np.ndarray,
         particle_velocities: np.ndarray,
@@ -396,12 +423,12 @@ class Visualizer:
             particle_velocities,
             particle_deformations,
         )
-        self._update_figure_title(iteration)
+        self._update_figure_title(title)
         self._render_plot() 
 
     def update_mesh_plots(
         self,
-        iteration: int,
+        title: str,
         pm_positions: np.ndarray,
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
@@ -417,16 +444,16 @@ class Visualizer:
             pm_solutions,
             neq,
         )
-        self._update_figure_title(iteration)
+        self._update_figure_title(title)
         self._render_plot()
 
-    def _update_figure_title(self, iteration, total_iterations = None, t = None):
-        string = f"Frame {iteration}"
-        if total_iterations:
-            string += f" / {total_iterations}"
-        if t:
-            string += f", Realtime = {t:.2f}s"
-        self.fig.suptitle(string)
+    def _update_figure_title(self, title:str):#iteration, total_iterations = None, t = None):
+        # string = f"Frame {iteration}"
+        # if total_iterations:
+        #     string += f" / {total_iterations}"
+        # if t:
+        #     string += f", Realtime = {t:.2f}s"
+        self.fig.suptitle(title)
 
     def _render_plot(self):
         self.fig.canvas.flush_events()
@@ -434,3 +461,8 @@ class Visualizer:
         # self.fig.draw(renderer)
         self.fig.canvas.draw()
         plt.pause(0.05)
+
+    def __del__(self):
+        plt.close(self.fig)
+        if hasattr(self, 'writer'):
+            self.finish_animation()

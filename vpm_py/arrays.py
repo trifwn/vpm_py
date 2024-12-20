@@ -230,6 +230,12 @@ class F_Array(object):
         return F_Array.from_ctype(result_array)
 
     def __check_elementwise_op(self, other):
+        is_scalar = np.isscalar(other)
+        if is_scalar:
+            # Cast the scalar to a numpy array
+            other = np.array(other)
+            return False, True
+
         is_array = isinstance(other, F_Array)
         is_np_array = isinstance(other, np.ndarray)
         if not is_array and not is_np_array:
@@ -244,7 +250,7 @@ class F_Array(object):
         other_is_array, other_is_np_array = self.__check_elementwise_op(other)
         if other_is_np_array:
             result = self.data + other
-        if other_is_array:
+        elif other_is_array:
             result = self._call_fortran_op(other, 'add')
         return result
         
@@ -252,7 +258,7 @@ class F_Array(object):
         is_array, is_np_array = self.__check_elementwise_op(other)
         if is_np_array:
             result = self.data - other
-        if is_array:
+        elif is_array:
             result = self._call_fortran_op(other, 'sub')
         return result
     
@@ -260,7 +266,7 @@ class F_Array(object):
         is_array, is_np_array = self.__check_elementwise_op(other)
         if is_np_array:
             result = self.data * other
-        if is_array:
+        elif is_array:
             result = self._call_fortran_op(other, 'mul')
         return result
     
@@ -268,9 +274,44 @@ class F_Array(object):
         is_array, is_np_array = self.__check_elementwise_op(other)
         if is_np_array:
             result = self.data / other
-        if is_array:
+        elif is_array:
             result = self._call_fortran_op(other, 'div')
         return result
+    
+    def __iadd__(self, other):
+        result = self.__add__(other)
+        self.data = result.data
+        return self
+    
+    def __isub__(self, other):
+        result = self.__sub__(other)
+        self.data = result.data
+        return self
+    
+    def __imul__(self, other):
+        result = self.__mul__(other)
+        self.data = result.data
+        return self
+    
+    def __itruediv__(self, other):
+        result = self.__truediv__(other)
+        self.data = result.data
+        return self
+    
+    def __radd__(self, other):
+        return self.__add__(other)
+    
+    def __rsub__(self, other):
+        return self.__sub__(other)
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
+    
+    def __rtruediv__(self, other):
+        return self.__truediv__(other)
+    
+    def __rmatmul__(self, other):
+        raise NotImplementedError("Matrix multiplication not implemented yet")
     
     def __matmul__(self, other):
         raise NotImplementedError("Matrix multiplication not implemented yet")
@@ -329,6 +370,16 @@ class F_Array(object):
             count = self.total_size,
         ).reshape(self.shape, order='F')
         return data_
+    
+    # @data.setter
+    # def data(self, data):
+    #     data = np.asfortranarray(data, dtype=np.float64)
+        
+    #     self.ndims          = len(data.shape)
+    #     self.data_container = data
+    #     self.shape_ptr      = self.shape_container.ctypes.data_as(POINTER(c_int * self.ndims))
+    #     self.data_ptr       = data.ctypes.data_as(POINTER(self.data_ptr_type))
+    #     self.data_ptr_zero  = cast(self.data_ptr, POINTER(c_double))
 
     def __repr__(self):
         return f"Array with shape {self.shape}"

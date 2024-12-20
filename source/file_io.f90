@@ -197,7 +197,7 @@ contains
         real(dp), intent(in)             :: XPR(3, NVR_size), QPR(neq+1, NVR_size), &
                                             UPR(3, NVR),      GPR(3, NVR)
         integer, optional                :: compression
-        integer                          :: comp_level = 1
+        integer                          :: comp_level = 4
         type(hdf5_file)                  :: h5f
         character(len=MAX_STRING_LENGTH) :: filout1
 

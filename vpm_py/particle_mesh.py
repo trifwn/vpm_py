@@ -209,6 +209,7 @@ class ParticleMesh:
         folder_b = folder.encode('utf-8')
 
         os.makedirs(folder, exist_ok=True)
+        os.makedirs(os.path.join(folder,'results'), exist_ok=True)
 
         if filetype == "h5":
             self._lib.write_particle_mesh_solution_hdf5(folder_b, filename_b)

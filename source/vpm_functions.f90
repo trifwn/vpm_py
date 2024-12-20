@@ -289,9 +289,8 @@ contains
         call project_particles_3D(RHS_pm, QP_scatt, XP_scatt, NVR_projtype_scatt, NVR_p, neqpm, ieq, neqpm, QINF, NVR_p)
         call proj_gath ! RHS IS NOW FILLED
 
-        tab_level = tab_level - 1
         if (my_rank .eq. 0) then
-            write (dummy_string, "(A)") achar(9)//"Normalizing RHS by volume"
+            write (dummy_string, "(A)") "Normalizing RHS by volume"
             call vpm_print(dummy_string, blue, 1)
             ! RHS_pm IS NOW NORMALIZED BY VOLUME (DENSITY)
             call project_vol3d(RHS_pm, neqpm, ieq, neqpm, IDVPM)
@@ -303,6 +302,7 @@ contains
                 achar(9)//'finished in:'//achar(9), int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
             call vpm_print(dummy_string, yellow, 1)
         end if
+        tab_level = tab_level - 1
         ! DEALLOCATE
         deallocate (ieq, QINF)
         deallocate (XP_scatt, QP_scatt, NVR_projtype_scatt)

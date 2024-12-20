@@ -565,14 +565,15 @@ contains
     end subroutine project_calc_div
 
     subroutine print_timestep_information()
-        use pmgrid, only: RHS_pm, SOL_pm, DXpm, DYpm, DZpm
+        use pmgrid, only: RHS_pm, SOL_pm, DXpm, DYpm, DZpm, velocity_pm, deform_pm
         use file_io, only: solve_stats_file, case_folder
         implicit none
-        real(dp), allocatable   :: div_wmega(:, :, :), laplace_LHS_pm(:, :, :, :)
-        real(dp)                :: total_vort
-        real(dp)                :: max_div_w, mean_div_w, total_enstrophy, total_vorticity
-        real(dp)                :: mean_residual(neqpm), max_residual(neqpm), mean_rhs(neqpm), max_rhs(neqpm)
+        real(dp), allocatable   :: div_wmega(:, :, :), laplace_LHS_pm(:, :, :, :), div_velocity(:, :, :)
+        real(dp)                :: max_div_w, mean_div_w, mean_div_u, max_div_u, &
+                                   total_momentum, total_kinetic_energy, total_vorticity, total_enstrophy, &
+                                   CFL_x, CFL_y, CFL_z, CFL
         character(len=256)      :: filename
+        logical                 :: file_exists
         integer                 :: ierr, my_rank, np, i
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -581,8 +582,19 @@ contains
         if (my_rank .eq. 0) then
             print *, ''
             ! We need to write the residuals of the solution
-            div_wmega = divergence(RHS_pm, DXpm, DYpm, DZpm)
-            laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
+            div_wmega            = divergence(RHS_pm, DXpm, DYpm, DZpm)
+            div_velocity         = divergence(velocity_pm, DXpm, DYpm, DZpm)
+            laplace_LHS_pm       = laplacian(SOL_pm, DXpm, DYpm, DZpm)
+            total_enstrophy      = sum(RHS_pm(1:3, :, :, :)**2)*DXpm*DYpm*DZpm
+            total_vorticity      = sum(RHS_pm(1:3, :, :, :))*DXpm*DYpm*DZpm
+            total_momentum       = sum(velocity_pm(1:3, :, :, :)) * DXpm * DYpm * DZpm
+            total_kinetic_energy = sum(velocity_pm(1:3, :, :, :)**2 ) * DXpm * DYpm * DZpm
+
+            CFL_x = maxval(abs(velocity_pm(1, :, :, :)))/DXpm
+            CFL_y = maxval(abs(velocity_pm(2, :, :, :)))/DYpm
+            CFL_z = maxval(abs(velocity_pm(3, :, :, :)))/DZpm
+            CFL = CFL_x + CFL_y + CFL_z
+
             ! Print the mean, max and min div_u
             write (dummy_string, *) ""
             call vpm_print(dummy_string, nocolor, 1)
@@ -593,18 +605,14 @@ contains
                 achar(9)//" max : ", maxval(div_wmega), &
                 achar(9)//" mean: ", sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
             call vpm_print(dummy_string, blue, 1)
-
             write (dummy_string, "(A)") 'Total Vorticity in the domain'
             call vpm_print(dummy_string, yellow, 1)
-            total_vort = sum(RHS_pm(1:3, :, :, :))*DXpm*DYpm*DZpm
-            write (dummy_string, "(A, E10.4)") achar(9)//'Total Vorticity : ', total_vort
+            write (dummy_string, "(A, E10.4)") achar(9)//'Total Vorticity : ', total_vorticity
             call vpm_print(dummy_string, blue, 1)
             write (dummy_string, "(A)") 'Total Enstrophy in the domain'
             call vpm_print(dummy_string, yellow, 1)
-            total_vort = sum(RHS_pm(1:3, :, :, :)**2)*DXpm*DYpm*DZpm
-            write (dummy_string, "(A, E10.4)") achar(9)//'Total Enstrophy : ', total_vort
+            write (dummy_string, "(A, E10.4)") achar(9)//'Total Enstrophy : ', total_enstrophy
             call vpm_print(dummy_string, blue, 1)
-
             write (dummy_string, "(A)") 'Residuals of the solution'
             call vpm_print(dummy_string, yellow, 1)
             do i = 1, neqpm
@@ -627,51 +635,42 @@ contains
                     achar(9)//'mean: ', sum(abs(laplace_LHS_pm(i, :, :, :) - RHS_PM(i, :, :, :))) &
                     /(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
                 call vpm_print(dummy_string, nocolor, 1)
+                ! Print the CFL number
+                write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'CFL number / Dt'// &
+                    achar(9)//'x : ', CFL_x, &
+                    achar(9)//'y : ', CFL_y, &
+                    achar(9)//'z : ', CFL_z
+                call vpm_print(dummy_string, RED, 1)
                 write (dummy_string, *) ""
                 call vpm_print(dummy_string, nocolor, 1)
             end do
 
             ! Construct the filename
             write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
-
             ! Determine the file status and write mode
-            if (NTIME_pm == 1 .or. NTIME_pm == 0) then
+            inquire(file=filename, exist=file_exists)
+
+            if (NTIME_pm == 1 .or. NTIME_pm == 0 .or. .not. file_exists) then
                 open (unit=10, file=filename, status='replace', action='write')
                 ! Write CSV header
-                write (10, '(A)') "Iteration,Total_Enstrophy, Total_Vorticity," &
-                    //"MEAN_DIV_W,MAX_DIV_W," &
-                    //"MEAN_RESIDUAL1,MAX_RESIDUAL1,MEAN_RHS1,MAX_RHS1," &
-                    //"MEAN_RESIDUAL2,MAX_RESIDUAL2,MEAN_RHS2,MAX_RHS2," &
-                    //"MEAN_RESIDUAL3,MAX_RESIDUAL3,MEAN_RHS3,MAX_RHS3"
+                write (10, '(A)') "Iteration, CFL/Dt, Total_Enstrophy, Total_Vorticity," &
+                                //"Total_Momentum, Total_Kinetic_Energy," &
+                                //"MEAN_DIV_W,MAX_DIV_W, MEAN_DIV_VEL, MAX_DIV_VEL," &
+                                //"CFL_X/Dt, CFL_Y/Dt, CFL_Z/Dt" 
             else
                 open (unit=10, file=filename, status='old', position='append', action='write')
             end if
 
-            ! Calculate required values
-            total_enstrophy = sum(RHS_pm(1:3, :, :, :)**2)*DXpm*DYpm*DZpm
-            total_vorticity = sum(RHS_pm(1:3, :, :, :))
-
-            mean_div_w = sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
-            max_div_w = maxval(abs(div_wmega))
-
-            ! Calculate residual statistics across all equations
-            mean_residual = sum(sum(sum(abs(laplace_LHS_pm - RHS_PM), dim=4), dim=3), dim=2)/ &
-                            (neqpm*fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
-            max_residual = maxval(maxval(maxval(abs(laplace_LHS_pm - RHS_PM), dim=4), dim=3), dim=2)
-
-            ! Calculate RHS statistics across all equations
-            mean_rhs = sum(sum(sum(RHS_PM, dim=4), dim=3), dim=2)/ &
-                       (neqpm*fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
-            max_rhs = maxval(maxval(maxval(abs(RHS_PM), dim=4), dim=3), dim=2)
-
             ! Write data for this iteration
-            write (10, '(I0,16(",",ES14.7))') NTIME_pm, &
-                total_enstrophy, total_vorticity, &
-                mean_div_w, max_div_w, &
-                mean_residual(1), max_residual(1), mean_rhs(1), max_rhs(1), &
-                mean_residual(2), max_residual(2), mean_rhs(2), max_rhs(2), &
-                mean_residual(3), max_residual(3), mean_rhs(3), max_rhs(3)
+            mean_div_u = sum(div_velocity) / (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+            mean_div_w   = sum(div_wmega) / (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+            max_div_u  = maxval(div_velocity)
+            max_div_w    = maxval(div_wmega)
 
+            write (10, '(I0,16(",",ES14.7))') NTIME_pm, CFL,                            &
+                total_enstrophy, total_vorticity, total_momentum, total_kinetic_energy, &
+                mean_div_w, max_div_w, mean_div_u, max_div_u,                           &
+                CFL_x, CFL_y, CFL_z
             close (10)
 
             tab_level = tab_level - 1

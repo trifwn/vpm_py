@@ -9,10 +9,10 @@ module api
     integer, parameter :: MAX_STRING_LENGTH = 256
 contains
     subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                        &
-                         num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,             &
-                          max_level, omp_threads, grid_define, write_type, write_start, write_steps &
-                          ) &
-        bind(C, name='init')
+                          num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,            &
+                          max_level, omp_threads, grid_define, write_type, write_start,             &    
+                          write_steps                                                               &
+    ) bind(C, name='init')
 
         use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
         use vpm_vars, only: interf_iproj, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, &
@@ -90,6 +90,13 @@ contains
         integer(c_int), intent(in) :: verbocity_in
         verbocity = verbocity_in
     end subroutine set_verbose_level
+
+    subroutine set_case_folder(folder) bind(C, name='set_case_folder')
+        use file_io, only: case_folder
+        implicit none
+        character(kind=c_char), intent(in) :: folder(*)
+        call set_string_f_c(case_folder, folder)
+    end subroutine set_case_folder
 
 !!! VPM API 
     subroutine call_vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &

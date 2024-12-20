@@ -36,23 +36,26 @@ class StandardVisualizer(Visualizer):
         if plot_slices:
             z_slice = SliceFilter_3D(plane="Z",strategy=SliceStrategy.MAX_INTEGRAL)
             y_slice = SliceFilter_3D(plane="Y",strategy=SliceStrategy.MAX_INTEGRAL)
+            if plot_particles:
+                options = {
+                    "add_slice_plane": particle_option,
+                }
+            else:
+                options = {}
+
             plot_mesh_quantity_z = ResultPlot(
                 "mesh",
                 quantity=plot_slices[0],
                 component=plot_slices[1],
                 filters=[z_slice],
-                options={
-                    "add_slice_plane": plot_particles,
-                },
+                options= options,
             )
             plot_mesh_quantity_y = ResultPlot(
                 "mesh",
                 quantity=plot_slices[0],
                 component=plot_slices[1],
                 filters=[y_slice],
-                options={
-                    "add_slice_plane": plot_particles,
-                },
+                options= options,
             )
             plot_options.append(plot_mesh_quantity_z)
             plot_options.append(plot_mesh_quantity_y)

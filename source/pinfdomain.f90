@@ -56,10 +56,10 @@ contains
         if (itree .eq. 1) then
             call build_level_nbound(NXs, NXf, NYs, NYf, neqs, neqf)
         end if
-        if (my_rank .eq. 0) then
-            et = MPI_WTIME()
-            if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-        end if
+        ! if (my_rank .eq. 0) then
+        !     et = MPI_WTIME()
+        !     if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+        ! end if
         !-->SOL_pm_0 not needed for anything else
 
         !-->Using the sources calculated above define the correct bc's to the extended domain(BS law)
@@ -137,10 +137,10 @@ contains
         if (itree .eq. 1) then
             call build_level_nbound_3d(NXs, NXf, NYs, NYf, NZs, NZf, neqs, neqf)
         end if
-        if (my_rank .eq. 0) then
-            et = MPI_WTIME()
-            if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-        end if
+        ! if (my_rank .eq. 0) then
+        !     et = MPI_WTIME()
+        !     if (VERBOCITY .gt. 0) write (199, *) 'Tree struc', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+        ! end if
         !-->SOL_pm_0 not needed for anything else
 
         !-->Using the sources calculated above define the correct bc's to the extended domain(BS law)
