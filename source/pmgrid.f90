@@ -9,8 +9,13 @@ module pmgrid
     real(dp), allocatable, target       :: RHS_pm_bl(:, :, :, :)
 
     ! FINE GRID CHARACTERISTICS
-    real(dp), save                      :: XMIN_pm,     YMIN_pm,     ZMIN_pm,           &
-                                           XMAX_pm,     YMAX_pm,     ZMAX_pm
+    real(dp), save                      :: XMIN_pm = 0 
+    real(dp), save                      :: YMIN_pm = 0 
+    real(dp), save                      :: ZMIN_pm = 0 
+    real(dp), save                      :: XMAX_pm = 0 
+    real(dp), save                      :: YMAX_pm = 0 
+    real(dp), save                      :: ZMAX_pm = 0 
+
     real(dp), save                      :: DXpm,        DYpm,        DZpm,        DVpm
     integer, save                       :: NXpm_fine,   NYpm_fine,   NZpm_fine
     integer, save                       :: NXs_fine_bl, NYs_fine_bl, NXf_fine_bl,       &
