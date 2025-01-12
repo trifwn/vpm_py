@@ -37,7 +37,7 @@ contains
 
     subroutine calc_vortex_stretching_conservative(velocity, deformation)
         use MPI
-        use pmgrid, only: deform_pm, RHS_pm, SOL_pm
+        use pmgrid, only: deform_pm, RHS_pm
         use vpm_vars, only: neqpm
         use vpm_size, only: fine_grid
         use console_io, only: vpm_print, blue, yellow, dummy_string
@@ -136,11 +136,9 @@ contains
 
     subroutine calc_vortex_stretching_definition(velocity, deformation)
         use MPI
-        use pmgrid, only: RHS_pm, SOL_pm
-        use vpm_vars, only: neqpm
+        use pmgrid, only: RHS_pm
         use vpm_size, only: fine_grid
         implicit none
-        real(dp) ::  st, et
         real(dp), intent(in) :: velocity(:, :, :, :)
         real(dp), allocatable, intent(out):: deformation(:, :, :, :)
         real(dp), allocatable :: jac_u(:, :, :, :, :)
@@ -181,21 +179,14 @@ contains
 
     subroutine calc_vortex_stretching_conservative2(velocity, deformation)
         use MPI
-        use pmgrid, only: deform_pm, RHS_pm, SOL_pm
-        use vpm_vars, only: neqpm
+        use pmgrid, only: RHS_pm
         use vpm_size, only: fine_grid
-        use console_io, only: vpm_print, blue, yellow, dummy_string
         use vpm_types, only: dp
         implicit none
-        real(dp) ::  DXpm2, DYpm2, DZpm2
-        real(dp) ::  st, et
         real(dp), intent(in) :: velocity(:, :, :, :)
         real(dp), allocatable, intent(out):: deformation(:, :, :, :)
         real(dp), allocatable :: jac_u(:, :, :, :, :)
         real(dp), allocatable :: div_w(:, :, :)
-        real(dp) ::  upi, upj, upk, vpi, vpj, vpk, wpi, wpj, wpk, &
-                    umi, umj, umk, vmi, vmj, vmk, wmi, wmj, wmk, &
-                    wdudx, wdvdy, wdwdz
         integer  :: i, j, k
         integer  :: NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
         real(dp) :: DXpm, DYpm, DZpm
@@ -223,7 +214,7 @@ contains
         div_w = divergence(-RHS_PM(1:3, :, :, :), DXpm, DYpm, DZpm)
 
         !$omp parallel private(i,j,k )
-        !$omp shared(velocity_pm,RHS_pm,SOL_pm, deformation)
+        !$omp shared(velocity_pm,RHS_pm, deformation)
         !$omp num_threads(OMPTHREADS)
         !$omp do
         do k = NZs_fine_bl + 2, NZf_fine_bl - 2
@@ -243,15 +234,15 @@ contains
         deallocate (div_w)
     end subroutine calc_vortex_stretching_conservative2
 
-    module subroutine diffuse_vort_3d
+    module subroutine diffuse_vort_3d(NI)
         use MPI
-        use vpm_vars, only: OMPTHREADS, neqpm, NI
+        use vpm_vars, only: OMPTHREADS, neqpm
         use vpm_size, only: fine_grid
-        use pmgrid, only: RHS_pm, deform_pm
+        use pmgrid, only: RHS_pm
         implicit none
+        real(dp), intent(in) :: NI
         real(dp) :: viscosity
         real(dp), allocatable :: laplace_vort(:, :, :, :)
-        real(dp) ::  st, et, total_error
         integer  :: i, j, k
         integer  :: NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
         real(dp) :: DXpm, DYpm, DZpm
@@ -292,7 +283,7 @@ contains
     end subroutine diffuse_vort_3d
 
     module subroutine calc_antidiffusion
-        use pmgrid, only: RHS_pm, SOL_pm, deform_pm
+        use pmgrid, only: RHS_pm, deform_pm
         use vpm_size, only: fine_grid
         implicit none
         real(dp), allocatable   :: laplace_vort(:, :, :, :)
@@ -363,9 +354,19 @@ contains
     subroutine compute_cross_product(vec1, vec2, cross_product)
         real(dp), intent(in)  :: vec1(:, :, :, :)  
         real(dp), intent(in)  :: vec2(:, :, :, :) 
-        real(dp), intent(out) :: cross_product(3, size(vec1,2), size(vec1,3), size(vec1,4))
+        real(dp), intent(out) :: cross_product(:, :, :, :)
         integer :: i, j, k
 
+        ! ! Validate input dimensions
+        ! if (size(vec1,1) /= 3 .or. size(vec2,1) /= 3 .or. size(cross_product,1) /= 3) then
+        !     print *, "Error: Input vectors must have 3 components"
+        !     return
+        ! end if
+        ! if (size(vec1,2) /= size(vec2,2) .or. size(vec1,3) /= size(vec2,3) .or. size(vec1,4) /= size(vec2,4)) then
+        !     print *, "Error: Input vectors must have same dimensions"
+        !     return
+        ! end if
+        cross_product = 0.0d0
         !$OMP PARALLEL DO PRIVATE(i,j,k) SHARED(cross_product, vec1, vec2)
         do i = 1, size(vec1,2)
             do j = 1, size(vec1,3)
@@ -477,9 +478,9 @@ contains
         real(dp), intent(out)   :: gradQ_nodes(3, grid%NN(1), grid%NN(2), grid%NN(3))  ! Gradient at nodes
 
         ! Local variables
-        integer :: i, j, k, f
+        integer :: i, j, k
         integer :: nx, ny, nz
-        real(dp) :: DXpm, DYpm, DZpm, const
+        real(dp) :: DXpm, DYpm, DZpm
 
         real(dp) :: flux_x_right, flux_x_left ! Fluxes through x-faces in the x-direction (i)
         real(dp) :: flux_y_top, flux_y_bottom ! Fluxes through y-faces in the y-direction (j)

@@ -15,6 +15,7 @@ module file_io
     ! Mesh output
     character(len=MAX_STRING_LENGTH), save :: mesh_folder = "results/"
     character(len=MAX_STRING_LENGTH), save :: mesh_output_file = "particle_mesh"
+    character(len=MAX_STRING_LENGTH), save :: field_output_file = "field"
 
     ! Stat and Info output
     character(len=MAX_STRING_LENGTH), save :: yaps_time_file = "yaps_time.dat"
@@ -22,6 +23,54 @@ module file_io
     public :: particle_output_file, mesh_output_file, case_folder
 
 contains
+    subroutine write_timestep_information(timestep_info, NTIME_pm)
+        use vpm_types, only: timestepInformation
+        implicit none
+        type(timestepInformation), intent(in) :: timestep_info
+        integer                               :: NTIME_pm
+        character(len=256) :: filename
+        logical :: file_exists
+        real(dp)           :: mean_div_w, max_div_w, min_div_w
+        real(dp)           :: mean_div_u, max_div_u, min_div_u
+        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
+        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
+
+        mean_div_w = timestep_info%mean_div_w
+        max_div_w  = timestep_info%max_div_w
+        min_div_w  = timestep_info%min_div_w
+        
+        mean_div_u = timestep_info%mean_div_u
+        max_div_u  = timestep_info%max_div_u
+        min_div_u  = timestep_info%min_div_u
+        
+        total_momentum_x = timestep_info%total_momentum_x 
+        total_momentum_y = timestep_info%total_momentum_y 
+        total_momentum_z = timestep_info%total_momentum_z 
+        total_kinetic_energy = timestep_info%total_kinetic_energy
+        total_vorticity = timestep_info%total_vorticity
+        total_enstrophy = timestep_info%total_enstrophy
+
+        ! Construct the filename
+        write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
+        ! Determine the file status and write mode
+        inquire(file=filename, exist=file_exists)
+
+        if (NTIME_pm == 1 .or. NTIME_pm == 0 .or. .not. file_exists) then
+            open (unit=10, file=filename, status='replace', action='write')
+            ! Write CSV header
+            write (10, '(A)') "Iteration, Total_Enstrophy, Total_Vorticity,"              &
+                            //"Total_Kinetic_Energy, Momentum_X, Momentum_Y, Momentum_Z," &
+                            //"MEAN_DIV_W,MAX_DIV_W, MEAN_DIV_VEL, MAX_DIV_VEL"
+        else
+            open (unit=10, file=filename, status='old', position='append', action='write')
+        end if
+
+        write (10, '(I0,16(",",ES14.7))') NTIME_pm,                                 &
+            total_enstrophy, total_vorticity, total_kinetic_energy,                 &                  
+            total_momentum_x, total_momentum_y, total_momentum_z,                   &
+            mean_div_w, max_div_w, mean_div_u, max_div_u
+        close (10)
+    end subroutine write_timestep_information
 
     subroutine write_pm_solution(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
         use vpm_types, only: cartesian_grid
@@ -36,7 +85,7 @@ contains
         real(dp), intent(in), optional   :: deform_pm(3, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
 
         character*50                     :: filout
-        integer                          :: i, j, k, size_eq
+        integer                          :: i, j, k
         logical                          :: exist_flag
         real(dp)                         :: cellx, celly, cellz, velocx, velocy, velocz, &
                                             wmegax, wmegay, wmegaz, psi_1, psi_2, psi_3, &
@@ -307,7 +356,7 @@ contains
         call h5f%create('/Y', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
         call h5f%create('/Z', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
-        call h5f%create('/VELOCITY', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        ! call h5f%create('/VEL', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
         ! Iterate over the 3D grid and write data to HDF5 file
         do k = NZs, NZf
@@ -333,6 +382,8 @@ contains
         call h5f%write('/SOL', SOL(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
         
         ! Write the velocity field to the HDF5 file
+        print * , "NXs, NXf, NYs, NYf, NZs, NZf", NXs, NXf, NYs, NYf, NZs, NZf
+        print * , "Shape of velocity", shape(velocity)
         call h5f%write('/VEL', velocity(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
         
         ! Write the deformation field to the HDF5 file
@@ -478,7 +529,7 @@ contains
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
         integer                          :: i, j, k
         logical                          :: exist_flag
-        real(dp)                         :: cellx, celly, cellz, fieldx, fieldy, fieldz
+        real(dp)                         :: cellx, celly, cellz, field_val
         real(dp)                         :: DXpm, DYpm, DZpm
         real(dp)                         :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
 
@@ -528,8 +579,8 @@ contains
                     cellz = ZMIN_pm + (K - 1)*DZpm
 
                     ! Field
-                    fieldx = field(I, J, K)
-                    write (1, '(4(E14.7,1x))') cellx, celly, cellz, fieldx
+                    field_val = field(I, J, K)
+                    write (1, '(4(E14.7,1x))') cellx, celly, cellz, field_val
                 end do
             end do
         end do

@@ -10,8 +10,8 @@ contains
         use fishpack
         implicit none
         integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-        Integer              :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-        real(dp)             :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+        Integer              :: i, j, k, NX, NY, NZ, IERROR
+        real(dp)             :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
         real(dp), allocatable::SOL_tmp(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
         !--> Assignment of Boundary Values
@@ -82,8 +82,8 @@ contains
         use fishpack
         implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
-        Integer                 :: i, j, k, NWORK, INFO, NX, NY, NZ, nbj, LPEROD, MPEROD, NPEROD, IERROR
-        real(dp)                :: XPM, YPM, XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
+        Integer                 :: NX, NY, NZ, IERROR
+        real(dp)                :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc, CX, CY, CZ
         real(dp), allocatable   :: SOL_tmp(:, :, :), Apois(:), Bpois(:), Cpois(:)
 
         !--> Assignment of Boundary Values
@@ -188,12 +188,12 @@ contains
     module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
         use fishpack
         implicit none
-        integer, intent(in)            :: NXs, NXf, NYs, NYf, neq
-        Integer                       :: i, j, INFO, NX, NY
+        integer, intent(in)           :: NXs, NXf, NYs, NYf, neq
+        Integer                       :: INFO, NX, NY
         integer                       :: NN
         double precision              :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
-        double precision, allocatable  :: SOL_pm2(:, :)
-        double precision, allocatable  :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+        double precision, allocatable :: SOL_pm2(:, :)
+        double precision, allocatable :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
 
         !--> Assignment of Boundary Values
         XminCalc = XMIN_pm + (NXs - 1)*DXpm

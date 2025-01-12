@@ -137,10 +137,17 @@ class VPM_Lib:
             POINTER(c_double), # XP_in
             POINTER(c_double), # QP_in
             POINTER(c_int),    # NVR_in
+            POINTER(c_int),    # neqpm_in
             POINTER(c_int),    # NVR_size_in
-            POINTER(c_int)     # neqpm_in
         ]
         cls._lib_vpm.vpm_correct_vorticity.restype = None
+
+        # Add bindings for vpm_solve_pressure
+        cls._lib_vpm.vpm_solve_pressure.argtypes = [
+            POINTER(F_Array_Struct),
+            POINTER(F_Array_Struct),
+            POINTER(F_Array_Struct),
+        ]
 
         # API.finalize
         cls._lib_vpm.finalize.argtypes = []

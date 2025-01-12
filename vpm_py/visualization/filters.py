@@ -53,15 +53,20 @@ class SliceFilter_3D(Filter):
         self,
         plane: Plane | str,
         strategy: SliceStrategy,
+        filter_quantity: QuantityOfInterest | None = None,
     ):
         self.slicer = Slicer(strategy, plane)
+        self.filter_quantity = filter_quantity
 
     def apply(
         self, 
         quantity_of_interest: QuantityOfInterest,
         data: dict[str, np.ndarray],
     ):
-        mesh_qoi = quantity_of_interest.get_quantity(data)
+        if self.filter_quantity:
+            mesh_qoi = self.filter_quantity.get_quantity(data)
+        else:
+            mesh_qoi = quantity_of_interest.get_quantity(data)
 
         # Create slices
         slices = self.slicer.calculate_slicer(mesh_qoi)
@@ -120,7 +125,7 @@ class ValueFilter(Filter):
         self,
         tolerance: float,
         value: float = 0,
-        type = Literal['greater', 'less', 'equal']
+        type = Literal['greater', 'less', 'equal'],
     ):
         self.value = value
         self.tolerance = tolerance
@@ -139,6 +144,9 @@ class ValueFilter(Filter):
             mask = (quantity - self.value) < self.tolerance
         elif self.type == 'equal':
             mask = np.abs(quantity - self.value) < self.tolerance
+        else:
+            raise ValueError(f"Invalid type: {self.type}")
+            
         
         masked_data = {}
         for key, value in data.items():
@@ -150,3 +158,53 @@ class ValueFilter(Filter):
                 raise TypeError(f"Unsupported data type: {type(value)}")
         
         return masked_data, {'value': self.value, 'tolerance': self.tolerance}
+
+class ValueSelector(Filter):
+    """
+    A filter that selects data based on a specified value and tolerance for a given quantity of interest.
+
+    Attributes:
+        quantity_of_interest (QuantityOfInterest): The quantity of interest to filter on.
+        tolerance (float): The tolerance within which the value should fall.
+        value (float): The target value for the quantity of interest. Defaults to 0.
+
+    Methods:
+        apply(data: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+            Applies the filter to the provided data and returns the masked data.
+    """
+    def __init__(
+        self,
+        type = Literal['top_num', 'bottom_num', 'top_percentage', 'bottom_percentage'],
+        value: float = 0,
+    ):
+        self.value = value
+        self.type = type
+
+    def apply(
+        self, 
+        quantity_of_interest: QuantityOfInterest,
+        data: dict[str, np.ndarray],
+    ):
+        quantity = quantity_of_interest.get_quantity(data)
+
+        # Top and bottom are used to indicate top % and bottom % of the data
+        if self.type == 'top_percentage':
+            mask = quantity > np.percentile(quantity, 100 - self.value)
+        elif self.type == 'bottom_percentage':
+            mask = quantity < np.percentile(quantity, self.value)
+        # Max and min are used to indicate top and bottom number of data points
+        elif self.type == 'top_num':
+            val = min(self.value, len(quantity)- 1)
+            mask = quantity > np.sort(quantity, axis= None)[-val]
+            
+        
+        masked_data = {}
+        for key, value in data.items():
+            if isinstance(value, np.ndarray):
+                masked_data[key] = value[mask]
+            elif isinstance(value, dict):
+                masked_data[key] = {k: v[mask] for k, v in value.items()}
+            else:
+                raise TypeError(f"Unsupported data type: {type(value)}")
+        
+        return masked_data, {'value': self.value, 'type': self.type}

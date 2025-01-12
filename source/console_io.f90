@@ -36,7 +36,6 @@ contains
         character(len=*), intent(in) :: msg
         integer, intent(in) :: color
         integer, intent(in) :: importance
-        character(len=256) :: formatted_msg
         character(len=256) :: tabbed_msg
         integer :: i
 
@@ -73,6 +72,100 @@ contains
         integer, intent(in) :: level
         VERBOCITY = level
     end subroutine set_verbose_level
+    
+    !! TIMESTEP INFORMATION !!
+    subroutine print_timestep_information(timestep_info, solve_info)
+        use vpm_types, only: timestepInformation, solveInformation
+        implicit none
+        type(timestepInformation), intent(in) :: timestep_info
+        type(solveInformation), intent(in) :: solve_info
+        real(dp)           :: mean_div_w, max_div_w, min_div_w
+        real(dp)           :: mean_div_u, max_div_u, min_div_u
+        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
+        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
+        integer            :: i
+        
+        mean_div_w = timestep_info%mean_div_w
+        max_div_w  = timestep_info%max_div_w
+        min_div_w  = timestep_info%min_div_w
+        
+        mean_div_u = timestep_info%mean_div_u
+        max_div_u  = timestep_info%max_div_u
+        min_div_u  = timestep_info%min_div_u
+        
+        total_momentum_x = timestep_info%total_momentum_x 
+        total_momentum_y = timestep_info%total_momentum_y 
+        total_momentum_z = timestep_info%total_momentum_z 
+        total_kinetic_energy = timestep_info%total_kinetic_energy
+        total_vorticity = timestep_info%total_vorticity
+        total_enstrophy = timestep_info%total_enstrophy
+
+        write(dummy_string, *) ""
+        call vpm_print(dummy_string, nocolor, 1)
+
+        write(dummy_string, "(A)") 'Divergence of the Ψ field'
+        call vpm_print(dummy_string, yellow, 1)
+        
+        write(dummy_string, "(A,E10.4,A,E10.4,A,E10.4)") achar(9)//"div(ω)"//achar(9)// &
+            achar(9)//" min : ", timestep_info%min_div_w, &
+            achar(9)//" max : ", timestep_info%max_div_w, &
+            achar(9)//" mean: ", timestep_info%mean_div_w
+        call vpm_print(dummy_string, blue, 1)
+
+        write(dummy_string, "(A)") 'Divergence of the velocity field'
+        call vpm_print(dummy_string, yellow, 1)
+        write(dummy_string, "(A,E10.4,A,E10.4,A,E10.4)") achar(9)//"div(u)"//achar(9)// &
+            achar(9)//" min : ", min_div_u, &
+            achar(9)//" max : ", max_div_u, &
+            achar(9)//" mean: ", mean_div_u
+        call vpm_print(dummy_string, blue, 1)
+
+        write(dummy_string, "(A)") 'Total Momentum in the domain'
+        call vpm_print(dummy_string, yellow, 1)
+        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum x : ', total_momentum_x
+        call vpm_print(dummy_string, blue, 1)
+        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum y : ', total_momentum_y
+        call vpm_print(dummy_string, blue, 1)
+        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum z : ', total_momentum_z
+        call vpm_print(dummy_string, blue, 1)
+
+        write(dummy_string, "(A)") 'Total Vorticity in the domain'
+        call vpm_print(dummy_string, yellow, 1)
+        write(dummy_string, "(A,E10.4)") achar(9)//'sum(Vorticity) : ', total_vorticity 
+        call vpm_print(dummy_string, blue, 1)
+        
+        write(dummy_string, "(A)") 'Total Enstrophy in the domain'
+        call vpm_print(dummy_string, yellow, 1)
+
+        write(dummy_string, "(A,E10.4)") achar(9)//'sum(Enstrophy) : ', total_enstrophy
+        call vpm_print(dummy_string, blue, 1)
+
+        write (dummy_string, *) ""
+        call vpm_print(dummy_string, nocolor, 1)
+
+        write (dummy_string, "(A)") 'Residuals of the solution'
+        call vpm_print(dummy_string, yellow, 1)
+        do i = 1, size(solve_info%f_min)
+            ! For each equation write the laplacian - RHS_pm
+            write (dummy_string, "(A, I3, A)") '   Equation =', i, ":   Δf = RHS"
+            call vpm_print(dummy_string, blue, 1)
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Forcing (RHS)'// &
+                achar(9)//'min : ', solve_info%f_min(i), & 
+                achar(9)//'max : ', solve_info%f_max(i), & 
+                achar(9)//'mean: ', solve_info%f_mean(i) 
+            call vpm_print(dummy_string, nocolor, 1)
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//"Solution"// &
+                achar(9)//'min : ', solve_info%sol_min(i), & 
+                achar(9)//'max : ', solve_info%sol_max(i), & 
+                achar(9)//'mean: ', solve_info%sol_mean(i) 
+            call vpm_print(dummy_string, nocolor, 1)
+            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Res:=Δf-RHS'// &
+                achar(9)//'min : ', solve_info%residual_min(i), & 
+                achar(9)//'max : ', solve_info%residual_max(i), & 
+                achar(9)//'mean: ', solve_info%residual_mean(i) 
+            call vpm_print(dummy_string, nocolor, 1)
+        end do
+    end subroutine print_timestep_information
 
     !!! INTEGER ARRAYS !!!
     subroutine i_1d_alloc_info(name_in, arr)
@@ -315,7 +408,6 @@ contains
     subroutine dp_4d_alloc_info(name_in, arr)
         character(len=*), intent(in) :: name_in
         real(dp), dimension(:, :, :, :), allocatable, intent(in) :: arr
-        real(dp), dimension(4) :: sample_value
 
         if (allocated(arr)) then
             write (dummy_string, "(A)") trim(name_in)//" (4D):"

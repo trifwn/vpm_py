@@ -87,7 +87,7 @@ contains
         real(dp),intent(inout) :: RHS_pm_bl(neqpm,NN(1),NN(2),NN(3))
         real(dp) :: CP(3),Uind(3),Grad(9),Defm(3),Vort(3)
         integer          :: i,j,k
-        logical          :: I_EXIST
+        ! logical          :: I_EXIST
         RHS_pm_bl(1:3,:,:,:)=0.0d0
         ! INQUIRE (FILE='sol/hillref.plt', EXIST=I_EXIST)
         ! if(I_EXIST.eqv..false.) then 

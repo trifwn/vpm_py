@@ -2,12 +2,11 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
-from matplotlib.animation import FFMpegWriter
-
 import numpy as np
 import os
 from tqdm import tqdm
 import re
+import time
 
 from vpm_py.console_io import print_IMPORTANT
 from vpm_py.process_files import process_particle_ouput_file, process_pm_output_file
@@ -16,6 +15,8 @@ from . import ResultPlot
 from . import QuantityOfInterest
 from . import Plotter
 from . import DataAdapter
+from . import FasterFFMpegWriter
+
 
 class Visualizer:
     def __init__(
@@ -247,14 +248,17 @@ class Visualizer:
         """
         Set up the writer for the animation.
         """
-        self.writer = FFMpegWriter(fps=fps, codec=codec, bitrate=bitrate)
+        self.writer = FasterFFMpegWriter(fps=fps, codec=codec, bitrate=bitrate)
         self.writer.setup(self.fig, outfile = filename, dpi = dpi)
     
     def grab_frame(self):
         """
         Capture the current frame of the animation.
         """
+        s_time = time.time()
         self.writer.grab_frame()
+        e_time = time.time()
+        print(f"\tFrame grabbed in {e_time - s_time:.2f}s")
     
     def finish_animation(self):
         """
@@ -340,7 +344,7 @@ class Visualizer:
 
     def update_all_plots(
         self,
-        iteration: int,
+        title: str,
         particle_positions: np.ndarray,
         particle_charges: np.ndarray,
         particle_velocities: np.ndarray,
@@ -350,28 +354,42 @@ class Visualizer:
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray,
         pm_solutions: np.ndarray | None = None,
+        pm_pressure: np.ndarray | None = None,
+        pm_q_pressure: np.ndarray | None = None,
         neq: int = 3,
     ):
 
         if self.has_particles:
+            s_time = time.time()
             self._update_particle_plots(
                 particle_positions,
                 particle_charges,
                 particle_velocities,
                 particle_deformations,
             )
+            e_time = time.time()
+            print(f"\tParticle plots updated in {e_time - s_time:.2f}s")
 
         if self.has_mesh:
+            s_time = time.time()
             self._update_mesh_plots(
                 pm_positions,
                 pm_charges,
                 pm_velocities,
                 pm_deformations,
                 pm_solutions,
+                pm_pressure,
+                pm_q_pressure,
                 neq
             )
-        self._update_figure_title(iteration)
+            e_time = time.time()
+            print(f"\tMesh plots updated in {e_time - s_time:.2f}s")
+
+        s_time = time.time()
+        self._update_figure_title(title)
         self._render_plot()
+        e_time = time.time()
+        print(f"\tPlot rendered in {e_time - s_time:.2f}s")
 
     def _update_particle_plots(
         self,
@@ -397,11 +415,14 @@ class Visualizer:
         pm_velocities: np.ndarray, 
         pm_deformations: np.ndarray | None,
         pm_solutions: np.ndarray | None = None,
+        pm_pressure: np.ndarray | None = None,
+        pm_q_pressure: np.ndarray | None = None,
         neq: int = 3,
     ):
         for key, qoi in self.mesh_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
-                neq, pm_positions, pm_charges, pm_velocities, pm_deformations, pm_solutions
+                neq, pm_positions, pm_charges, pm_velocities, pm_deformations, 
+                pm_solutions, pm_pressure, pm_q_pressure
             )
             title = f"Mesh {qoi.quantity_name.capitalize()}"
             if qoi.component:
@@ -456,11 +477,8 @@ class Visualizer:
         self.fig.suptitle(title)
 
     def _render_plot(self):
-        self.fig.canvas.flush_events()
-        # renderer = self.fig.canvas.get_renderer()
-        # self.fig.draw(renderer)
-        self.fig.canvas.draw()
-        plt.pause(0.05)
+        self.fig.canvas.draw_idle()  # Queues a single re-draw efficiently.
+        self.fig.canvas.flush_events()  # Ensures the GUI updates immediately without blocking.
 
     def __del__(self):
         plt.close(self.fig)

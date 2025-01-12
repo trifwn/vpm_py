@@ -64,8 +64,8 @@ contains
         implicit none
         real(dp), allocatable, target, intent(inout) :: RHS_pm(:, :, :, :), RHS_pm_bl(:, :, :, :)
         real(dp), allocatable, target, intent(inout) :: SOL_pm(:, :, :, :), SOL_pm_bl(:, :, :, :)
-        integer                 :: my_rank, ierr, i
-        type(cartesian_grid)              :: my_block_grid
+        integer                                      :: my_rank, ierr
+        type(cartesian_grid)                         :: my_block_grid
         ! LOCAL TEMPORARY TBR
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -155,7 +155,6 @@ contains
         real(dp), allocatable, target, intent(inout) :: RHS_pm(:, :, :, :), RHS_pm_bl(:, :, :, :)
         real(dp), allocatable, target, intent(inout) :: SOL_pm(:, :, :, :), SOL_pm_bl(:, :, :, :)
         integer    :: my_rank, ierr, np
-        integer    :: eq_num
         integer    :: i
         type(cartesian_grid) :: my_block_grid
 
@@ -236,8 +235,8 @@ contains
     end subroutine convect_first_order
 
     subroutine project_particles_parallel
-        use pmgrid, only:    RHS_pm, SOL_pm, IDVPM 
-        use parvar, only:    NVR, XP, QP, XP_scatt, QP_scatt, NVR_projtype_scatt, NVR_p
+        use pmgrid, only:    RHS_pm, IDVPM 
+        use parvar, only:    NVR, XP_scatt, QP_scatt, NVR_projtype_scatt, NVR_p
         use projlib, only:   projlibinit, project_particles_3D, project_vol3d
         use vpm_mpi, only:   particles_scat, proj_gath
 
@@ -310,14 +309,12 @@ contains
 
     subroutine interpolate_particles_parallel(itypeb)
         use parvar, only: NVR, XP_scatt, QP_scatt, UP_scatt, GP_scatt, NVR_p
-        use pmgrid, only: velocity_pm, deform_pm, RHS_pm
+        use pmgrid, only: velocity_pm, deform_pm
         use vpm_interpolate, only: back_to_particles_3D
         use vpm_mpi, only: rhsbcast, particles_scat, particles_gath, velbcast, defbcast
 
         integer, intent(in)               :: itypeb
-        integer, allocatable              :: ieq(:)
-        real(dp), allocatable             :: QINF(:)
-        integer                           :: ierr, my_rank, np, i
+        integer                           :: ierr, my_rank, np
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_Size(MPI_COMM_WORLD, np, ierr)

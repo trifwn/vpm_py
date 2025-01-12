@@ -39,9 +39,7 @@ contains
         real(dp), intent(out)   :: RHS_pm_bl(neqpm, block_grid%NN(1), block_grid%NN(2), block_grid%NN(3))
         real(dp), intent(in)    :: RHS_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
         integer, intent(in)     :: nb_i, nb_j, nb_k
-
-        integer :: my_rank, ierr, i, np
-        integer :: ixs, jxs, kxs, ixf, jxf, kxf, nb, NXs, NXf, NYs, NYf, NZs, NZf
+        integer :: ixs, jxs, kxs, ixf, jxf, kxf, NXs, NXf, NYs, NYf, NZs, NZf
 
         RHS_pm_bl = 0
         NXs = block_grid%NN_bl(1)

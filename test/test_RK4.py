@@ -1,6 +1,6 @@
 import numpy as np
 from mpi4py import MPI
-from utils.hill_problem import hill_assign_parallel, visualize_vorticity
+from hill_vortex.hill_problem import hill_assign_parallel, visualize_vorticity
 
 from vpm_py import VPM
 from vpm_py.arrays import F_Array

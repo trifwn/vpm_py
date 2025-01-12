@@ -288,9 +288,8 @@ contains
 
         subroutine mapnodes_bl
 
-            integer :: i_nb, j_nb, icnb, jcnb, inode1, jnode1, nb_plus, nb_minus, i_check, j_check, ik, jk
+            integer :: nb_plus, nb_minus, ik, jk
             integer :: nod, ibound, isizex, isizey, i_plus, j_plus, i_minus, j_minus
-            real(dp) :: X1(3)
             real(dp), allocatable :: Bound_sol(:, :)
             integer  :: status(MPI_STATUS_SIZE), source, ierr, mat2, dest
 
@@ -566,8 +565,8 @@ contains
 
         subroutine interp_stencil
             use projlib, only: projection_fun
-            real(dp) :: addlocal, X1(2), add(neq), add_sample(neq)
-            integer          :: inode1, jnode1, i_nb, j_nb
+            real(dp) :: addlocal, add(neq), add_sample(neq)
+            integer  ::  i_nb, j_nb
 
             iproj = 3
             X(1) = Xbound_bl(1, nb) + (i - 1)*Dpm_fine(1)

@@ -110,7 +110,7 @@ contains
         real(dp), intent(in) :: dx
         integer, intent(in) :: dim, order
         real(dp), allocatable :: df(:)
-        integer :: n, i
+        integer :: n
 
         n = size(f)
         allocate (df(n))
@@ -252,7 +252,7 @@ contains
         real(dp), intent(in) ::  dx, dy, dz
         integer, intent(in) :: dim, order
         real(dp), allocatable :: df(:, :, :, :)
-        integer :: neq, nx, ny, nz, i, j, k, eq
+        integer :: neq, nx, ny, nz, eq
 
         neq = size(f, 1)
         nx = size(f, 2)
@@ -341,13 +341,13 @@ contains
             hes(3, 1, :, :, :) = calculate_derivative(fz, dx, dy, dz, 1, 1)
             hes(3, 2, :, :, :) = calculate_derivative(fz, dx, dy, dz, 2, 1)
         end if
+        deallocate (fx, fy, fz)
     end function calculate_scalar_hessian
 
     module function calculate_vector_hessian(f, dx, dy, dz) result(hes)
         real(dp), intent(in), target :: f(:, :, :, :)
         real(dp), intent(in) :: dx, dy, dz
         real(dp), allocatable :: hes(:, :, :, :, :, :)
-        real(dp), allocatable :: fx(:, :, :), fy(:, :, :), fz(:, :, :)
         integer :: nx, ny, nz, i, neq
 
         neq = size(f, 1)
@@ -421,6 +421,8 @@ contains
         Jtmp1 = calculate_derivative(f(2, :, :, :), dx, dy, dz, 1, 1) ! dF2/dx = J21
         Jtmp2 = calculate_derivative(f(1, :, :, :), dx, dy, dz, 2, 1) ! dF1/dy = J12
         result_curl(3, :, :, :) = Jtmp1 - Jtmp2                       ! dF2/dx - dF1/dy = J21 - J12
+
+        deallocate (Jtmp1, Jtmp2)
     end function curl
 
     function gradient(f, dx, dy, dz) result(result_grad)

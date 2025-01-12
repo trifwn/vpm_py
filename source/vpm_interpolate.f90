@@ -14,8 +14,7 @@ contains
         use projlib, only: projection_fun
         use vpm_types, only: dp
         use vpm_size, only: fine_grid
-        use vpm_vars, only: neqpm, OMPTHREADS
-        use pmgrid, only: RHS_pm
+        use vpm_vars, only: neqpm
         implicit none
         integer, intent(in)     :: NVR, iproj, NVRM, itype
         real(dp), intent(in)    :: velocity_pm(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
@@ -107,7 +106,7 @@ contains
         use projlib, only: projection_fun
         use vpm_types, only: dp
         use vpm_size, only: fine_grid!NN, XBound, Dpm
-        use vpm_vars, only: neqpm, OMPTHREADS
+        use vpm_vars, only: neqpm
 
         implicit None
         integer, intent(in)     :: NVR, iproj, NVR_size

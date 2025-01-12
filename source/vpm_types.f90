@@ -46,4 +46,51 @@ module vpm_types
         real(dp), pointer :: VP(:,:)
     end type particleCollectionRef
 
+    type :: timestepInformation
+        ! TIME INFO
+        integer     :: n            ! Iteration number
+        real(dp)    :: dt           ! Time step
+        real(dp)    :: t            ! Current time
+        ! PARTICLE INFO
+        integer     :: NVR          ! Number of particles
+        integer     :: NVR_size     ! Size of the particle arrays
+        ! GRID INFO
+        integer     :: NN(3)        ! Number of nodes in each direction
+        real(dp)    :: Xbound(6)    ! Domain boundaries        
+        real(dp)    :: Dpm(3)       ! Grid spacing
+        ! SOLVER INFO
+        integer     :: solver       ! Solver type
+        ! FLUID INFO
+        real(dp)    :: max_div_w
+        real(dp)    :: min_div_w
+        real(dp)    :: mean_div_w
+
+        real(dp)    :: max_div_u
+        real(dp)    :: min_div_u
+        real(dp)    :: mean_div_u 
+        
+        real(dp)    :: total_momentum_x
+        real(dp)    :: total_momentum_y
+        real(dp)    :: total_momentum_z
+        
+        real(dp)    :: total_kinetic_energy
+        real(dp)    :: total_vorticity
+        real(dp)    :: total_enstrophy
+        
+    end type timestepInformation
+    
+    type :: solveInformation
+        ! Poisson info
+        real(dp), allocatable :: f_mean(:) 
+        real(dp), allocatable :: f_max(:) 
+        real(dp), allocatable :: f_min(:)
+
+        real(dp), allocatable :: sol_mean(:)
+        real(dp), allocatable :: sol_max(:)
+        real(dp), allocatable :: sol_min(:)
+        
+        real(dp), allocatable :: residual_mean(:)
+        real(dp), allocatable :: residual_max(:)
+        real(dp), allocatable :: residual_min(:)
+    end type solveInformation
 end module vpm_types

@@ -75,8 +75,7 @@ contains
         integer, intent(in) :: dimensions(:)
         integer, intent(in) :: padding
         logical, allocatable :: periods(:)
-        integer :: neq, global_nx, global_ny, global_nz, local_nx, local_ny, local_nz
-        integer :: total_size, i
+        integer :: i
 
         ! Initialize MPI
         call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
@@ -329,8 +328,7 @@ contains
 
     subroutine send_to_all(global_data)
         real(real64), intent(in) :: global_data(..)
-        integer :: source, dest_starts(ndim), dest_size(ndim)
-        integer :: status(MPI_STATUS_SIZE)
+        integer :: dest_starts(ndim), dest_size(ndim)
         integer :: send_subarray, i
 
         do i = 0, size_mpi - 1
@@ -368,7 +366,7 @@ contains
         real(real64), intent(out) :: global_data(..)
         integer :: dest, true_proc_starts(ndim), true_proc_sizes(ndim)
         integer :: status(MPI_STATUS_SIZE)
-        integer :: recv_subarray, local_coords(ndim)
+        integer :: recv_subarray
 
         ! Root process receives data from all other processes
         do dest = 0, size_mpi - 1

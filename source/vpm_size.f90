@@ -12,7 +12,6 @@ Module vpm_size
     integer, save               :: nb_i, nb_j, nb_k, NBlocks, ndumcell_coarse, ndumcell_bl
     real(dp)                    :: st, et
 
-    public :: cartesian_grid
     public :: fine_grid, block_grids, coarse_grid, my_block_idx
     public :: print_vpm_size_info, define_sizes, get_domain_bounds_from_particles, get_fine_NN, get_fine_NNbl, &
               get_fine_Xbound
@@ -35,7 +34,7 @@ contains
         integer    :: nsiz(3), nsiz_bl(3)
         integer    :: i, j, k, np, my_rank, ierr, nb, istep, lev
         integer    :: redifine_pm
-        integer    :: NN_bl_tmp(6), NXbl, NYbl, NZbl, NXB, NYB, NZB
+        integer    :: NXbl, NYbl, NZbl, NXB, NYB, NZB
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -346,6 +345,7 @@ contains
                           YMAX_pm, ZMAX_pm
         real(dp) :: XMIN_pm_old, YMIN_pm_old, ZMIN_pm_old, XMAX_pm_old, YMAX_pm_old, ZMAX_pm_old, &
                     X_mean, Y_mean, Z_mean
+        real(dp) :: XMIN, YMIN, ZMIN, XMAX, YMAX, ZMAX
         logical  :: bounds_changed
 
         XMIN_pm_old = XMIN_pm
@@ -360,14 +360,51 @@ contains
         Y_mean = sum(XP(2, 1:NVR))/NVR
         Z_mean = sum(XP(3, 1:NVR))/NVR
 
-        XMIN_pm = minval(XP(1, 1:NVR)) - interf_iproj*DXpm
-        YMIN_pm = minval(XP(2, 1:NVR)) - interf_iproj*DYpm
-        ZMIN_pm = minval(XP(3, 1:NVR)) - interf_iproj*DZpm
+        XMIN = minval(XP(1, 1:NVR)) 
+        YMIN = minval(XP(2, 1:NVR)) 
+        ZMIN = minval(XP(3, 1:NVR)) 
 
-        XMAX_pm = maxval(XP(1, 1:NVR)) + interf_iproj*DXpm
-        YMAX_pm = maxval(XP(2, 1:NVR)) + interf_iproj*DYpm
-        ZMAX_pm = maxval(XP(3, 1:NVR)) + interf_iproj*DZpm
+        XMAX = maxval(XP(1, 1:NVR)) 
+        YMAX = maxval(XP(2, 1:NVR)) 
+        ZMAX = maxval(XP(3, 1:NVR)) 
+        
+        ! Check if the domain bounds have changed:
+        ! This means checking whether eg. XMIN is between XMIN_pm + interf_iproj*DXpm and XMIN_pm + (interf_iproj+1)*DXpm
+        ! If it is not, then the domain bounds have changed
+        bounds_changed = .FALSE.
+        if (XMIN - XMIN_pm < interf_iproj*DXpm .or. XMIN - XMIN_pm > (interf_iproj + 1)*DXpm) then
+            bounds_changed = .TRUE.
+        end if 
 
+        if (YMIN - YMIN_pm < interf_iproj*DYpm .or. YMIN - YMIN_pm > (interf_iproj + 1)*DYpm) then
+            bounds_changed = .TRUE.
+        end if
+
+        if (ZMIN - ZMIN_pm < interf_iproj*DZpm .or. ZMIN - ZMIN_pm > (interf_iproj + 1)*DZpm) then
+            bounds_changed = .TRUE.
+        end if
+
+        if (XMAX_pm - XMAX < interf_iproj*DXpm .or. XMAX_pm - XMAX > (interf_iproj + 1)*DXpm) then
+            bounds_changed = .TRUE.
+        end if
+
+        if (YMAX_pm - YMAX < interf_iproj*DYpm .or. YMAX_pm - YMAX > (interf_iproj + 1)*DYpm) then
+            bounds_changed = .TRUE.
+        end if
+
+        if (ZMAX_pm - ZMAX < interf_iproj*DZpm .or. ZMAX_pm - ZMAX > (interf_iproj + 1)*DZpm) then
+            bounds_changed = .TRUE.
+        end if
+
+        if (bounds_changed) then
+            XMIN_pm = XMIN - interf_iproj * DXpm
+            YMIN_pm = YMIN - interf_iproj * DYpm
+            ZMIN_pm = ZMIN - interf_iproj * DZpm
+            XMAX_pm = XMAX + interf_iproj * DXpm
+            YMAX_pm = YMAX + interf_iproj * DYpm
+            ZMAX_pm = ZMAX + interf_iproj * DZpm
+        end if
+        
         ! Normalize the domain bounds to be multiple of DX, DY, DZ
         XMIN_pm = X_mean - ceiling((X_mean - XMIN_pm)/DXpm)*DXpm
         YMIN_pm = Y_mean - ceiling((Y_mean - YMIN_pm)/DYpm)*DYpm
@@ -376,14 +413,6 @@ contains
         XMAX_pm = X_mean + ceiling((XMAX_pm - X_mean)/DXpm)*DXpm
         YMAX_pm = Y_mean + ceiling((YMAX_pm - Y_mean)/DYpm)*DYpm
         ZMAX_pm = Z_mean + ceiling((ZMAX_pm - Z_mean)/DZpm)*DZpm
-
-        ! Check if the domain bounds have changed
-        if (XMIN_pm .ne. XMIN_pm_old .or. YMIN_pm .ne. YMIN_pm_old .or. ZMIN_pm .ne. ZMIN_pm_old .or. &
-            XMAX_pm .ne. XMAX_pm_old .or. YMAX_pm .ne. YMAX_pm_old .or. ZMAX_pm .ne. ZMAX_pm_old) then
-            bounds_changed = .TRUE.
-        else
-            bounds_changed = .FALSE.
-        end if
     end subroutine get_domain_bounds_from_particles
 
     subroutine get_fine_NN(NN_out) bind(C, name='get_NN')
@@ -424,7 +453,7 @@ contains
     end subroutine print_vpm_size_info
 
     subroutine print_grid_info(grid_in)
-        use console_io, only: dummy_string, vpm_print, nocolor, blue, yellow, red, tab_level
+        use console_io, only: dummy_string, vpm_print, nocolor
         use vpm_vars, only: ND
         implicit none
         type(cartesian_grid) :: grid_in

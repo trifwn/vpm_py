@@ -36,17 +36,15 @@ contains
         real(dp), intent(in), optional                              :: cutoff_value
 
         ! LOCAL VARIABLES
-        real(dp), dimension(8)           :: X, Y, Z, Q
+        real(dp), dimension(8)           :: X, Y, Z
         real(dp), allocatable            :: XC(:), YC(:), ZC(:), QC(:)
         real(dp), allocatable, target    :: XP_tmp(:, :), QP_tmp(:, :)
         integer                          :: i, j, k, ncell, npar
         integer                          :: nxstart, nxfin, nystart, nyfin, nzstart, nzfin
         integer                          :: nc
-        integer                          :: NVR_old, eq
+        integer                          :: NVR_old
         integer                          :: my_rank, ierr, np, NN(3), NN_bl(6)
-        integer, allocatable             :: ieq(:)
         real(dp)                         :: Xbound(6), Dpm(3), wmag, cutoff
-        real(dp), allocatable            :: QINF(:)
         real(dp)                         :: st, et
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -251,6 +249,9 @@ contains
         UP => UP_OUT
 
         if (my_rank .eq. 0) then
+            deallocate (XP_tmp, QP_tmp)
+            deallocate (XC, YC, ZC, QC)
+
             if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP(1:neqpm, :), NVR, 4, NVR_size)
             write (dummy_string, *) 'After remesh'
             call vpm_print(dummy_string, nocolor, 2)

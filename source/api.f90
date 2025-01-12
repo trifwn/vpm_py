@@ -76,7 +76,6 @@ contains
 
     subroutine finalize() bind(C, name='finalize')
         use pmgrid, only: SOL_pm, RHS_pm, velocity_pm, deform_pm
-        use parvar, only: XP, QP, UP, GP, VP
         implicit none
         if (allocated(SOL_pm)) deallocate(SOL_pm)
         if (allocated(RHS_pm)) deallocate(RHS_pm)
@@ -126,8 +125,7 @@ contains
         real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
         type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out
 
-        real(c_double), pointer          :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
-        real(c_double), pointer          :: deform_ptr(:, :, :, :)
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
 
         call vpm(XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
                  RHS_pm_ptr, Vel_ptr, NTIME_in, NI_in, NVR_size_in)
@@ -179,7 +177,6 @@ contains
         type(ND_Array), intent(out)            :: RHS_pm_out, Vel_out
         ! Local variables
         real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
-        real(c_double), pointer                :: deform_ptr(:, :, :, :)
         
         call vpm_solve_velocity(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
                                 neqpm_in, RHS_pm_ptr, vel_ptr)
@@ -230,42 +227,59 @@ contains
         if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
     end subroutine call_vpm_interpolate
 
-    subroutine call_vpm_diffuse(NI_in , XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,        &
-                                neqpm_in, RHS_pm_out                                            &
+    subroutine call_vpm_diffuse(NI_in , XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
+                                neqpm_in, RHS_pm_out                                     &
     ) bind(C, name='vpm_diffuse')
         use vpm_lib, only: vpm_diffuse
         use ND_Arrays
         implicit none
         ! Interface for the arguments
         real(c_double), intent(in)             :: NI_in
-        integer(c_int), intent(in)             :: neqpm_in, NVR_size_in, NVR_in
+        integer(c_int), intent(in)             :: NVR_size_in, NVR_in, neqpm_in
         real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
         real(c_double), intent(inout), target  :: UP_in(3, NVR_in), GP_in(3, NVR_in)
         type(ND_Array), intent(out)            :: RHS_pm_out
         ! Local variables
-        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
-        real(c_double), pointer                :: deform_ptr(:, :, :, :)
+        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :)
         
-        call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
-                         neqpm_in, RHS_pm_ptr)
+        call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, RHS_pm_ptr)
         if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
-    end subroutine call_vpm_diffuse
+        end subroutine call_vpm_diffuse
 
     subroutine call_vpm_correct_vorticity(                                                      &
-        XP_in, QP_in,  NVR_in,NVR_size_in, neqpm_in &
+        XP_in, QP_in,  NVR_in, neqpm_in, NVR_size_in                                             &
     ) bind(C, name='vpm_correct_vorticity')
         use vpm_lib, only: vpm_correct_vorticity
         use ND_Arrays
         implicit none
         ! Interface for the arguments
         integer(c_int), intent(in)             :: NVR_size_in, NVR_in, neqpm_in
-        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in(neqpm_in + 1, NVR_in)
+        real(c_double), intent(inout), target  :: XP_in(3, NVR_in), QP_in( neqpm_in + 1, NVR_in)
         ! Local variables
-        real(c_double), pointer                :: RHS_pm_ptr(:, :, :, :), Vel_ptr(:, :, :, :)
-        real(c_double), pointer                :: deform_ptr(:, :, :, :)
-        
         call vpm_correct_vorticity(XP_in, QP_in, NVR_in, NVR_size_in)
     end subroutine call_vpm_correct_vorticity
+
+    subroutine call_vpm_solve_pressure(                                                         &
+        vorticity_ptr, velocity_ptr, pressure_ptr, density                                      &
+    ) bind(C, name='vpm_solve_pressure')
+        use vpm_lib, only: vpm_solve_pressure
+        use ND_Arrays
+        implicit none
+        ! Interface for the arguments (ND_Arrays)
+        type(ND_Array), intent(in)             :: vorticity_ptr, velocity_ptr
+        type(ND_Array), intent(out)            :: pressure_ptr
+        real(c_double), intent(in)             :: density
+        ! Local variables
+        real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:), pressure(:,:,:,:)
+
+        call convert_to_4D_array(vorticity_ptr, vorticity)
+        call convert_to_4D_array(velocity_ptr, velocity)
+
+        call vpm_solve_pressure(vorticity, velocity, pressure, density)
+        if (associated(pressure)) then
+            pressure_ptr = from_intrinsic(pressure, shape(pressure))
+        end if
+    end subroutine call_vpm_solve_pressure
 
     subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr,   &
         NVR_out, cuttof_value &
@@ -294,6 +308,12 @@ contains
         UP_arr = from_intrinsic(UP_out, shape(UP_out))
     end subroutine call_remesh_particles_3d
 
+    subroutine vpm_timestep_information() bind(C, name='get_timestep_information')
+        ! use vpm_vars, only: timestep_info 
+        implicit none
+
+    end subroutine vpm_timestep_information 
+
 !! FILE IO
     subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
         use file_io, only: write_pm_solution, case_folder, mesh_output_file
@@ -302,7 +322,6 @@ contains
         use vpm_size, only: fine_grid
         implicit none
         character(kind=c_char), intent(in), optional :: folder(*), filename(*)
-        integer :: NN(3), NN_bl(6)
 
         if (present(folder)) then
             call set_string_f_c(case_folder, folder)
@@ -358,7 +377,6 @@ contains
         use vpm_size, only: fine_grid
         implicit none
         character(kind=c_char), intent(in), optional :: folder(*), filename(*)
-        integer :: NN(3), NN_bl(6)
 
         if (present(folder)) then
             call set_string_f_c(case_folder, folder)
@@ -375,6 +393,24 @@ contains
             call write_pm_solution_hdf5(NTIME_pm, fine_grid%NN, fine_grid%NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm)
         end if
     end subroutine write_particle_mesh_solution_hdf5
+
+    subroutine write_pressure_field_hdf5(folder, filename, pressure) bind(C, name='write_pressure_hdf5')
+        use file_io, only: write_field_h5, case_folder, field_output_file
+        use vpm_size, only: fine_grid
+        implicit none
+        type(ND_Array), intent(in) :: pressure
+        character(kind=c_char), intent(in), optional :: folder(*), filename(*)
+        real(dp), pointer :: pressure_ptr(:,:,:,:)
+
+        if (present(folder)) then
+            call set_string_f_c(case_folder, folder)
+        end if
+        if (present(filename)) then
+            call set_string_f_c(field_output_file, filename)
+        end if
+        call convert_to_4D_array(pressure, pressure_ptr)
+        call write_field_h5(2, fine_grid, pressure_ptr, "pressure")
+    end subroutine write_pressure_field_hdf5 
 
 !! GETTERS
     subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')

@@ -4,8 +4,8 @@ module ND_Arrays
     implicit none
 
     type, bind(C) :: ND_Array
-        integer :: ndims               ! Number of dimensions
-        integer :: total_size          ! Total size of the data array
+        integer(c_int) :: ndims               ! Number of dimensions
+        integer(c_int) :: total_size          ! Total size of the data array
         type(C_PTR) :: shape_ptr       ! Pointer to the shape array
         type(C_PTR) :: data_ptr        ! Pointer to the actual data
         ! Optional members
@@ -107,11 +107,15 @@ contains
     subroutine free_array(arr) bind(C, name='free_array')
         implicit none
         type(ND_Array), intent(inout) :: arr
+        ! real, pointer :: b(:)
         ! Deallocate the data array if allocated
+        ! call C_F_POINTER(arr%data_ptr, b, [arr%total_size])
+        ! deallocate (b)
 
         ! Reset structure members to avoid dangling pointers
         arr%data_ptr = C_NULL_PTR
         arr%shape_ptr = C_NULL_PTR
+
     end subroutine free_array
 
     !!!!!!!!!!!!!!!!!!END INITIALIZATION AND DEALLOCATION !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -400,7 +404,7 @@ contains
         implicit none
         real(c_double), dimension(..), intent(in), target :: data_array ! SHOULD BE ASSUMED-RANK INSTEAD OF ASSUMED-SIZE
         integer(c_int), dimension(:), intent(in), target :: shape_arr
-        real(c_double), pointer :: first_element
+        ! real(c_double), pointer :: first_element
         type(ND_Array) :: arr
 
         ! Local variables
@@ -440,14 +444,10 @@ contains
         type(ND_Array), intent(in) :: arr
         real(c_double), dimension(:, :), pointer :: f_2D
         integer(c_int), dimension(:), pointer :: f_shape
-        integer :: i, j, k
-        integer :: n1, n2, n3
         if (arr%ndims /= 2) error stop 'Array must have 4 dimensions.'
 
         call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
-        n1 = f_shape(1)
-        n2 = f_shape(2)
-        call C_F_POINTER(arr%data_ptr, f_2D, [n1, n2])
+        call C_F_POINTER(arr%data_ptr, f_2D, f_shape)
     end subroutine convert_to_2D_array
 
     subroutine convert_to_3D_array(arr, f_3D)
@@ -455,15 +455,10 @@ contains
         type(ND_Array), intent(in) :: arr
         real(c_double), dimension(:, :, :), pointer :: f_3D
         integer(c_int), dimension(:), pointer :: f_shape
-        integer :: i, j, k
-        integer :: n1, n2, n3
         if (arr%ndims /= 3) error stop 'Array must have 4 dimensions.'
 
         call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
-        n1 = f_shape(1)
-        n2 = f_shape(2)
-        n3 = f_shape(3)
-        call C_F_POINTER(arr%data_ptr, f_3D, [n1, n2, n3])
+        call C_F_POINTER(arr%data_ptr, f_3D, f_shape)
     end subroutine convert_to_3D_array
 
     subroutine convert_to_4D_array(arr, f_4D)
@@ -471,9 +466,6 @@ contains
         type(ND_Array), intent(in) :: arr
         real(dp), pointer :: f_4D(:, :, :, :)
         integer(c_int), pointer :: f_shape(:)
-        integer :: i, j, k, l
-        integer :: n1, n2, n3, n4
-        ! Error handling
         call C_F_POINTER(arr%shape_ptr, f_shape, [arr%ndims])
         call C_F_POINTER(arr%data_ptr, f_4D, f_shape)
     end subroutine convert_to_4D_array

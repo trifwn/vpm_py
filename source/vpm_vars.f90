@@ -1,9 +1,10 @@
 Module vpm_vars
-    use vpm_types, only: dp
+    use vpm_types, only: dp, timestepInformation, solveInformation
+
     integer, save              :: ND = 3
     integer                    :: NTIME_pm
     integer                    :: neqpm
-    real(dp)                   :: V_ref, NI
+    real(dp)                   :: V_ref
     integer, save              :: idefine
     integer, save              :: interf_iproj
     integer, save              :: mrem = 1
@@ -18,8 +19,10 @@ Module vpm_vars
     integer, save              :: IPMWRITE
     integer, save              :: IPMWSTART(10), IPMWSTEPS(10)
 
-    integer, parameter :: SOLVER_SERIAL_PMESH = 0, SOLVER_YAPS = 1
-    integer            :: SOLVER = SOLVER_YAPS
+    integer, parameter         :: SOLVER_SERIAL_PMESH = 0, SOLVER_YAPS = 1
+    integer                    :: SOLVER = SOLVER_YAPS
+    type(timestepInformation)  :: timestep_info
+    type(solveInformation)     :: solve_info
 
     public :: print_vpm_vars_info
 
@@ -29,7 +32,6 @@ contains
         print *, "============"
         print *, ""
         print *, achar(9), 'V_ref = ', V_ref
-        print *, achar(9), 'NI = ', NI
 
         print *, achar(9), 'interf_iproj = ', interf_iproj
         print *, achar(9), 'neqpm = ', neqpm

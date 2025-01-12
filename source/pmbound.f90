@@ -18,8 +18,7 @@ contains
     module subroutine Bounds2d(itype, NXs, NXf, NYs, NYf, neqs, neqf)
         implicit none
         integer, intent(in)  :: itype, NXs, NXf, NYs, NYf, neqs, neqf
-        integer              :: iconst, jconst, iplane, i, j
-        real(dp)             :: X, Y
+        integer              :: iconst, jconst, iplane
         !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
 
         !-->In case of infinite domain bc's(sources are used),In case
@@ -409,7 +408,7 @@ contains
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-        real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
+        real(dp)            :: X, Y, XR, YR, Z, ZR, r, DS
         integer             :: i, j, k, nv
         !-->Y=constant plane
         if (abs(iplane) .eq. 1) then
@@ -516,7 +515,7 @@ contains
         implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
-        real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS
+        real(dp)            :: X, Y, Z
         real(dp)            :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
                                AREA, DIAG, EPSS, FIS
         integer             :: i, j, k, nv
@@ -637,8 +636,7 @@ contains
     module subroutine Bounds2d_lev(itype, NXs, NXf, NYs, NYf, neqs, neqf)
         implicit none
         integer, intent(in):: itype, NXs, NXf, NYs, NYf, neqs, neqf
-        integer           :: iconst, jconst, iplane, i, j
-        real(dp)          :: X, Y
+        integer           :: iconst, jconst, iplane
         !-->Calculate boundary conditions for each boundary (XMIN,XMAX,YMIN,YMAX)
 
         !-->In case of infinite domain bc's(sources are used),In case
@@ -702,9 +700,9 @@ contains
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-        real(dp)            :: X, Y, XR, YR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(neqf)
+        real(dp)            :: X, Y, SOURCE(neqf)
         integer             :: i, j, nv
-        integer             :: leafstart, leaffin, lev, nlev, nleaf, branch
+        integer             :: leafstart, branch
         !calculate bc's of all sources on the specified plane defined at iconst
         !-->Y=constant plane
         if (abs(iplane) .eq. 1) then
@@ -747,11 +745,9 @@ contains
         real(dp), intent(in)  :: X, Y
         real(dp), intent(inout) :: SOURCE(neqf)
 
-        integer                         :: newlev, nleaf, leaffin, leafs, leaff
-        integer                         :: listleaf(4), nlf, nn, nlist, nj
-        integer                         :: nmax, npre
+        integer                         :: newlev, nleaf, leaffin
+        integer                         :: listleaf(4), nlf, nlist
         real(dp)                        :: YR, XR, r, DS
-        integer                         ::ierr, my_rank
         !The loop for all bounds happens here
         !lev4 is the coarsest one.We start searching the coarsest and then move in finer and finer levels
         !The tree is a set of structured grids so we use that information to go deeper and deeper in the tree
@@ -847,9 +843,9 @@ contains
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, neqs, neqf
 
-        real(dp)            :: X, Y, XR, YR, r, a, b, ra, rb, greenint, cosb, sinb, DS, SOURCE(neqf)
+        real(dp)            :: X, Y, cosb, sinb, SOURCE(neqf)
         integer             :: i, j, nv
-        integer             :: leafstart, leaffin, lev, nlev, nleaf, branch
+        integer             :: leafstart, branch
         !calculate bc's of all sources on the specified plane defined at iconst
         !-->Y=constant plane
         if (abs(iplane) .eq. 1) then
@@ -892,9 +888,8 @@ contains
         real(dp), intent(in)    :: X, Y, cosb, sinb
         real(dp), intent(inout) :: SOURCE(neqf)
 
-        integer                         :: newlev, nleaf, leaffin, leafs, leaff
-        integer                         :: listleaf(4), nlf, nn, nlist, nj
-        integer                         :: nmax, npre
+        integer                         :: newlev, nleaf, leaffin
+        integer                         :: listleaf(4), nlf, nlist
         real(dp)                        :: YR, XR, r, DS, greenint
 
         if (nlev .eq. levmax) then
@@ -1038,8 +1033,7 @@ contains
         implicit none
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
-
-        real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
+        real(dp)            :: X, Y, Z, SOURCE(1:neqf)
         integer             :: i, j, k, nv
         integer             :: leafstart, branch
         !-->Y=constant plane
@@ -1116,9 +1110,8 @@ contains
         real(dp), intent(in)  :: X, Y, Z
         real(dp), intent(inout) :: SOURCE(neqf)
 
-        integer                         :: newlev, nleaf, leaffin, leafs, leaff, listleaf(4), nlf, nn, nlist, nj
-        integer                         :: nmax, npre
-        real(dp)                        :: XR, YR, ZR, r, DS, ss(neqf)
+        integer                         :: newlev, nleaf, leaffin, listleaf(4), nlf, nlist
+        real(dp)                        :: XR, YR, ZR, r, DS
         integer                         :: my_rank, ierr
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -1231,12 +1224,12 @@ contains
 
         integer, intent(in) :: iplane, iconst, Ns, Nf, Ns2, Nf2, neqs, neqf
 
-        real(dp)            :: X, Y, XR, YR, Z, ZR, r, a, b, ra, rb, greenint, racos, rasin, DS, SOURCE(1:neqf)
+        real(dp)            :: X, Y, Z, SOURCE(1:neqf)
         integer             :: i, j, k, nv
         integer             :: leafstart, branch
 
-        real(dp)            :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
-                               AREA, DIAG, EPSS, FIS
+        real(dp)            :: XO(3), E1(3), E2(3), E3(3), S(4), T(4), SINB(4), COSB(4), D(4), &
+                               AREA, DIAG, EPSS
         integer             :: ISING, NSIDE, si
 
         !-->Y=constant plane
@@ -1360,9 +1353,8 @@ contains
         real(dp), intent(inout) :: SOURCE(neqf)
         integer, intent(in)     :: ISING, NSIDE
 
-        integer                 :: newlev, nleaf, leaffin, leafs, leaff
-        integer                 :: listleaf(4), nlf, nn, nlist, nj
-        integer                 :: nmax, npre
+        integer                 :: newlev, nleaf, leaffin
+        integer                 :: listleaf(4), nlf, nlist
         real(dp)                ::r, DS, RG(3), FIS, RATIO
 
         listleaf = 0
@@ -1514,7 +1506,7 @@ contains
         real(dp), intent(out) :: FIS
         real(dp), intent(in)  :: XO(3), RG(3), E1(3), E2(3), E3(3), S(4), T(4), &
                                  D(4), SINB(4), COSB(4)
-        real(dp)              :: X, Y, Z, RO, RATIO, AREA1, RO3, P, Q, FIL, &
+        real(dp)              :: X, Y, Z, RO, RATIO, AREA1, FIL, &
                                  XK, YK, ZK, A1, A2, AK, ZP, AZ, R(4), E(4), H(4), UL(3), TOO(4), TINY
 
         integer             :: K, K1, K2
@@ -1635,7 +1627,7 @@ contains
                    SCP, TCP, U, V, Ux, Uy, Vx, Vy, EPS, DET, &
                    DETS, DETT, DSCP, DTCP, TINY, TINYs
 
-        integer :: J, K, NOD, K1, K2, ITER, L
+        integer :: J, K, NOD, ITER, L
         TINY = 1d-014
         TINYs = 1d-014
 

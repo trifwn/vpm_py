@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from .filters import Filter
-from .quantities import Quantity, QuantityOfInterest
+from .quantities import QuantityOfInterest
 
 
 class DataAdapter(ABC):
@@ -82,7 +82,9 @@ class MeshDataAdapter(DataAdapter):
         pm_charges, 
         pm_velocities, 
         pm_deformations = None, 
-        pm_solutions = None
+        pm_solutions = None,
+        pm_pressure = None,
+        pm_q_pressure = None
     ):
         positions = {
             'x': pm_positions[0,:, :, :],
@@ -118,19 +120,35 @@ class MeshDataAdapter(DataAdapter):
 
         if pm_solutions is not None:
             solution = {
-                'x': pm_solutions[0],
-                'y': pm_solutions[1],
-                'z': pm_solutions[2] if neq == 3 else np.zeros_like(pm_solutions[0])
+                'x': pm_solutions[0, :, :, :],
+                'y': pm_solutions[1, :, :, :],
+                'z': pm_solutions[2, :, :, :] if neq == 3 else np.zeros_like(pm_solutions[0])
             }
         else:
             solution = None
+
+        if pm_q_pressure is not None:
+            q_pressure = {
+                'Q': pm_q_pressure[:, :, :],
+            }
+        else:
+            q_pressure = None
+
+        if pm_pressure is not None:
+            pressure = {
+                'P': pm_pressure[:, :, :],
+            }
+        else:
+            pressure = None
             
         data = {
             'position': positions,
             'charge': charges,
             'velocity': velocities,
             'deformation': deformations,
-            "solution": solution
+            "solution": solution,
+            "pressure": pressure,
+            "q_pressure": q_pressure,
         }
         return data
     

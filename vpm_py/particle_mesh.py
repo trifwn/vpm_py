@@ -21,6 +21,8 @@ class ParticleMesh:
         self.load_lib()
         self.U = np.zeros((3, 1, 1, 1))
         self.deformation = np.zeros((3, 1, 1, 1))
+        self.pressure = np.zeros((1, 1, 1))
+        self.q_pressure = np.zeros((1, 1, 1))
         self.SOL = np.zeros((num_equations, 1, 1, 1))
         self.RHS = np.zeros((num_equations , 1, 1, 1))
     
@@ -217,6 +219,44 @@ class ParticleMesh:
             self._lib.write_particle_mesh_solution(folder_b, filename_b)
         else:
             raise ValueError(f"Filetype {filetype} not recognized")
+
+    def save_pressure_to_file(self, filename: str = "pressure", folder: str = "results", filetype: str = "h5"):
+        """
+            Write the pressure solution
+
+            Parameters
+            ----------
+            filename : str
+                The filename to write to
+            folder : str
+                The folder to write to
+            filetype : str
+                The filetype to write to
+        """
+        # if not folder.endswith("/"):
+        #     folder += "/"
+
+        # filename_b = filename.encode('utf-8')
+        # folder_b = folder.encode('utf-8')
+
+        # os.makedirs(folder, exist_ok=True)
+        # os.makedirs(os.path.join(folder,'results'), exist_ok=True)
+
+        # if filetype == "h5":
+        #     # Convert pressure to F_Array
+        #     pressure = F_Array.from_ndarray(self.pressure)
+        #     self._lib.write_pressure_hdf5(folder_b, filename_b, byref(pressure.to_ctype()))
+        # else:
+        #     raise ValueError(f"Filetype {filetype} not recognized")
+
+        import h5py as h5
+        if not folder.endswith("/"):
+            folder += "/"
+        filename = os.path.join(folder, filename)
+        with h5.File(filename, 'w') as f:
+            f.create_dataset(filename, data=self.pressure)
+
+        
 
     # def get_dpm(self):
     #     """

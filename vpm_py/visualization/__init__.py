@@ -1,6 +1,7 @@
-from .quantities import Quantity, QuantityOfInterest
+from .writer import FasterFFMpegWriter
+from .quantities import Quantity, QuantityOfInterest, MeshQuantityOfInterest, ParticleQuantityOfInterest
 from .slices import Plane, SliceStrategy, Slicer
-from .filters import Filter, SliceFilter_3D, ValueFilter
+from .filters import Filter, SliceFilter_3D, ValueFilter, ValueSelector
 from .data_adapters import DataAdapter, ParticleDataAdapter, MeshDataAdapter, DataAdapterFactory
 from .plotters import Plotter, ParticlePlotter, MeshPlotter, SlicePlotter
 from .plots import ResultPlot

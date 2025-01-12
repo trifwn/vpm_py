@@ -1,4 +1,4 @@
-from . import Visualizer, ResultPlot, SliceFilter_3D, SliceStrategy
+from . import Visualizer, ResultPlot, SliceFilter_3D, SliceStrategy, ValueSelector, MeshQuantityOfInterest
 
 class StandardVisualizer(Visualizer):
     def __new__(
@@ -6,6 +6,7 @@ class StandardVisualizer(Visualizer):
         plot_particles: tuple[str, str] | None = None,
         plot_mesh: tuple[str, str] | None = None,
         plot_slices: tuple[str, str] | None = None,
+        plot_slices2: tuple[str, str] | None = None,
         figure_size=(12, 10),
     ):
         
@@ -15,7 +16,9 @@ class StandardVisualizer(Visualizer):
                 "particle",
                 quantity= plot_particles[0],
                 component= plot_particles[1],
-                filters=[],
+                filters=[
+                    ValueSelector('top_num',  40000)
+                ],
                 options={
                     "s": "auto",
                 },
@@ -33,33 +36,36 @@ class StandardVisualizer(Visualizer):
                 },
             )
             plot_options.append(mesh_option)
+
         if plot_slices:
-            z_slice = SliceFilter_3D(plane="Z",strategy=SliceStrategy.MAX_INTEGRAL)
-            y_slice = SliceFilter_3D(plane="Y",strategy=SliceStrategy.MAX_INTEGRAL)
-            if plot_particles:
-                options = {
-                    "add_slice_plane": particle_option,
-                }
-            else:
-                options = {}
+            for plot_slice in plot_slices:
+                qoi = MeshQuantityOfInterest.create_quantity_of_interest("velocity", 3, "magnitude")
 
-            plot_mesh_quantity_z = ResultPlot(
-                "mesh",
-                quantity=plot_slices[0],
-                component=plot_slices[1],
-                filters=[z_slice],
-                options= options,
-            )
-            plot_mesh_quantity_y = ResultPlot(
-                "mesh",
-                quantity=plot_slices[0],
-                component=plot_slices[1],
-                filters=[y_slice],
-                options= options,
-            )
-            plot_options.append(plot_mesh_quantity_z)
-            plot_options.append(plot_mesh_quantity_y)
+                z_slice = SliceFilter_3D(plane="Z",strategy=SliceStrategy.MAX_INTEGRAL, filter_quantity= qoi )
+                y_slice = SliceFilter_3D(plane="Y",strategy=SliceStrategy.MAX_INTEGRAL, filter_quantity= qoi )
+                if plot_particles:
+                    options = {
+                        "add_slice_plane": particle_option,
+                    }
+                else:
+                    options = {}
 
+                plot_mesh_quantity_z = ResultPlot(
+                    "mesh",
+                    quantity=plot_slice[0],
+                    component=plot_slice[1],
+                    filters=[z_slice],
+                    options= options,
+                )
+                plot_mesh_quantity_y = ResultPlot(
+                    "mesh",
+                    quantity=plot_slice[0],
+                    component=plot_slice[1],
+                    filters=[y_slice],
+                    options= options,
+                )
+                plot_options.append(plot_mesh_quantity_z)
+                plot_options.append(plot_mesh_quantity_y)
 
         return Visualizer(
             figure_size=figure_size,

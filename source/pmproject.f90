@@ -17,8 +17,6 @@ contains
         implicit none
         type(cartesian_grid), intent(in) :: grid
         integer, intent(in)              :: IDVPM_in, ND_in
-        real(dp)                         :: Xbound(6), Dpm(3)
-        integer                          :: NN(3), NN_bl(6)
 
         IDVPM = IDVPM_in
         ND = ND_in
@@ -85,7 +83,7 @@ contains
 
         real(dp)                :: fx, fy, fz, f, x, y, z
         integer                 :: inode, jnode, knode, i, j, k, nv, itype, ips, ipf
-        integer                 :: my_rank, ierr
+        integer                 :: ierr
         real(dp)                :: fpriv(isize, NXpm, NYpm, NZpm)
 
         !-->Projection function (TSC)

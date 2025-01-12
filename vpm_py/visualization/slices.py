@@ -77,11 +77,11 @@ class Slicer:
         mesh_quantity: np.ndarray,
     ) -> int:
         if self.plane == Plane.X:
-            integral = np.sum(mesh_quantity, axis=(1, 2))
+            integral = np.sum(np.abs(mesh_quantity), axis=(1, 2))
         elif self.plane == Plane.Y:
-            integral = np.sum(mesh_quantity, axis=(0, 2))
+            integral = np.sum(np.abs(mesh_quantity), axis=(0, 2))
         elif self.plane == Plane.Z:
-            integral = np.sum(mesh_quantity, axis=(0, 1))
+            integral = np.sum(np.abs(mesh_quantity), axis=(0, 1))
         else:
             raise ValueError(f"Invalid plane: {self.plane}")
         return int(np.argmax(integral))

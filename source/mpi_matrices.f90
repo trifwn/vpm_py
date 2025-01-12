@@ -12,7 +12,6 @@ contains
         integer ::imat(2), mat(2), start(2)
         ! integer ::istart
         integer :: nsize1, nsize2, mat2 !, orig1, orig2,
-        !allocate(struct%AS_ij(nsize,nsize))
 
         mat(1) = nsize1
         mat(2) = nsize2
@@ -36,7 +35,6 @@ contains
         integer ::imat(2), mat(2), start(2)
         integer ::istart
         integer ::orig1, orig2, nsize1, nsize2, mat2, my_rank, ieer
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = orig1
         imat(2) = orig2
 
@@ -71,7 +69,6 @@ contains
         integer ierr
         integer ::imat(3), mat(3), start(3)
         integer ::mat3
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = nsize1
         imat(2) = nsize2
         imat(3) = nsize3
@@ -94,7 +91,6 @@ contains
         integer ierr
         integer ::imat(4), mat(4), start(4)
         integer ::mat4
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = nsize1
         imat(2) = nsize2
         imat(3) = nsize3
@@ -120,7 +116,6 @@ contains
         integer ierr
         integer ::imat(4), mat(4), start(4)
         integer ::mat4int
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = nsize1
         imat(2) = nsize2
         imat(3) = nsize3
@@ -146,7 +141,6 @@ contains
         integer ierr
         integer ::imat(5), mat(5), start(5)
         integer ::mat5
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = nsize1
         imat(2) = nsize2
         imat(3) = nsize3
@@ -175,7 +169,6 @@ contains
         integer ierr
         integer ::imat(5), mat(5), start(5)
         integer ::mat5
-        !allocate(struct%AS_ij(nsize,nsize))
         imat(1) = nsize1
         imat(2) = nsize2
         imat(3) = nsize3

@@ -14,7 +14,7 @@ Program test_pm
    use vpm_types, only: dp
    use pmgrid, only:     XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm, ncoarse, IDVPM, &
                          SOL_pm, velocity_pm, deform_pm
-   use vpm_vars, only:   mrem, interf_iproj,   &
+   use vpm_vars, only:   interf_iproj,   &
                          IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, nremesh, iyntree,&
                          ilevmax, ibctyp, NBI, NBJ, NBK
    use vpm_size, only:   st, et, fine_grid
@@ -32,18 +32,18 @@ Program test_pm
    use MPI
 
    implicit none
-   real(dp)             :: Vref, NI_in, DT_in, FACDEF, T, &
-                           XMIN, XMAX, UINF(3)
+   real(dp)             :: NI_in, DT_in, FACDEF, T, XMIN, XMAX, UINF(3)
    integer              :: NVR_size
-   integer              :: my_rank, np, ierr, i,ieq, neq, j, max_iter, ncell_rem
+   integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
    logical              :: pmfile_exists
-   real(dp)             :: sphere_radius = 1.0_dp
+   real(dp)             :: REYNOLDS
+   real(dp)             :: sphere_radius = 2.0_dp
    real(dp)             :: sphere_z_0 = 0.0_dp
    real(dp)             :: u_free_stream = 1.0_dp
    real(dp)             :: CFL_x, CFL_y, CFL_z, CFL
    real(dp)             :: CFL_treshold_up = 0.9_dp
-   real(dp)             :: CFL_treshold_down = 0.5_dp
-   real(dp)             :: CFL_target = 0.7_dp
+   real(dp)             :: CFL_treshold_down = 0.3_dp
+   real(dp)             :: CFL_target = 0.6_dp
    character(len=250)   :: cfl_file
    real(dp), allocatable :: divergence_HILL(:,:,:)
 
@@ -109,10 +109,11 @@ Program test_pm
    !--- END READ SETTINGS
    
    !--- Problem settings
-   NI_in = -0.1_dp        ! Viscosity
-   DT_in =  0.01_dp       ! =dx/U
-   neq = 3                ! NUMBER OF EQUATIONS
-   UINF = 0               ! INFLOW VELOCITY
+   REYNOLDS = 0.1                                           ! Reynolds number
+   NI_in    = -u_free_stream * sphere_radius / REYNOLDS     ! Viscosity
+   DT_in    = 0.5 * DXpm / u_free_stream                    ! =dx/U
+   neq      = 3                                             ! NUMBER OF EQUATIONS
+   UINF     = 0                                             ! INFLOW VELOCITY
 
    NVR = 100
    NVR_ext = NVR
@@ -289,19 +290,8 @@ Program test_pm
       
       ! CONVECTING PARTICLES
       if (my_rank .eq. 0) then
-         ! Write particles to file
-         write (dummy_string, "(A)") "Writing Particles and PM"
-         call vpm_print(dummy_string, red, 1)
-         st = MPI_WTIME()
-         call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
-         call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
-         et = MPI_WTIME()
-         write (dummy_string, "(A,I3,A,F8.3,A)") &
-               achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-         call vpm_print(dummy_string, yellow, 1)
-
          write (dummy_string, "(A)") "Convection of Particles"
-         call vpm_print(dummy_string, red, 1)
+         call vpm_print(dummy_string, BLUE, 0)
          st = MPI_WTIME()
          !$omp parallel private(j,FACDEF)
          !$omp shared(XPR,UPR,QPR,GPR)
@@ -335,30 +325,41 @@ Program test_pm
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
          call vpm_print(dummy_string, yellow, 1)
+
+
+         ! Write particles/mesh to file
+         write (dummy_string, "(A)") "Writing Particles and PM"
+         call vpm_print(dummy_string, BLUE, 0)
+         st = MPI_WTIME()
+         call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
+         call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
+         et = MPI_WTIME()
+         write (dummy_string, "(A,I3,A,F8.3,A)") &
+               achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+         call vpm_print(dummy_string, yellow, 1)
       end if
       ! END CONVECTING PARTICLES
 
-      !--- VPM INITIALIZATION AND REMESHING
+      !--- VPM DEFINE
       ! Used to redefine the sizes
-      call vpm(XPR, QPR, UPR, GPR, NVR_EXT, neq, 0, RHS_ptr, vel_ptr, i, NI_in, NVR_size)
+      call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 0, RHS_ptr, vel_ptr, i, NI_in, NVR_size)
       tab_level = 0
+      !--- END VPM DEFINE
 
-      if (mod(i, 1).eq.0) then         
+      !--- VPM DIFFUSION
+      call vpm(XPR, QPR, UPR, GPR, NVR_ext, neq, 5, RHS_ptr, vel_ptr, i, NI_in, NVR_size)
+      !--- END VPM DIFFUSION
+      
+      ! VPM REMESH
+      if (mod(i, 20).eq.0) then         
          ! Remesh the particles
-         ! call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+         call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
          NVR_size = NVR_EXT
       endif
-      !--- END VPM INITIALIZATION AND REMESHING
+      !--- END REMESH
       
-      !--- VPM DIFFUSION
-      ! call vpm(XPR,QPR,UPR,GPR,NVR_ext,neq,5,RHS_pm_in,vel,i,NI_in,NVR_ext)
-      !if (my_rank.eq.0) then
-      !    do j= 1,NVR_ext
-      !        QPR(1:3,j) = QPR(1:3,j)  -GPR(1:3,j) * DT_in
-      !    enddo
-      !endif
    end do
    !--- END MAIN LOOP
    call MPI_FINALIZE(ierr)

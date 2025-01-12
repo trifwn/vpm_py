@@ -25,7 +25,7 @@ function(define_vpm_targets)
 
     set(TEST_EXE_SRC
         ${SRC_TEST}/test.f90
-        ${SRC_TEST}/utils/problems.f90
+        ${SRC_TEST}/hill_vortex/problems.f90
     )
 
     set(ALL_VPM_OBJECTS_SRC

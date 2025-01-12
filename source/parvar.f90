@@ -34,10 +34,10 @@ module parvar
 
 contains
 
-    subroutine associate_particles(NVR_in, NVR_size_in, neq_in, XP_in, QP_in, UP_in, GP_in)
+    subroutine associate_particles(NVR_in, NVR_size_in, XP_in, QP_in, UP_in, GP_in)
         use MPI
         implicit none
-        integer, intent(in)                    :: NVR_in, NVR_size_in, neq_in
+        integer, intent(in)                    :: NVR_in, NVR_size_in
         real(dp), intent(in), target           :: XP_in(:, :), QP_in(:, :)
         real(dp), intent(in), target, optional :: UP_in(:, :), GP_in(:, :)
         integer                          :: ierr, my_rank
@@ -51,7 +51,6 @@ contains
         if (my_rank .eq. 0) then
             NVR = NVR_in
             NVR_size = NVR_size_in
-            neq_par = neq_in
             XP => XP_in
             QP => QP_in
             if (present(UP_in)) then
@@ -65,7 +64,6 @@ contains
         ! BCAST NVR
         call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
         call MPI_BCAST(NVR_size, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-        call MPI_BCAST(neq_par, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
         if (NVR .eq. 0) return
     end subroutine associate_particles
 

@@ -56,6 +56,8 @@ class QuantityOfInterest(Quantity):
             elif self.component == 'magnitude':
                 data_np = np.array([data[self.quantity_name][c] for c in ['x', 'y', 'z']])
                 return np.linalg.norm(data_np, axis=0)
+            elif self.component in list(data[self.quantity_name].keys()):
+                return data[self.quantity_name][self.component]
             else:
                 raise ValueError(f"Invalid component: {self.component}")
         elif self.field_type == 'scalar':

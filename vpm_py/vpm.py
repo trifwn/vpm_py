@@ -158,23 +158,22 @@ class VPM(object):
         )
         self.has_animation_writer = True
 
-    def update_plot(self, title: int):
+    def update_plot(self, title: str):
         if self.visualizer is None:
             return
         
-        self.visualizer.update_particle_plots(
+        self.visualizer.update_all_plots(
                 title = title,
                 particle_positions= self.particles.XP,
                 particle_charges= self.particles.QP,
                 particle_velocities= self.particles.UP,
-                particle_deformations= self.particles.GP
-            )
-        self.visualizer.update_mesh_plots(
-                title = title,
+                particle_deformations= self.particles.GP,
                 pm_positions= self.particle_mesh.grid_positions,
                 pm_velocities= self.particle_mesh.U,
                 pm_charges= self.particle_mesh.RHS,
-                pm_deformations= self.particle_mesh.deformation
+                pm_deformations= self.particle_mesh.deformation,
+                pm_pressure= self.particle_mesh.pressure,
+                pm_q_pressure= self.particle_mesh.q_pressure,
             )
         if self.has_animation_writer:
             self.visualizer.grab_frame()
@@ -362,7 +361,6 @@ class VPM(object):
             pointer_to_dp_array(XP_ptr, positions.shape),
             pointer_to_dp_array(QP_ptr, charges.shape),
             pointer_to_dp_array(UP_ptr, velocities.shape),
-            pointer_to_dp_array(GP_ptr, deformations.shape)
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
 
@@ -441,7 +439,8 @@ class VPM(object):
         self._lib.vpm_interpolate(
             byref(c_int(timestep)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
             byref(c_int(num_particles)), byref(c_int(NVR_size)),
-            byref(c_int(num_equations)), byref(RHS_pm_ptr)
+            byref(c_int(num_equations)),
+            byref(RHS_pm_ptr)
         )
 
         self._store_particle_results(
@@ -454,7 +453,6 @@ class VPM(object):
 
     def vpm_diffuse(
         self,
-        num_equations: int,
         viscosity: float,
         particle_positions: np.ndarray | F_Array,
         particle_charges: np.ndarray | F_Array,
@@ -478,10 +476,17 @@ class VPM(object):
         RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
 
         self._lib.vpm_diffuse(
-            byref(c_double(viscosity)), XP_ptr, QP_ptr, UP_ptr, GP_ptr,
-            byref(c_int(num_particles)), byref(c_int(NVR_size)),
-            byref(c_int(num_equations)), byref(RHS_pm_ptr)
+            byref(c_double(viscosity)), XP_ptr, QP_ptr, UP_ptr, GP_ptr, 
+            byref(c_int(num_particles)),
+            byref(c_int(NVR_size)),
+            byref(c_int(self.num_equations)),
+            byref(RHS_pm_ptr)
         )
+
+        import mpi4py
+        comm = mpi4py.MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        comm.Barrier()
 
         self._store_particle_results(
             pointer_to_dp_array(XP_ptr, positions.shape),
@@ -493,7 +498,6 @@ class VPM(object):
 
     def vpm_correct_vorticity(
         self,
-        num_equations: int,
         particle_positions: np.ndarray | F_Array,
         particle_charges: np.ndarray | F_Array,
         num_particles: int | None = None,
@@ -509,17 +513,54 @@ class VPM(object):
         XP_ptr, QP_ptr  = self._create_array_pointers(
             positions, charges
         )
+        num_equations = self.num_equations
 
         self._lib.vpm_correct_vorticity(
             XP_ptr, QP_ptr,
-            byref(c_int(num_particles)), byref(c_int(NVR_size)),
-            byref(c_int(num_equations))
+            byref(c_int(num_particles)),
+            byref(c_int(num_equations)),
+            byref(c_int(NVR_size)),
         )
 
         self._store_particle_results(
             pointer_to_dp_array(XP_ptr, positions.shape),
             pointer_to_dp_array(QP_ptr, charges.shape),
         )
+    
+    def vpm_solve_pressure( 
+        self,
+        velocity: F_Array | np.ndarray | None = None,
+        vorticity: F_Array | np.ndarray | None = None,
+        density: float = 998,
+    ):
+        """Solve pressure field."""
+        if velocity is None:
+            velocity = self.particle_mesh.U[:, :, :, :]
+        if vorticity is None:
+            vorticity = self.particle_mesh.RHS[:3, :, :, :]
+
+        # If numpy arrays are passed, convert them to F_Array
+        if isinstance(velocity, np.ndarray):
+            velocity = F_Array.from_ndarray(velocity)
+        if isinstance(vorticity, np.ndarray):
+            vorticity = F_Array.from_ndarray(vorticity)
+
+        if not isinstance(velocity, F_Array) or not isinstance(vorticity, F_Array):
+            raise ValueError("Invalid array type")
+
+        Velocity_ptr  = velocity.to_ctype()
+        Vorticity_ptr = vorticity.to_ctype()
+        Pressure_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+
+        self._lib.vpm_solve_pressure(
+            Velocity_ptr, Vorticity_ptr, Pressure_ptr, byref(c_double(density))
+        )
+
+        if Pressure_ptr and not Pressure_ptr.is_null() and Pressure_ptr.total_size > 0:
+            pressure = F_Array.from_ctype(Pressure_ptr, ownership=True, name="Pressure").transfer_data_ownership()
+            self.particle_mesh.q_pressure = np.copy(pressure[0, :, :, :])
+            self.particle_mesh.pressure = np.copy(pressure[1, :, :, :])
+
 
     def remesh_particles(self, project_particles: bool, particles_per_cell: int= 1, cut_off: float = 1e-9):
         """Remesh particles in 3D
