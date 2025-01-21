@@ -110,6 +110,7 @@ class Plotter(ABC):
         title (str): The title of the plot.
         """
         self._title.set_text(title)
+        self._title.update({'fontsize': 10})
 
 class ParticlePlotter(Plotter):
     """

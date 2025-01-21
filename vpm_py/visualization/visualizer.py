@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d.art3d import Path3DCollection
 from matplotlib.widgets import Button
+from matplotlib.artist import Artist
 import numpy as np
 import os
 from tqdm import tqdm
@@ -47,9 +47,9 @@ class Visualizer:
         self._artists = self._setup_subplots()
         self.title = self.fig.suptitle("")
         self._artists.extend([self.title])
+        self.cid = self.fig.canvas.mpl_connect("draw_event", self.on_draw)
 
-
-    def _setup_subplots(self):
+    def _setup_subplots(self) -> list[Artist]:
         self.rows = 1 if self.num_plots <= 2 else 2
         # We need to make sure that the number of columns is such that the number of plots is 
         # evenly distributed across the rows
@@ -423,10 +423,6 @@ class Visualizer:
         
         self._render_plot()
 
-        s_time = time.time()
-        self._background = self.fig.canvas.copy_from_bbox(self.fig.bbox)
-        print(f"\tBackground created in {time.time() - s_time:.2f}s")
-
     def _update_particle_plots(
         self,
         particle_positions: np.ndarray,
@@ -514,26 +510,74 @@ class Visualizer:
     def _update_figure_title(self, title:str)-> None:
         self.title.set_text(title)
 
-    def _render_plot(self):
 
-        timer = time.time()
+    def add_artist(self, art: Artist):
+        """
+        Add an artist to be managed.
+
+        Parameters
+        ----------
+        art : Artist
+
+            The artist to be added.  Will be set to 'animated' (just
+            to be safe).  *art* must be in the figure associated with
+            the canvas this class is managing.
+
+        """
+        if art.figure != self.fig:
+            raise RuntimeError
+        art.set_animated(True)
+        self._artists.append(art)
+
+    def _draw_animated(self):
+        """Draw all of the animated artists."""
+        fig = self.fig
         for artist in self._artists:
             try:
-                self.fig.draw_artist(artist)
-            except Exception as e:
-                print(f"Error drawing artist: {e}")
-        print(f"\tArtists drawn in {time.time() - timer:.2f}s")
+                # Check if artist is animated
+                if not artist.get_animated():
+                    artist.set_animated(True)
+                fig.draw_artist(artist)
+            except (ValueError, AttributeError):
+                print(f"Error drawing artist: {artist}")
 
-        timer = time.time()
-        self.fig.canvas.blit()
-        print(f"\tPlot blitted in {time.time() - timer:.2f}s")
+    def on_draw(self, event):
+        """Callback to register with 'draw_event'."""
+        canvas = self.fig.canvas
+        if event is not None:
+            if event.canvas != canvas:
+                raise RuntimeError
+        self._background = canvas.copy_from_bbox(canvas.figure.bbox)
+        self._draw_animated()
+
+
+    def _render_plot(self):
+        fig = self.fig
+        canvas = fig.canvas
+
+        if self._background is None:
+            timer = time.time()
+            self.on_draw(None)
+            print(f"Background created in {time.time() - timer:.2f}s")
+
+            timer = time.time()
+            # canvas.draw_idle()
+            print(f"\tPlot drawn in {time.time() - timer:.2f}s")
+        else:
+            timer = time.time()
+            canvas.restore_region(self._background)
+            print(f"Background restored in {time.time() - timer:.2f}s")
+
+            timer = time.time()
+            self._draw_animated()
+            print(f"\tArtists drawn in {time.time() - timer:.2f}s")
+
+            timer = time.time()
+            canvas.blit(fig.bbox)
+            print(f"\tPlot blitted in {time.time() - timer:.2f}s")
         
         timer = time.time()
-        # self.fig.canvas.draw_idle()
-        print(f"\tPlot drawn in {time.time() - timer:.2f}s")
-
-        timer = time.time()
-        self.fig.canvas.flush_events()  # Ensures the GUI updates immediately without blocking.
+        canvas.flush_events()  # Ensures the GUI updates immediately without blocking.
         print(f"\tEvents flushed in {time.time() - timer:.2f}s")
 
     def __del__(self):
