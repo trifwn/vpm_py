@@ -308,8 +308,8 @@ contains
     end subroutine project_particles_parallel
 
     subroutine interpolate_particles_parallel(itypeb)
-        use parvar, only: NVR, XP_scatt, QP_scatt, UP_scatt, GP_scatt, NVR_p
-        use pmgrid, only: velocity_pm, deform_pm
+        use parvar, only: NVR, XP_scatt, QP_scatt, UP_scatt, GP_scatt, NVR_p, QP, NVR_size
+        use pmgrid, only: velocity_pm, deform_pm, RHS_pm
         use vpm_interpolate, only: back_to_particles_3D
         use vpm_mpi, only: rhsbcast, particles_scat, particles_gath, velbcast, defbcast
 
@@ -333,12 +333,11 @@ contains
         if (my_rank .eq. 0) NVR_p = NVR_p + mod(NVR, np)
         allocate (XP_scatt(3, NVR_p), QP_scatt(neqpm + 1, NVR_p), &
                   UP_scatt(3, NVR_p), GP_scatt(3, NVR_p))
+        XP_scatt = 0.d0; QP_scatt = 0.d0
         UP_scatt = 0.d0; GP_scatt = 0.d0
 
         ! SCATTERING XP AND QP
         call particles_scat
-
-        if (my_rank .eq. 0) st = MPI_WTIME()
 
         ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity field
         ! WHEN ITYPEB = 2 WE GET THE GP FROM THE deformation

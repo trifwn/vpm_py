@@ -121,7 +121,7 @@ contains
                                  RHS_pm_ptr)
 
         case (DIFFUSE)
-            call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, QP_in, NVR_in, NVR_size_in, RHS_pm_ptr)
+            call vpm_diffuse(NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, RHS_pm_ptr)
 
         case (CORRECT_VORTICITY)
             call vpm_correct_vorticity(XP_in, QP_in, NVR_in, NVR_size_in)
@@ -202,8 +202,8 @@ contains
         RHS_pm_ptr &
     )
         use MPI
-        use pmgrid, only: RHS_pm
-        use parvar, only: NVR
+        use pmgrid, only: RHS_pm, deform_pm
+        use parvar, only: NVR, QP, QP_scatt, GP_scatt, GP
         implicit none
         real(dp), intent(in)                      :: NI_in
         real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
@@ -229,16 +229,15 @@ contains
         ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
         call project_particles_parallel
 
-        call set_pm_velocities_zero
         call set_pm_deformations_zero
         if (my_rank .eq. 0) then
-            ! diffusion stores -NI*grad^2 w * Vol in GP(1,:)
+            ! diffusion stores -NI*grad^2 w * Vol in GP
             ! RHS_pm = -VIS \nabla \cdot RHS_pm
             write (dummy_string, "(A, F12.6)") 'Diffusing Vorticity with ν=', NI_in
             call vpm_print(dummy_string, blue, 0)
             call diffuse_vort_3d(NI_in) ! DIFFUSION OF VORTICITY
         end if
-        ! WHEN ITYPEB = 2 WE GET THE GP FROM THE SOL_pm (DEFORMATION) and from QP
+        ! WHEN ITYPEB = 2 WE GET THE GP FROM THE (DEFORMATION) 
         call interpolate_particles_parallel(2)
     end subroutine vpm_diffuse
 
@@ -533,7 +532,7 @@ contains
         if (my_rank .eq. 0) then
             write (*, *) ""
             tab_level = tab_level - 1
-            write (dummy_string, "(A)") 'Solving Poisson for the Pressure field'
+            write (dummy_string, "(A, F8.2)") 'Solving Poisson for the Pressure field. ρ = ', density
             call vpm_print(dummy_string, blue, 0)
             tab_level = tab_level + 1
             st = MPI_WTIME()
@@ -570,7 +569,7 @@ contains
 
         if (my_rank .eq. 0) then
             ! if (associated(pressure)) deallocate (pressure)
-            allocate (pressure(2, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+            allocate (pressure(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
             pressure = 0.d0
             ! THIS IS THE Q PART OF THE PRESSURE
             pressure(1,:,:,:) = SOL2_pm(1,:,:,:)
@@ -581,8 +580,11 @@ contains
             do i = 1, fine_grid%NN(1)
                 do j = 1, fine_grid%NN(2)
                     do k = 1, fine_grid%NN(3)
-                        velocity_squared = velocity(1,i,j,k)**2 + velocity(2,i,j,k)**2 + velocity(3,i,j,k)**2
-                        pressure(2,i,j,k) = p_reference - pressure(1,i,j,k) - 0.5d0 * density  * velocity_squared 
+                        velocity_squared = (velocity(1,i,j,k)**2) + &
+                                           (velocity(2,i,j,k)**2) + &
+                                           (velocity(3,i,j,k)**2) 
+                        pressure(2,i,j,k) = (density * velocity_squared / 2.d0)
+                        pressure(3,i,j,k) = p_reference - pressure(1,i,j,k) -  (density * velocity_squared / 2.d0)
                     end do
                 end do
             end do
@@ -602,6 +604,8 @@ contains
         end if
         
         neqpm = 3
+        ! DEALLOCATE THE MEMORY
+        deallocate (SOL2_pm, RHS2_pm, SOL2_pm_bl, RHS2_pm_bl)
     end subroutine vpm_solve_pressure
 
     subroutine project_calc_div

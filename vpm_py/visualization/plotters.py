@@ -2,6 +2,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from typing import Any, TYPE_CHECKING
@@ -37,7 +38,9 @@ class Plotter(ABC):
         self.colorbar = None
         self.is_3d = isinstance(ax, Axes3D)
         self.options = options
-        self.setup_plot()
+        self._title = self.ax.set_title('')
+        artists = self.setup_plot()
+        self.artists = artists
 
     @abstractmethod
     def update(self, *args, **kwargs):
@@ -54,18 +57,20 @@ class Plotter(ABC):
         pass
 
     @abstractmethod
-    def setup_plot(self):
+    def setup_plot(self) -> list[Artist]:
         """
         Abstract method to set up the initial plot.
         """
         pass
 
-    def update_colorbar(self):
+    def update_colorbar(self)-> None:
         """
         Update the colorbar based on the current plot.
         """
         if self.colorbar is None:
             self.colorbar: Colorbar | None = self.fig.colorbar(self.plot, ax=self.ax)
+            self.colorbar.ax.tick_params(length=0, labelsize=8)  # Reduce tick size
+
         else:
             self.colorbar.update_normal(self.plot)
 
@@ -104,7 +109,7 @@ class Plotter(ABC):
         Parameters:
         title (str): The title of the plot.
         """
-        self.ax.set_title(title)
+        self._title.set_text(title)
 
 class ParticlePlotter(Plotter):
     """
@@ -130,12 +135,14 @@ class ParticlePlotter(Plotter):
         self.base_s = 10 if self.s == 'auto' else self.s
 
         if self.is_3d:
-            self.plot = self.ax.scatter([], [], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm)
+            self.plot = self.ax.scatter([], [], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm, rasterized=True)
             self.set_labels('X', 'Y', 'Z')
         else:
-            self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm)
+            self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm, rasterized=True)
             self.set_labels('X', 'Y')
         self.colorbar = self.fig.colorbar(self.plot, ax=self.ax)
+
+        return [self.plot, self.colorbar, self._title]
     
     def side_effect(self, *args, **kwargs):
         pass
@@ -218,12 +225,13 @@ class MeshPlotter(Plotter):
 
         self.base_s = 5
         if self.is_3d:
-            self.plot = self.ax.scatter([], [], [], c=[], s=self.base_s, cmap=cmap, norm=norm)
+            self.plot = self.ax.scatter([], [], [], c=[], s=self.base_s, cmap=cmap, norm=norm, rasterized=True)
             self.set_labels('X', 'Y', 'Z')
         else:
-            self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=cmap, norm=norm)
+            self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=cmap, norm=norm, rasterized=True)
             self.set_labels('X', 'Y')
         self.colorbar = self.fig.colorbar(self.plot, ax=self.ax)
+        return [self.plot, self.colorbar, self._title]
     
     def side_effect(self, *args, **kwargs):
         pass
@@ -280,7 +288,7 @@ class SlicePlotter(Plotter):
             self.cax.clear()
             self.colorbar = self.fig.colorbar(self.plot, cax=self.cax)
 
-    def setup_plot(self)-> None:
+    def setup_plot(self)-> list[Artist]:
         """
         Set up the initial slice plot.
         """
@@ -316,6 +324,7 @@ class SlicePlotter(Plotter):
         )
         self.set_labels('X', 'Y')
         self.update_colorbar() 
+        return [self.plot, self.colorbar, self._title]
 
     def side_effect(self, plot_data, data, info):
         """
@@ -416,8 +425,11 @@ class SlicePlotter(Plotter):
         x = plot_data['positions']['x']
         y = plot_data['positions']['y']
         z = plot_data['colors']
-        self.ax.clear()
+        # self.ax.clear()
+        self.plot.remove()
         self.plot = self.ax.contourf(x, y, z, cmap=self.cmap, levels=self.levels, norm=self.norm)
+
+        # self.plot = self.ax.contourf(x, y, z, cmap=self.cmap, levels=self.levels, norm=self.norm)
         self.plot.set_clim(z.min(), z.max())
         self.ax.set_xlim(x.min(), x.max())
         self.ax.set_ylim(y.min(), y.max())

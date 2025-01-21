@@ -38,9 +38,10 @@ contains
             ipf = 2
         end if
 
-        UP(1:3, :) = 0.d0
+        if (itype == 1) then
+            UP(1:3, :) = 0.d0
+        end if
         GP(1:3, :) = 0.d0
-        ! QP(1:3, :) = 0.d0
         do nv = 1, NVR
             !-->Find the cell/node  the  particle belongs for X and Y and Z direction.
             inode = int((XP(1, nv) - XBound(1))/Dpm(1)) + 1
@@ -73,13 +74,16 @@ contains
 
                         f = fx*fy*fz
 
-                        UP(1, nv) = UP(1, nv) + f*(velocity_pm(1, i, j, k))
-                        UP(2, nv) = UP(2, nv) + f*(velocity_pm(2, i, j, k))
-                        UP(3, nv) = UP(3, nv) + f*(velocity_pm(3, i, j, k))
+                        if (itype == 1) then
+                            UP(1, nv) = UP(1, nv) + f*(velocity_pm(1, i, j, k))
+                            UP(2, nv) = UP(2, nv) + f*(velocity_pm(2, i, j, k))
+                            UP(3, nv) = UP(3, nv) + f*(velocity_pm(3, i, j, k))
+                        end if
 
-                        GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k))
                         GP(2, nv) = GP(2, nv) + f*(deform_pm(2, i, j, k))
+                        GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k))
                         GP(3, nv) = GP(3, nv) + f*(deform_pm(3, i, j, k))
+                       
                     end do
                 end do
             end do

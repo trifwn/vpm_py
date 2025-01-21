@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d.art3d import Path3DCollection
 from matplotlib.widgets import Button
 import numpy as np
 import os
@@ -15,7 +16,7 @@ from . import ResultPlot
 from . import QuantityOfInterest
 from . import Plotter
 from . import DataAdapter
-from . import FasterFFMpegWriter
+from . import OptimizedFFMpegWriter
 
 
 class Visualizer:
@@ -41,7 +42,12 @@ class Visualizer:
 
         self.has_mesh = False
         self.has_particles = False
-        self._setup_subplots()
+        
+        self._background = None
+        self._artists = self._setup_subplots()
+        self.title = self.fig.suptitle("")
+        self._artists.extend([self.title])
+
 
     def _setup_subplots(self):
         self.rows = 1 if self.num_plots <= 2 else 2
@@ -50,15 +56,16 @@ class Visualizer:
         self.columns = int(np.ceil(self.num_plots / self.rows)) 
         print(f"Rows: {self.rows}, Columns: {self.columns}")
         gs = gridspec.GridSpec( self.rows, self.columns)
+        all_artists = []
 
         for i, plot_option in enumerate(self.plot_options):
             row_num = i // self.columns
             col_num = i % self.columns
 
             if plot_option.get_plot_dimensions() == 2:
-                ax = self.fig.add_subplot(gs[row_num, col_num])
+                ax = self.fig.add_subplot(gs[row_num, col_num], rasterized=True)
             else:
-                ax = self.fig.add_subplot(gs[row_num, col_num], projection='3d')
+                ax = self.fig.add_subplot(gs[row_num, col_num], projection='3d', rasterized=True)
             
             name = f'{plot_option.type}_{plot_option.quantity}_{plot_option.component}_{i}'
             self.plotters[name] = plot_option.get_plotter(self.fig, ax)
@@ -69,13 +76,14 @@ class Visualizer:
             elif plot_option.type == 'mesh':
                 self.has_mesh = True
                 self.mesh_quantities[name] = plot_option.get_quantity()
+
+            all_artists.extend(self.plotters[name].artists)
     
         self.gridspec = gs
-        self.fig.suptitle("Frame 0, Realtime = 0.0s")
         self.fig.tight_layout()
         self.fig.subplots_adjust(top=0.9, hspace=0.3, wspace=0.3, bottom=0.1)
-        plt.ion()
         self.fig.show()
+        return all_artists
 
     def add_folder(
         self,
@@ -151,7 +159,7 @@ class Visualizer:
             file_pm = os.path.join(folder, file_pm)
             self.load_results_from_disk(frame, len(files_vr), file_vr, file_pm)
             # Update the title with the current frame
-            self.fig.suptitle(f"Frame {frame}, Realtime = {frame* 0.1:.1f}s")
+            self._update_figure_title(f"Frame {frame}, Realtime = {frame* 0.1:.1f}s")
             self.fig.canvas.draw()
 
         def next_frame(event):
@@ -193,23 +201,23 @@ class Visualizer:
 
         # Set the initial title of the plot
         if folder_name:
-            self.fig.suptitle(f"{folder_name} - Frame {self.current_frame}, Realtime = 0.0s")
+            self._update_figure_title(f"{folder_name} - Frame {self.current_frame}, Realtime = 0.0s")
         else:
-            self.fig.suptitle(f"Frame {self.current_frame}, Realtime = 0.0s")
+            self._update_figure_title(f"Frame {self.current_frame}, Realtime = 0.0s")
 
     def load_results_from_disk(
         self, 
         frame: int, 
         total_frames: int,
-        file_vr: str,
-        file_pm: str,
+        file_particles: str,
+        file_particle_mesh: str,
         time: float | None = None,
         render: bool = True
     ):
         if self.has_particles:
             (
                 particle_positions, particle_velocities, particle_charges, particle_deformations
-            ) = process_particle_ouput_file(file_vr)
+            ) = process_particle_ouput_file(file_particles)
             self._update_particle_plots(
                 particle_positions,
                 particle_charges,
@@ -219,14 +227,18 @@ class Visualizer:
         
         if self.has_mesh:
             (
-                neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solutions
-            ) = process_pm_output_file(file_pm)
+                neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solutions,
+                mesh_pressure, mesh_q_pressure, mesh_u_pressure
+            ) = process_pm_output_file(file_particle_mesh)
             self._update_mesh_plots(
                 mesh_positions,
                 mesh_charges,
                 mesh_velocities,
                 mesh_deformations,
                 mesh_solutions,
+                mesh_pressure,
+                mesh_q_pressure,
+                mesh_u_pressure,
                 neq
             )
         title = f"Frame {frame}, Realtime = {frame* 0.1:.1f}s"
@@ -248,17 +260,32 @@ class Visualizer:
         """
         Set up the writer for the animation.
         """
-        self.writer = FasterFFMpegWriter(fps=fps, codec=codec, bitrate=bitrate)
+        self.writer = OptimizedFFMpegWriter(
+            fps=fps,
+            codec=codec,
+            bitrate=bitrate,
+            extra_args=['-preset', 'fast', '-pix_fmt', 'yuv420p']
+        )
         self.writer.setup(self.fig, outfile = filename, dpi = dpi)
+        self.fig.set_dpi(dpi)
     
     def grab_frame(self):
         """
         Capture the current frame of the animation.
         """
-        s_time = time.time()
-        self.writer.grab_frame()
-        e_time = time.time()
-        print(f"\tFrame grabbed in {e_time - s_time:.2f}s")
+        try:
+            s_time = time.time()
+            self.writer.grab_frame()
+            e_time = time.time()
+            
+            # Log frame time for monitoring
+            print(f"\tFrame grabbed in {e_time - s_time:.2f}s")
+            
+        except MemoryError:
+            import gc
+            print("Memory error occurred - trying to recover...")
+            gc.collect() # Force garbage collection
+
     
     def finish_animation(self):
         """
@@ -356,9 +383,15 @@ class Visualizer:
         pm_solutions: np.ndarray | None = None,
         pm_pressure: np.ndarray | None = None,
         pm_q_pressure: np.ndarray | None = None,
+        pm_u_pressure: np.ndarray | None = None,
         neq: int = 3,
     ):
-
+        if self._background:
+            s_time = time.time()
+            self.fig.canvas.restore_region(self._background)
+            print(f"\tBackground restored in {time.time() - s_time:.2f}s")
+        
+        # Restore background
         if self.has_particles:
             s_time = time.time()
             self._update_particle_plots(
@@ -367,8 +400,7 @@ class Visualizer:
                 particle_velocities,
                 particle_deformations,
             )
-            e_time = time.time()
-            print(f"\tParticle plots updated in {e_time - s_time:.2f}s")
+            print(f"\tParticle plots updated in {time.time() - s_time:.2f}s")
 
         if self.has_mesh:
             s_time = time.time()
@@ -380,16 +412,20 @@ class Visualizer:
                 pm_solutions,
                 pm_pressure,
                 pm_q_pressure,
+                pm_u_pressure,
                 neq
             )
-            e_time = time.time()
-            print(f"\tMesh plots updated in {e_time - s_time:.2f}s")
+            print(f"\tMesh plots updated in {time.time() - s_time:.2f}s")
 
         s_time = time.time()
         self._update_figure_title(title)
+        print(f"\tTitle updated in {time.time() - s_time:.2f}s")
+        
         self._render_plot()
-        e_time = time.time()
-        print(f"\tPlot rendered in {e_time - s_time:.2f}s")
+
+        s_time = time.time()
+        self._background = self.fig.canvas.copy_from_bbox(self.fig.bbox)
+        print(f"\tBackground created in {time.time() - s_time:.2f}s")
 
     def _update_particle_plots(
         self,
@@ -417,12 +453,13 @@ class Visualizer:
         pm_solutions: np.ndarray | None = None,
         pm_pressure: np.ndarray | None = None,
         pm_q_pressure: np.ndarray | None = None,
+        pm_u_pressure: np.ndarray | None = None,
         neq: int = 3,
     ):
         for key, qoi in self.mesh_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
                 neq, pm_positions, pm_charges, pm_velocities, pm_deformations, 
-                pm_solutions, pm_pressure, pm_q_pressure
+                pm_solutions, pm_pressure, pm_q_pressure, pm_u_pressure
             )
             title = f"Mesh {qoi.quantity_name.capitalize()}"
             if qoi.component:
@@ -454,8 +491,11 @@ class Visualizer:
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
         pm_deformations: np.ndarray | None = None,
-        neq: int = 3,
         pm_solutions: np.ndarray | None = None,
+        pm_pressure: np.ndarray | None = None,
+        pm_q_pressure: np.ndarray | None = None,
+        pm_u_pressure: np.ndarray | None = None,
+        neq: int = 3,
     ):
         self._update_mesh_plots(
             pm_positions,
@@ -463,22 +503,38 @@ class Visualizer:
             pm_velocities,
             pm_deformations,
             pm_solutions,
+            pm_pressure,
+            pm_q_pressure,
+            pm_u_pressure,
             neq,
         )
         self._update_figure_title(title)
         self._render_plot()
 
-    def _update_figure_title(self, title:str):#iteration, total_iterations = None, t = None):
-        # string = f"Frame {iteration}"
-        # if total_iterations:
-        #     string += f" / {total_iterations}"
-        # if t:
-        #     string += f", Realtime = {t:.2f}s"
-        self.fig.suptitle(title)
+    def _update_figure_title(self, title:str)-> None:
+        self.title.set_text(title)
 
     def _render_plot(self):
-        self.fig.canvas.draw_idle()  # Queues a single re-draw efficiently.
+
+        timer = time.time()
+        for artist in self._artists:
+            try:
+                self.fig.draw_artist(artist)
+            except Exception as e:
+                print(f"Error drawing artist: {e}")
+        print(f"\tArtists drawn in {time.time() - timer:.2f}s")
+
+        timer = time.time()
+        self.fig.canvas.blit()
+        print(f"\tPlot blitted in {time.time() - timer:.2f}s")
+        
+        timer = time.time()
+        # self.fig.canvas.draw_idle()
+        print(f"\tPlot drawn in {time.time() - timer:.2f}s")
+
+        timer = time.time()
         self.fig.canvas.flush_events()  # Ensures the GUI updates immediately without blocking.
+        print(f"\tEvents flushed in {time.time() - timer:.2f}s")
 
     def __del__(self):
         plt.close(self.fig)

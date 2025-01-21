@@ -236,16 +236,17 @@ contains
 
     module subroutine diffuse_vort_3d(NI)
         use MPI
-        use vpm_vars, only: OMPTHREADS, neqpm
+        use vpm_vars, only: neqpm
         use vpm_size, only: fine_grid
-        use pmgrid, only: RHS_pm
+        use pmgrid, only: RHS_pm, deform_pm
+        use serial_vector_field_operators, only: calc_vector_laplacian_expansion
         implicit none
         real(dp), intent(in) :: NI
         real(dp) :: viscosity
         real(dp), allocatable :: laplace_vort(:, :, :, :)
         integer  :: i, j, k
         integer  :: NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
-        real(dp) :: DXpm, DYpm, DZpm
+        real(dp) :: DXpm, DYpm, DZpm, DV
 
         NXs_fine_bl = fine_grid%NN_bl(1)
         NYs_fine_bl = fine_grid%NN_bl(2)
@@ -257,9 +258,12 @@ contains
         DXpm = fine_grid%Dpm(1)
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
+        DV   = DXpm*DYpm*DZpm
+        laplace_vort = laplacian(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
 
-        laplace_vort = laplacian(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm)
-        !$omp parallel private(i,j,k) num_threads(OMPTHREADS)
+        deform_pm = 0.0d0
+        !$omp parallel private(i,j,k)
+        !$omp shared(laplace_vort, RHS_pm, viscosity)
         !$omp do
         do k = NZs_fine_bl + 1, NZf_fine_bl - 1
             do j = NYs_fine_bl + 1, NYf_fine_bl - 1
@@ -270,10 +274,9 @@ contains
                     else
                         viscosity = RHS_pm(4, i, j, k) + NI
                     end if
-                    laplace_vort(1:3, i, j, k) = viscosity*laplace_vort(1:3, i, j, k)
-                    RHS_pm(1, i, j, k) = RHS_pm(1, i, j, k) - laplace_vort(1, i, j, k)
-                    RHS_pm(2, i, j, k) = RHS_pm(2, i, j, k) - laplace_vort(2, i, j, k)
-                    RHS_pm(3, i, j, k) = RHS_pm(3, i, j, k) - laplace_vort(3, i, j, k)
+                    deform_pm(1, i, j, k) = - viscosity * laplace_vort(1, i, j, k) 
+                    deform_pm(2, i, j, k) = - viscosity * laplace_vort(2, i, j, k) 
+                    deform_pm(3, i, j, k) = - viscosity * laplace_vort(3, i, j, k) 
                 end do
             end do
         end do

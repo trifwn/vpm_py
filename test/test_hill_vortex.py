@@ -7,21 +7,21 @@ from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
                                print_red)
 from vpm_py.visualization import StandardVisualizer
 
-import matplotlib
-matplotlib.use('TkAgg')
+# import matplotlib
+# matplotlib.use('Agg')
 
 
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
-    REYNOLDS_NUMBER = 0.1 
+    REYNOLDS_NUMBER = np.inf #0.1 
     SPHERE_RADIUS = 2.0
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
     DT = 0.5 * 0.1 / np.linalg.norm(UINF)
-    TIMESTEPS = 1000
+    TIMESTEPS = 30
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.6
 
@@ -70,10 +70,13 @@ def main():
         plotter = StandardVisualizer(
             plot_particles= ("charge","magnitude"), 
             plot_slices   = [
-                 ('velocity', 'magnitude'),("q_pressure","Q"), ("pressure","P"), 
+                 ('velocity', 'magnitude'),
+                 ("q_pressure","Q"), 
+                #  ("u_pressure","U"), 
+                 ("pressure","P"), 
             ],
             # Figure size should be 1920x1080
-            figure_size= (19.2, 10.8),
+            figure_size= (18.2, 10.0),
         )
         vpm.attach_visualizer(plotter)
         vpm.setup_animation_writer(
@@ -260,17 +263,17 @@ def main():
         if REYNOLDS_NUMBER != np.inf:
             print_IMPORTANT("Applying Diffusion", rank)
             vpm.vpm_diffuse(
-                viscosity= -VISCOSITY,
+                viscosity= VISCOSITY,
                 particle_positions= XPR,
                 particle_charges= QPR,
             )
-
-            # vpm.vpm_define(
-            #     num_equations=neq,
-            #     particle_positions  =  XPR,
-            #     particle_charges    =  QPR,
-            #     timestep=i,
-            # )
+            if rank == 0:
+                QPR = vpm.particles.QP
+                GPR = vpm.particles.GP
+                # Diffuse the particles
+                QPR[:3,:] += GPR * DT
+                print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
+                print('MAX(GPR) = ', np.min(np.abs(GPR[:,:])))
 
         if remesh and i % 20 == 0 and i != 0:
             print_IMPORTANT("Remeshing", rank)
@@ -284,6 +287,10 @@ def main():
                     num_particles=NVR,
                 )
         T += DT
+
+        if rank == 0:
+            XPR = vpm.particles.XP
+            QPR = vpm.particles.QP
         
     # Finalize
     end_time = MPI.Wtime()

@@ -1,6 +1,7 @@
 module file_io
     use vpm_types, only: dp
     use console_io, only: vpm_print, nocolor, dummy_string
+    use h5fortran
 
     implicit none
     integer, parameter :: MAX_STRING_LENGTH = 256
@@ -317,7 +318,7 @@ contains
         real(dp), intent(in)             :: velocity(3, NN_in(1), NN_in(2), NN_in(3))
         real(dp), intent(in), optional   :: deformation(3, NN_in(1), NN_in(2), NN_in(3))
         integer, optional                :: compression 
-        integer                          :: comp_level = 4
+        integer                          :: comp_level = 3
         
         integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
         character(len=MAX_STRING_LENGTH) :: filout
@@ -352,11 +353,11 @@ contains
         call h5f%writeattr('/','NNbl_in', NNbl_in)
 
         ! Create datasets for each variable
-        call h5f%create('/X', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/Y', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-        call h5f%create('/Z', H5T_NATIVE_REAL, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        call h5f%create('/X', H5T_NATIVE_DOUBLE, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        call h5f%create('/Y', H5T_NATIVE_DOUBLE, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        call h5f%create('/Z', H5T_NATIVE_DOUBLE, dset_dims=[NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
-        ! call h5f%create('/VEL', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+        ! call h5f%create('/VEL', H5T_NATIVE_DOUBLE, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
 
         ! Iterate over the 3D grid and write data to HDF5 file
         do k = NZs, NZf
@@ -382,20 +383,61 @@ contains
         call h5f%write('/SOL', SOL(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf))
         
         ! Write the velocity field to the HDF5 file
-        print * , "NXs, NXf, NYs, NYf, NZs, NZf", NXs, NXf, NYs, NYf, NZs, NZf
-        print * , "Shape of velocity", shape(velocity)
-        call h5f%write('/VEL', velocity(1:3, NXs:NXf, NYs:NYf, NZs:NZf))
+        call h5f%write('/VEL', velocity(:, NXs:NXf, NYs:NYf, NZs:NZf))
         
         ! Write the deformation field to the HDF5 file
         if (present(deformation)) then
-            call h5f%create('/DEFORM', H5T_NATIVE_REAL, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+            call h5f%create('/DEFORM', H5T_NATIVE_DOUBLE, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
             call h5f%write('/DEFORM', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
         end if
-
         ! Close HDF5 file
         call h5f%close()
         
     end subroutine write_pm_solution_hdf5
+
+    subroutine write_pressure_hdf5(                                     &
+        NTIME, NN_in, NNbl_in, pressure, compression                    &
+    )
+        use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
+        use h5fortran
+
+        integer, intent(in)              :: NTIME
+        integer, intent(in)              :: NN_in(3), NNbl_in(6)
+        real(dp), intent(in)             :: pressure(2, NN_in(1), NN_in(2), NN_in(3))
+        integer, optional                :: compression 
+        integer                          :: comp_level = 3
+        
+        integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
+        character(len=MAX_STRING_LENGTH) :: filout
+        integer                          :: i, j, k
+        real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
+
+        type(hdf5_file)                  :: h5f
+
+        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
+                NTIME, trim(mesh_output_file) // ".h5"
+        
+        write(dummy_string, "(A)") achar(9)//'Writing Pressure to HDF5 file: '//trim(filout)
+        call vpm_print(dummy_string, nocolor, 2)
+
+        NXs = NNbl_in(1)
+        NYs = NNbl_in(2)
+        NZs = NNbl_in(3)
+        NXf = NNbl_in(4)
+        NYf = NNbl_in(5)
+        NZf = NNbl_in(6)
+
+        if (present(compression)) then
+            comp_level = compression
+        end if
+        ! Open HDF5 file
+        call h5f%open(trim(filout), action='rw', comp_lvl= comp_level)  
+        ! Write the velocity field to the HDF5 file
+        call h5f%write('/P', pressure(2, NXs:NXf, NYs:NYf, NZs:NZf))
+        call h5f%write('/Q', pressure(1, NXs:NXf, NYs:NYf, NZs:NZf))
+        ! Close HDF5 file
+        call h5f%close()
+    end subroutine write_pressure_hdf5
 
     subroutine write_field_h5(neq, comp_grid, field, field_name, compression)
         use h5fortran
@@ -432,7 +474,7 @@ contains
         call h5f%writeattr('/', 'NN_bl', comp_grid%NN_bl)
 
         ! Create datasets for each variable
-        call h5f%create('/FIELD', H5T_NATIVE_REAL, dset_dims=[neq, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3)])
+        call h5f%create('/FIELD', H5T_NATIVE_DOUBLE, dset_dims=[neq, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3)])
 
         ! Write the field to the HDF5 file
         call h5f%write('/FIELD', field)

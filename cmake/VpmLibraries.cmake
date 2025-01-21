@@ -127,6 +127,7 @@ function(define_vpm_targets)
     target_link_libraries(parvar PRIVATE console_io)
 
     add_library(pmproject OBJECT ${SRC_VPM}/pmproject.f90)
+    target_link_libraries(pmproject PRIVATE types)
 
     add_library(yaps OBJECT ${YAPSLIB_FILES})
     target_link_libraries(yaps PRIVATE mpi_matrices pmlib pmproject types console_io file_io)

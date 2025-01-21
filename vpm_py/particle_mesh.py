@@ -23,6 +23,7 @@ class ParticleMesh:
         self.deformation = np.zeros((3, 1, 1, 1))
         self.pressure = np.zeros((1, 1, 1))
         self.q_pressure = np.zeros((1, 1, 1))
+        self.u_pressure = np.zeros((1, 1, 1))
         self.SOL = np.zeros((num_equations, 1, 1, 1))
         self.RHS = np.zeros((num_equations , 1, 1, 1))
     

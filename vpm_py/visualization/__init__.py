@@ -1,4 +1,4 @@
-from .writer import FasterFFMpegWriter
+from .writer import OptimizedFFMpegWriter 
 from .quantities import Quantity, QuantityOfInterest, MeshQuantityOfInterest, ParticleQuantityOfInterest
 from .slices import Plane, SliceStrategy, Slicer
 from .filters import Filter, SliceFilter_3D, ValueFilter, ValueSelector

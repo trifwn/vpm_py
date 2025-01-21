@@ -84,7 +84,8 @@ class MeshDataAdapter(DataAdapter):
         pm_deformations = None, 
         pm_solutions = None,
         pm_pressure = None,
-        pm_q_pressure = None
+        pm_q_pressure = None,
+        pm_u_pressure = None
     ):
         positions = {
             'x': pm_positions[0,:, :, :],
@@ -140,6 +141,13 @@ class MeshDataAdapter(DataAdapter):
             }
         else:
             pressure = None
+
+        if pm_u_pressure is not None:
+            u_pressure = {
+                'U': pm_u_pressure[:, :, :],
+            }
+        else:
+            u_pressure = None
             
         data = {
             'position': positions,
@@ -149,6 +157,7 @@ class MeshDataAdapter(DataAdapter):
             "solution": solution,
             "pressure": pressure,
             "q_pressure": q_pressure,
+            "u_pressure": u_pressure
         }
         return data
     

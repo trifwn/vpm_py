@@ -1,28 +1,53 @@
 from matplotlib.animation import FFMpegWriter
+import gc
+from contextlib import contextmanager
 
-class FasterFFMpegWriter(FFMpegWriter):
-    '''FFMpeg-pipe writer bypassing figure.savefig.'''
+class OptimizedFFMpegWriter(FFMpegWriter):
+    '''FFMpeg-pipe writer bypassing figure.savefig with memory optimizations.'''
     def __init__(self, **kwargs):
-        '''Initialize the Writer object and sets the default frame_format.'''
         super().__init__(**kwargs)
         self.frame_format = 'argb'
+        self._cached_w = None
+        self._cached_h = None
+        self._cached_dpi = None
+
+    def setup(self, fig, outfile, dpi=None):
+        super().setup(fig, outfile, dpi)
+        # Cache initial dimensions
+        self._cached_w = self._w
+        self._cached_h = self._h
+        self._cached_dpi = self.dpi
+        self.frame_count = 0
+        
+    @contextmanager
+    def _frame_context(self):
+        try:
+            yield
+        finally:
+            # Clear figure and force garbage collection
+            gc.collect()
 
     def grab_frame(self, **savefig_kwargs):
-        '''Grab the image information from the figure and save as a movie frame.
+        '''Memory-optimized frame grabber'''
+        with self._frame_context():
+            try:
+                # Only adjust size if changed
+                if (self.fig.get_figwidth() != self._cached_w or 
+                    self.fig.get_figheight() != self._cached_h):
+                    
+                    self.fig.set_size_inches(self._cached_w, self._cached_h)
 
-        Doesn't use savefig to be faster: savefig_kwargs will be ignored.
-        '''
-        try:
-            # re-adjust the figure size and dpi in case it has been changed by the
-            # user.  We must ensure that every frame is the same size or
-            # the movie will not save correctly.
-            self.fig.set_size_inches(self._w, self._h)
-            self.fig.set_dpi(self.dpi)
-            # Draw and save the frame as an argb string to the pipe sink
-            self.fig.canvas.draw()
-            self._proc.stdin.write(self.fig.canvas.tostring_argb())
-        except (RuntimeError, IOError) as e:
-            out, err = self._proc.communicate()
-            raise IOError('Error saving animation to file (cause: {0}) '
-                      'Stdout: {1} StdError: {2}. It may help to re-run '
-                      'with --verbose-debug.'.format(e, out, err)) 
+                if (self.fig.dpi != self._cached_dpi):
+                    self.fig.set_dpi(self._cached_dpi)
+                
+                # Write frame and immediately flush
+                self._proc.stdin.write(self.fig.canvas.tostring_argb())
+                self._proc.stdin.flush()
+                self.frame_count += 1
+                
+            except (RuntimeError, IOError) as e:
+                out, err = self._proc.communicate()
+                raise IOError('Error saving animation to file (cause: {0}) '
+                            'Stdout: {1} StdError: {2}. It may help to re-run '
+                            'with --verbose-debug.'.format(e, out, err))
+    

@@ -174,6 +174,7 @@ class VPM(object):
                 pm_deformations= self.particle_mesh.deformation,
                 pm_pressure= self.particle_mesh.pressure,
                 pm_q_pressure= self.particle_mesh.q_pressure,
+                pm_u_pressure= self.particle_mesh.u_pressure,
             )
         if self.has_animation_writer:
             self.visualizer.grab_frame()
@@ -483,11 +484,6 @@ class VPM(object):
             byref(RHS_pm_ptr)
         )
 
-        import mpi4py
-        comm = mpi4py.MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        comm.Barrier()
-
         self._store_particle_results(
             pointer_to_dp_array(XP_ptr, positions.shape),
             pointer_to_dp_array(QP_ptr, charges.shape),
@@ -553,13 +549,14 @@ class VPM(object):
         Pressure_ptr = F_Array_Struct.null(ndims=4, total_size=1)
 
         self._lib.vpm_solve_pressure(
-            Velocity_ptr, Vorticity_ptr, Pressure_ptr, byref(c_double(density))
+            Vorticity_ptr, Velocity_ptr, Pressure_ptr, byref(c_double(density))
         )
 
         if Pressure_ptr and not Pressure_ptr.is_null() and Pressure_ptr.total_size > 0:
             pressure = F_Array.from_ctype(Pressure_ptr, ownership=True, name="Pressure").transfer_data_ownership()
             self.particle_mesh.q_pressure = np.copy(pressure[0, :, :, :])
-            self.particle_mesh.pressure = np.copy(pressure[1, :, :, :])
+            self.particle_mesh.u_pressure = np.copy(pressure[1, :, :, :])
+            self.particle_mesh.pressure = np.copy(pressure[2, :, :, :])
 
 
     def remesh_particles(self, project_particles: bool, particles_per_cell: int= 1, cut_off: float = 1e-9):

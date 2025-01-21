@@ -231,27 +231,13 @@ contains
                     dest = i - 1
                     call mpimat2_pm(mat2, 3, NVR_size, 3, NVR_r, NVR_pr)!NVR_pr because counting starts from 0
                     call MPI_SEND(XP, 1, mat2, dest, 1, MPI_COMM_WORLD, ierr)
-                    if (ierr .ne. 0) then
-                        write (*, "(A,I5)") "Error in receiving XP_scatt on processor ", my_rank
-                        write (*, "(A,I5)") "Got error", ierr
-                    end if
                     call MPI_TYPE_FREE(mat2, ierr)
-                    if (ierr .ne. 0) then
-                        write (*, "(A,I5)") "Error in receiving XP_scatt on processor ", my_rank
-                        write (*, "(A,I5)") "Got error", ierr
-                    end if
+
 
                     call mpimat2_pm(mat2, neqpm + 1, NVR_size, neqpm + 1, NVR_r, NVR_pr)
                     call MPI_SEND(QP, 1, mat2, dest, 1, MPI_COMM_WORLD, ierr)
-                    if (ierr .ne. 0) then
-                        write (*, "(A,I5)") "Error in receiving XP_scatt on processor ", my_rank
-                        write (*, "(A,I5)") "Got error", ierr
-                    end if
                     call MPI_TYPE_FREE(mat2, ierr)
-                    if (ierr .ne. 0) then
-                        write (*, "(A,I5)") "Error in receiving XP_scatt on processor ", my_rank
-                        write (*, "(A,I5)") "Got error", ierr
-                    end if
+
 
                     NVR_pr = NVR_pr + NVR_r
                 end do
@@ -260,27 +246,12 @@ contains
             if (NVR_p .gt. 0) then
                 call mpimat2_pm(mat2, 3, NVR_p, 3, NVR_p, 0)
                 call MPI_RECV(XP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
-                if (ierr .ne. 0) then
-                    write (*, "(A,I5)") "Error in receiving XP_scatt on processor ", my_rank
-                    write (*, "(A,I5)") "Got error", ierr
-                end if
                 call MPI_TYPE_FREE(mat2, ierr)
-                if (ierr .ne. 0) then
-                    write (*, "(A,I5)") "Error in freeing XP_scatt on processor ", my_rank
-                    write (*, "(A,I5)") "Got error", ierr
-                end if
 
                 call mpimat2_pm(mat2, neqpm + 1, NVR_p, neqpm + 1, NVR_p, 0)
                 call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
-                if (ierr .ne. 0) then
-                    write (*, "(A,I5)") "Error in receiving QP_scatt on processor ", my_rank
-                    write (*, "(A,I5)") "Got error", ierr
-                end if
                 call MPI_TYPE_FREE(mat2, ierr)
-                if (ierr .ne. 0) then
-                    write (*, "(A,I5)") "Error in freeing QP_scatt on processor ", my_rank
-                    write (*, "(A,I5)") "Got error", ierr
-                end if
+
 
                 write (dummy_string, "(A,I5,A,I5)") "Processor ", my_rank, " got : NVR_p = ", NVR_p
                 call vpm_print(dummy_string, nocolor, 2)
@@ -313,7 +284,7 @@ contains
 
         implicit none
         integer :: my_rank, np, ierr, i
-        integer :: dest, NVR_pr, NVR_r, mat2
+        integer :: dest, NVR_p0, NVR_r, mat2
         integer :: status(MPI_STATUS_SIZE)
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
@@ -324,8 +295,9 @@ contains
             QP(1:neqpm + 1, 1:NVR_p) = QP_scatt(1:neqpm + 1, 1:NVR_p)
             UP(1:3, 1:NVR_p) = UP_scatt(1:3, 1:NVR_p)
             GP(1:3, 1:NVR_p) = GP_scatt(1:3, 1:NVR_p)
+            NVR_p0 = NVR_p
+            
             deallocate (QP_scatt, XP_scatt, UP_scatt, GP_scatt)
-            NVR_pr = NVR_p
             NVR_r = NVR/np
             allocate (XP_scatt(3, NVR_r), QP_scatt(neqpm + 1, NVR_r), UP_scatt(3, NVR_r), GP_scatt(3, NVR_r))
             if (NVR_r .gt. 0) then
@@ -347,12 +319,12 @@ contains
                     call MPI_RECV(GP_scatt, 1, mat2, dest, 1, MPI_COMM_WORLD, status, ierr)
                     call MPI_TYPE_FREE(mat2, ierr)
 
-                    XP(1:3, NVR_pr + 1:NVR_pr + NVR_r) = XP_scatt(1:3, 1:NVR_r)
-                    QP(1:neqpm + 1, NVR_pr + 1:NVR_pr + NVR_r) = QP_scatt(1:neqpm + 1, 1:NVR_r)
-                    UP(1:3, NVR_pr + 1:NVR_pr + NVR_r) = UP_scatt(1:3, 1:NVR_r)
-                    GP(1:3, NVR_pr + 1:NVR_pr + NVR_r) = GP_scatt(1:3, 1:NVR_r)
+                    XP(1:3, NVR_p0 + 1:NVR_p0 + NVR_r) = XP_scatt(1:3, 1:NVR_r)
+                    QP(1:neqpm + 1, NVR_p0 + 1:NVR_p0 + NVR_r) = QP_scatt(1:neqpm + 1, 1:NVR_r)
+                    UP(1:3, NVR_p0 + 1:NVR_p0 + NVR_r) = UP_scatt(1:3, 1:NVR_r)
+                    GP(1:3, NVR_p0 + 1:NVR_p0 + NVR_r) = GP_scatt(1:3, 1:NVR_r)
 
-                    NVR_pr = NVR_pr + NVR_r
+                    NVR_p0 = NVR_p0 + NVR_r
                 end do
             end if
         else

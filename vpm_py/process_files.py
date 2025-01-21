@@ -67,7 +67,19 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
             mesh_deformations = np.array(DEFORM)
         except KeyError:
             mesh_deformations = np.zeros_like(mesh_positions)
-    return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution
+
+        try:
+            P = f['P'][:]
+            Q = f['Q'][:]
+            P = np.moveaxis(P, [0, 1, 2], [2, 1, 0])
+            Q = np.moveaxis(Q, [0, 1, 2], [2, 1, 0])
+            mesh_p = np.array(P)
+            mesh_q = np.array(Q)
+        except KeyError:
+            mesh_p = np.zeros_like(mesh_positions)
+            mesh_q = np.zeros_like(mesh_positions)
+        mesh_u = np.zeros_like(mesh_positions)
+    return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution, mesh_p, mesh_q, mesh_u
 
 def process_particle_ouput_file_dat(filename: str , folder: str | None = None):
     """Process a single particle file and return the data arrays."""
