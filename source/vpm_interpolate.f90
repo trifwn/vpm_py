@@ -63,35 +63,33 @@ contains
             do k = knode - ips, knode + ipf
                 do j = jnode - ips, jnode + ipf
                     do i = inode - ips, inode + ipf
-                        x = (XP(1, nv) - XBound(1) - (i - 1)*Dpm(1))/Dpm(1)
+                        x = XP(1, nv) - (XBound(1) + (i - 1)*Dpm(1))
+                        x = x / Dpm(1) ! Normalize the distance
                         fx = projection_fun(iproj, x)
 
-                        y = (XP(2, nv) - XBound(2) - (j - 1)*Dpm(2))/Dpm(2)
+                        y = XP(2, nv) - (XBound(2) + (j - 1)*Dpm(2))
+                        y = y / Dpm(2) ! Normalize the distance
                         fy = projection_fun(iproj, y)
 
-                        z = (XP(3, nv) - XBound(3) - (k - 1)*Dpm(3))/Dpm(3)
+                        z = XP(3, nv) - (XBound(3) + (k - 1)*Dpm(3))
+                        z = z / Dpm(3) ! Normalize the distance
                         fz = projection_fun(iproj, z)
 
                         f = fx*fy*fz
-
                         if (itype == 1) then
                             UP(1, nv) = UP(1, nv) + f*(velocity_pm(1, i, j, k))
                             UP(2, nv) = UP(2, nv) + f*(velocity_pm(2, i, j, k))
                             UP(3, nv) = UP(3, nv) + f*(velocity_pm(3, i, j, k))
                         end if
-
-                        GP(2, nv) = GP(2, nv) + f*(deform_pm(2, i, j, k))
-                        GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k))
-                        GP(3, nv) = GP(3, nv) + f*(deform_pm(3, i, j, k))
-                       
+                        GP(2, nv) = GP(2, nv) + f*(deform_pm(2, i, j, k)) 
+                        GP(1, nv) = GP(1, nv) + f*(deform_pm(1, i, j, k)) 
+                        GP(3, nv) = GP(3, nv) + f*(deform_pm(3, i, j, k)) 
                     end do
                 end do
             end do
 
             ! Normalize GP using the particle "volume"
-            ! if (itype.ne.1) then
             GP(1:3, nv) = GP(1:3, nv)*QP(neqpm + 1, nv)
-            ! end if
         end do
     end subroutine back_to_particles_3D
 

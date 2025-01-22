@@ -81,7 +81,7 @@ class MeshDataAdapter(DataAdapter):
         pm_positions, 
         pm_charges, 
         pm_velocities, 
-        pm_deformations = None, 
+        pm_vortex_stretching = None, 
         pm_solutions = None,
         pm_pressure = None,
         pm_q_pressure = None,
@@ -101,14 +101,14 @@ class MeshDataAdapter(DataAdapter):
         else:
             velocities = None
 
-        if pm_deformations is not None:
-            deformations = {
-                'x': pm_deformations[0,:, :, :],
-                'y': pm_deformations[1,:, :, :],
-                'z': pm_deformations[2,:, :, :] if neq == 3 else np.zeros_like(pm_deformations[0])
+        if pm_vortex_stretching is not None:
+            vortex_stretching = {
+                'x': pm_vortex_stretching[0,:, :, :],
+                'y': pm_vortex_stretching[1,:, :, :],
+                'z': pm_vortex_stretching[2,:, :, :] if neq == 3 else np.zeros_like(pm_vortex_stretching[0])
             }
         else:
-            deformations = None
+            vortex_stretching = None
         
         if pm_charges is not None:
             charges = {
@@ -153,7 +153,7 @@ class MeshDataAdapter(DataAdapter):
             'position': positions,
             'charge': charges,
             'velocity': velocities,
-            'deformation': deformations,
+            'vortex_stretching': vortex_stretching,
             "solution": solution,
             "pressure": pressure,
             "q_pressure": q_pressure,

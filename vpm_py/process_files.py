@@ -62,11 +62,11 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
             mesh_velocities = np.zeros_like(mesh_positions)
 
         try:
-            DEFORM = f['DEFORM'][:]
-            DEFORM = np.moveaxis(DEFORM, [0, 1, 2, 3], [3, 2, 1, 0])
-            mesh_deformations = np.array(DEFORM)
+            STRETCHING = f['VORTEXSTRETCH'][:]
+            STRETCHING = np.moveaxis(STRETCHING, [0, 1, 2, 3], [3, 2, 1, 0])
+            mesh_vortex_stretching = np.array(STRETCHING)
         except KeyError:
-            mesh_deformations = np.zeros_like(mesh_positions)
+            mesh_vortex_stretching = np.zeros_like(mesh_positions)
 
         try:
             P = f['P'][:]
@@ -79,7 +79,7 @@ def process_pm_output_file_h5(filename: str, folder: str | None = None):
             mesh_p = np.zeros_like(mesh_positions)
             mesh_q = np.zeros_like(mesh_positions)
         mesh_u = np.zeros_like(mesh_positions)
-    return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solution, mesh_p, mesh_q, mesh_u
+    return neq, mesh_positions, mesh_velocities, mesh_charges, mesh_vortex_stretching, mesh_solution, mesh_p, mesh_q, mesh_u
 
 def process_particle_ouput_file_dat(filename: str , folder: str | None = None):
     """Process a single particle file and return the data arrays."""
@@ -154,9 +154,9 @@ def process_pm_output_file_dat(filename: str, folder: str | None = None):
     mesh_positions = np.array([mesh_data["XS"], mesh_data["YS"], mesh_data["ZS"]])
     mesh_velocities = np.array([mesh_data["UXS"], mesh_data["UYS"], mesh_data["UZS"]])
     mesh_charges = np.array([mesh_data["QXS"], mesh_data["QYS"], mesh_data["QZS"]])
-    mesh_deformations = np.zeros_like(mesh_positions)
+    mesh_vortex_stretching = np.zeros_like(mesh_positions)
 
-    return mesh_positions, mesh_velocities, mesh_charges, mesh_deformations
+    return mesh_positions, mesh_velocities, mesh_charges, mesh_vortex_stretching
 
 def process_pm_output_file(filename: str, folder: str | None = None):
     if filename.endswith('.h5'):

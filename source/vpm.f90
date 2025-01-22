@@ -228,7 +228,6 @@ contains
 
         ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
         call project_particles_parallel
-
         call set_pm_deformations_zero
         if (my_rank .eq. 0) then
             ! diffusion stores -NI*grad^2 w * Vol in GP
@@ -241,10 +240,10 @@ contains
         call interpolate_particles_parallel(2)
     end subroutine vpm_diffuse
 
-    subroutine vpm_project_and_solve( &
-        NTIME_in, &
-        XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, &
-        RHS_pm_ptr &
+    subroutine vpm_project_and_solve(                   &
+        NTIME_in,                                       &
+        XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in,    &
+        RHS_pm_ptr                                      &
     )
         use MPI
         use pmgrid, only: RHS_pm, SOL_pm, SOL_pm_bl, RHS_pm_bl
@@ -378,7 +377,7 @@ contains
         call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
     end subroutine vpm_solve_velocity_deformation
 
-    subroutine vpm_correct_vorticity(                     &
+    subroutine vpm_correct_vorticity(           &
         XP_in, QP_in, NVR_in, NVR_size_in       &
     )
         use parvar, only: QP, XP, NVR, NVR_size

@@ -387,8 +387,8 @@ contains
         
         ! Write the deformation field to the HDF5 file
         if (present(deformation)) then
-            call h5f%create('/DEFORM', H5T_NATIVE_DOUBLE, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
-            call h5f%write('/DEFORM', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
+            call h5f%create('/VORTEXSTRETCH', H5T_NATIVE_DOUBLE, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
+            call h5f%write('/VORTEXSTRETCH', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
         end if
         ! Close HDF5 file
         call h5f%close()
@@ -398,21 +398,16 @@ contains
     subroutine write_pressure_hdf5(                                     &
         NTIME, NN_in, NNbl_in, pressure, compression                    &
     )
-        use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
         use h5fortran
-
-        integer, intent(in)              :: NTIME
-        integer, intent(in)              :: NN_in(3), NNbl_in(6)
-        real(dp), intent(in)             :: pressure(2, NN_in(1), NN_in(2), NN_in(3))
-        integer, optional                :: compression 
-        integer                          :: comp_level = 3
-        
-        integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
-        character(len=MAX_STRING_LENGTH) :: filout
-        integer                          :: i, j, k
-        real(dp), dimension(NN_in(1), NN_in(2), NN_in(3)) :: X, Y, Z
-
-        type(hdf5_file)                  :: h5f
+        integer, intent(in)                 :: NTIME
+        integer, intent(in)                 :: NN_in(3), NNbl_in(6)
+        real(dp), intent(in)                :: pressure(2, NN_in(1), NN_in(2), NN_in(3))
+        integer, optional                   :: compression 
+        integer                             :: comp_level = 3
+        integer                             :: NXs, NYs, NZs, NXf, NYf, NZf
+        character(len=MAX_STRING_LENGTH)    :: filout
+        integer                             :: i, j, k
+        type(hdf5_file)                     :: h5f
 
         write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
                 NTIME, trim(mesh_output_file) // ".h5"
@@ -433,8 +428,8 @@ contains
         ! Open HDF5 file
         call h5f%open(trim(filout), action='rw', comp_lvl= comp_level)  
         ! Write the velocity field to the HDF5 file
-        call h5f%write('/P', pressure(2, NXs:NXf, NYs:NYf, NZs:NZf))
         call h5f%write('/Q', pressure(1, NXs:NXf, NYs:NYf, NZs:NZf))
+        call h5f%write('/P', pressure(2, NXs:NXf, NYs:NYf, NZs:NZf))
         ! Close HDF5 file
         call h5f%close()
     end subroutine write_pressure_hdf5

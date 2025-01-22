@@ -17,7 +17,7 @@ class StandardVisualizer(Visualizer):
                 quantity= plot_particles[0],
                 component= plot_particles[1],
                 filters=[
-                    ValueSelector('top_num',  40000)
+                    ValueSelector('top_num',  20000)
                 ],
                 options={
                     "s": "auto",

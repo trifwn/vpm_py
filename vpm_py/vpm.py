@@ -72,7 +72,7 @@ class VPM(object):
         ncoarse = 8, 
         projection_type: int = 4, 
         boundary_condition: int =2, 
-        variable_volume: bool = True, 
+        constant_particle_volume: bool = True, 
         remesh: bool = True, 
         use_tree: bool = True, 
         ilevmax: int = 4,
@@ -94,7 +94,7 @@ class VPM(object):
             ncoarse (int, optional): Number of coarse cells. Defaults to 8.
             projection_type (int, optional): Projection type. Defaults to 4.
             boundary_condition (int, optional): Boundary condition. Defaults to 2.
-            variable_volume (bool, optional): Variable volume. Defaults to True.
+            constant_particle_volume (bool, optional): Constant particle volume. Defaults to True.
             remesh (bool, optional): Remesh. Defaults to True.
             use_tree (bool, optional): Use tree. Defaults to True.
             ilevmax (int, optional): Maximum level. Defaults to 4.
@@ -107,7 +107,7 @@ class VPM(object):
         self.dpm = np.array([DXpm, DYpm, DZpm])
         self._lib.init(
             byref(c_double(DXpm)), byref(c_double(DYpm)), byref(c_double(DZpm)), byref(c_int(projection_type)),
-            byref(c_int(boundary_condition)), byref(c_int(variable_volume)), byref(c_int(ncoarse)),
+            byref(c_int(boundary_condition)), byref(c_int(constant_particle_volume)), byref(c_int(ncoarse)),
             byref(c_int(NBI)), byref(c_int(NBJ)), byref(c_int(NBK)), byref(c_int(remesh)), 
             byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_domain_fixed)),
             byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
@@ -120,7 +120,7 @@ class VPM(object):
             print(f"\tDZpm= {DZpm}")
             print(f"\tinterf_iproj= {projection_type}")
             print(f"\tibctyp= {boundary_condition}")
-            print(f"\tIDVPM= {variable_volume}")
+            print(f"\tIDVPM= {constant_particle_volume}")
             print(f"\tncoarse= {ncoarse}")
             print(f"\tNBI= {NBI}")
             print(f"\tNBJ= {NBJ}")
@@ -171,7 +171,7 @@ class VPM(object):
                 pm_positions= self.particle_mesh.grid_positions,
                 pm_velocities= self.particle_mesh.U,
                 pm_charges= self.particle_mesh.RHS,
-                pm_deformations= self.particle_mesh.deformation,
+                pm_vortex_stretching= self.particle_mesh.deformation,
                 pm_pressure= self.particle_mesh.pressure,
                 pm_q_pressure= self.particle_mesh.q_pressure,
                 pm_u_pressure= self.particle_mesh.u_pressure,

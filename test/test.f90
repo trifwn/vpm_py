@@ -47,6 +47,11 @@ Program test_pm
    character(len=250)   :: cfl_file
    real(dp), allocatable :: divergence_HILL(:,:,:)
    real(dp),  pointer    :: pressure(:,:,:,:)
+   
+   ! PARAMTERS
+   logical, parameter   :: CORRECT_VORTICITY = .true.
+   integer, parameter   :: REMESH_FREQ = 20
+   ! integer, parameter   :: 
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -55,7 +60,7 @@ Program test_pm
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! READ SETTINGS
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   case_folder = 'results_deform_dt=0.01/'
+   case_folder = '/mnt/c/Users/tryfonas/Data/build_exe/'
    inquire (file='pm.inp', exist=pmfile_exists)
    if(my_rank.eq.0) print "(A,L1)", 'pm.inp exists:', pmfile_exists
    if (pmfile_exists) then
@@ -358,9 +363,13 @@ Program test_pm
          end do
       end if
       ! --- END VPM DIFFUSION
+   
+      if (CORRECT_VORTICITY) then
+         call vpm_correct_vorticity(XPR, QPR, NVR_ext, NVR_size)
+      endif 
 
       ! VPM REMESH
-      if (mod(i, 20).eq.0) then         
+      if ((mod(i, REMESH_FREQ).eq. REMESH_FREQ) .and. (i .ne. 0)) then        
          ! Remesh the particles
          call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
          ! ! BCAST NVR_EXT

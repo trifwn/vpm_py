@@ -239,14 +239,15 @@ contains
         use vpm_vars, only: neqpm
         use vpm_size, only: fine_grid
         use pmgrid, only: RHS_pm, deform_pm
-        use serial_vector_field_operators, only: calc_vector_laplacian_expansion
+        use serial_vector_field_operators, only: laplacian 
         implicit none
         real(dp), intent(in) :: NI
         real(dp) :: viscosity
         real(dp), allocatable :: laplace_vort(:, :, :, :)
         integer  :: i, j, k
         integer  :: NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
-        real(dp) :: DXpm, DYpm, DZpm, DV
+        real(dp) :: DXpm, DYpm, DZpm
+        logical  :: variable_volume
 
         NXs_fine_bl = fine_grid%NN_bl(1)
         NYs_fine_bl = fine_grid%NN_bl(2)
@@ -258,22 +259,26 @@ contains
         DXpm = fine_grid%Dpm(1)
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
-        DV   = DXpm*DYpm*DZpm
-        laplace_vort = laplacian(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
+        laplace_vort = laplacian( RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
 
+        variable_volume = .false.
+        if (neqpm .eq. 3) then
+            viscosity = NI
+        elseif (neqpm .ge. 4) then
+            variable_volume = .true.
+        else
+            print *, "Error: Invalid number of equations"
+            stop
+        endif
         deform_pm = 0.0d0
         !$omp parallel private(i,j,k)
-        !$omp shared(laplace_vort, RHS_pm, viscosity)
+        !$omp shared(laplace_vort, RHS_pm, viscosity, deform_pm)
         !$omp do
         do k = NZs_fine_bl + 1, NZf_fine_bl - 1
             do j = NYs_fine_bl + 1, NYf_fine_bl - 1
                 do i = NXs_fine_bl + 1, NXf_fine_bl - 1
-                    !--> Remember that RHS = -w
-                    if (neqpm .eq. 3) then
-                        viscosity = NI
-                    else
-                        viscosity = RHS_pm(4, i, j, k) + NI
-                    end if
+                    if (variable_volume) viscosity = RHS_pm(4, i, j, k) + NI
+                    ! We use minus sign because RHS = -w
                     deform_pm(1, i, j, k) = - viscosity * laplace_vort(1, i, j, k) 
                     deform_pm(2, i, j, k) = - viscosity * laplace_vort(2, i, j, k) 
                     deform_pm(3, i, j, k) = - viscosity * laplace_vort(3, i, j, k) 

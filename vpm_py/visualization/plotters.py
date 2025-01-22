@@ -39,8 +39,7 @@ class Plotter(ABC):
         self.is_3d = isinstance(ax, Axes3D)
         self.options = options
         self._title = self.ax.set_title('')
-        artists = self.setup_plot()
-        self.artists = artists
+        self.setup_plot()
 
     @abstractmethod
     def update(self, *args, **kwargs):
@@ -57,11 +56,18 @@ class Plotter(ABC):
         pass
 
     @abstractmethod
-    def setup_plot(self) -> list[Artist]:
+    def setup_plot(self) -> None:
         """
         Abstract method to set up the initial plot.
         """
         pass
+
+    @abstractmethod
+    def get_artists(self) -> list[Artist]:
+        """
+        Get the artists for the plot.
+        """
+        return [self._title]
 
     def update_colorbar(self)-> None:
         """
@@ -117,7 +123,7 @@ class ParticlePlotter(Plotter):
     Plotter for particle data.
     """
 
-    def setup_plot(self):
+    def setup_plot(self) -> None:
         """
         Set up the initial particle plot.
         """
@@ -142,11 +148,12 @@ class ParticlePlotter(Plotter):
             self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=self.cmap, norm=self.norm, rasterized=True)
             self.set_labels('X', 'Y')
         self.colorbar = self.fig.colorbar(self.plot, ax=self.ax)
-
-        return [self.plot, self.colorbar, self._title]
     
     def side_effect(self, *args, **kwargs):
         pass
+
+    def get_artists(self):
+        return super().get_artists() + [self.plot , self.colorbar]
 
     def update(self, plot_data, title=None):
         """
@@ -209,7 +216,7 @@ class MeshPlotter(Plotter):
     Plotter for mesh data.
     """
 
-    def setup_plot(self):
+    def setup_plot(self) -> None:
         """
         Set up the initial mesh plot.
         """
@@ -232,10 +239,12 @@ class MeshPlotter(Plotter):
             self.plot = self.ax.scatter([], [], c=[], s=self.base_s, cmap=cmap, norm=norm, rasterized=True)
             self.set_labels('X', 'Y')
         self.colorbar = self.fig.colorbar(self.plot, ax=self.ax)
-        return [self.plot, self.colorbar, self._title]
     
     def side_effect(self, *args, **kwargs):
         pass
+
+    def get_artists(self):
+        return super().get_artists() + [self.plot , self.colorbar]
 
     def update(self, plot_data, title=None):
         """
@@ -289,7 +298,7 @@ class SlicePlotter(Plotter):
             self.cax.clear()
             self.colorbar = self.fig.colorbar(self.plot, cax=self.cax)
 
-    def setup_plot(self)-> list[Artist]:
+    def setup_plot(self)-> None:
         """
         Set up the initial slice plot.
         """
@@ -325,7 +334,6 @@ class SlicePlotter(Plotter):
         )
         self.set_labels('X', 'Y')
         self.update_colorbar() 
-        return [self.plot, self.colorbar, self._title]
 
     def side_effect(self, plot_data, data, info):
         """
@@ -414,6 +422,9 @@ class SlicePlotter(Plotter):
             else:
                 # print('No slice plot found.')
                 return
+        
+    def get_artists(self):
+        return super().get_artists() + [self.plot, self.colorbar, self.slice_plane_surf, self.annotation]
     
     def update(self, plot_data, title=None):
         """

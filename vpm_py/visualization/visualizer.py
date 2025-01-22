@@ -24,6 +24,7 @@ class Visualizer:
         self,
         figure_size: tuple[int, int] = (10, 10),
         plot_options: list[ResultPlot] = [],
+        blitting: bool = False,
     ) -> None:
         """
         Initialize the particle plot.
@@ -44,19 +45,20 @@ class Visualizer:
         self.has_particles = False
         
         self._background = None
-        self._artists = self._setup_subplots()
+        self._setup_subplots()
         self.title = self.fig.suptitle("")
-        self._artists.extend([self.title])
-        self.cid = self.fig.canvas.mpl_connect("draw_event", self.on_draw)
 
-    def _setup_subplots(self) -> list[Artist]:
+        self.blitting = blitting
+        if blitting:
+            self.cid = self.fig.canvas.mpl_connect("draw_event", self.on_draw)
+
+    def _setup_subplots(self) -> None:
         self.rows = 1 if self.num_plots <= 2 else 2
         # We need to make sure that the number of columns is such that the number of plots is 
         # evenly distributed across the rows
         self.columns = int(np.ceil(self.num_plots / self.rows)) 
         print(f"Rows: {self.rows}, Columns: {self.columns}")
         gs = gridspec.GridSpec( self.rows, self.columns)
-        all_artists = []
 
         for i, plot_option in enumerate(self.plot_options):
             row_num = i // self.columns
@@ -77,12 +79,16 @@ class Visualizer:
                 self.has_mesh = True
                 self.mesh_quantities[name] = plot_option.get_quantity()
 
-            all_artists.extend(self.plotters[name].artists)
-    
         self.gridspec = gs
         self.fig.tight_layout()
         self.fig.subplots_adjust(top=0.9, hspace=0.3, wspace=0.3, bottom=0.1)
         self.fig.show()
+    
+    def get_artists(self) -> list[Artist]:
+        all_artists = []
+        for plotter in self.plotters.values():
+            for artist in plotter.get_artists():
+                all_artists.append(artist)
         return all_artists
 
     def add_folder(
@@ -227,14 +233,14 @@ class Visualizer:
         
         if self.has_mesh:
             (
-                neq, mesh_positions, mesh_velocities, mesh_charges, mesh_deformations, mesh_solutions,
-                mesh_pressure, mesh_q_pressure, mesh_u_pressure
+                neq, mesh_positions, mesh_velocities, mesh_charges, mesh_vortex_stretching, 
+                mesh_solutions, mesh_pressure, mesh_q_pressure, mesh_u_pressure
             ) = process_pm_output_file(file_particle_mesh)
             self._update_mesh_plots(
                 mesh_positions,
                 mesh_charges,
                 mesh_velocities,
-                mesh_deformations,
+                mesh_vortex_stretching,
                 mesh_solutions,
                 mesh_pressure,
                 mesh_q_pressure,
@@ -247,6 +253,7 @@ class Visualizer:
         self._update_figure_title(title)
         
         if render:
+            print(f"Rendering plot for frame {frame + 1}/{total_frames}")
             self._render_plot()
 
     def setup_animation_writer(
@@ -379,7 +386,7 @@ class Visualizer:
         pm_positions: np.ndarray,
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
-        pm_deformations: np.ndarray,
+        pm_vortex_stretching: np.ndarray,
         pm_solutions: np.ndarray | None = None,
         pm_pressure: np.ndarray | None = None,
         pm_q_pressure: np.ndarray | None = None,
@@ -408,7 +415,7 @@ class Visualizer:
                 pm_positions,
                 pm_charges,
                 pm_velocities,
-                pm_deformations,
+                pm_vortex_stretching,
                 pm_solutions,
                 pm_pressure,
                 pm_q_pressure,
@@ -445,7 +452,7 @@ class Visualizer:
         pm_positions: np.ndarray, 
         pm_charges: np.ndarray, 
         pm_velocities: np.ndarray, 
-        pm_deformations: np.ndarray | None,
+        pm_vortex_stretching: np.ndarray | None,
         pm_solutions: np.ndarray | None = None,
         pm_pressure: np.ndarray | None = None,
         pm_q_pressure: np.ndarray | None = None,
@@ -454,7 +461,7 @@ class Visualizer:
     ):
         for key, qoi in self.mesh_quantities.items():
             plot_data, data, info = self.data_adapters[key].transform(
-                neq, pm_positions, pm_charges, pm_velocities, pm_deformations, 
+                neq, pm_positions, pm_charges, pm_velocities, pm_vortex_stretching, 
                 pm_solutions, pm_pressure, pm_q_pressure, pm_u_pressure
             )
             title = f"Mesh {qoi.quantity_name.capitalize()}"
@@ -486,7 +493,7 @@ class Visualizer:
         pm_positions: np.ndarray,
         pm_charges: np.ndarray,
         pm_velocities: np.ndarray,
-        pm_deformations: np.ndarray | None = None,
+        pm_vortex_stretching: np.ndarray | None = None,
         pm_solutions: np.ndarray | None = None,
         pm_pressure: np.ndarray | None = None,
         pm_q_pressure: np.ndarray | None = None,
@@ -494,15 +501,15 @@ class Visualizer:
         neq: int = 3,
     ):
         self._update_mesh_plots(
-            pm_positions,
-            pm_charges,
-            pm_velocities,
-            pm_deformations,
-            pm_solutions,
-            pm_pressure,
-            pm_q_pressure,
-            pm_u_pressure,
-            neq,
+            pm_positions = pm_positions,
+            pm_charges = pm_charges,
+            pm_velocities = pm_velocities,
+            pm_vortex_stretching = pm_vortex_stretching,
+            pm_solutions = pm_solutions,
+            pm_pressure = pm_pressure,
+            pm_q_pressure = pm_q_pressure,
+            pm_u_pressure = pm_u_pressure,
+            neq = neq,
         )
         self._update_figure_title(title)
         self._render_plot()
@@ -532,7 +539,7 @@ class Visualizer:
     def _draw_animated(self):
         """Draw all of the animated artists."""
         fig = self.fig
-        for artist in self._artists:
+        for artist in self.get_artists():
             try:
                 # Check if artist is animated
                 if not artist.get_animated():
@@ -555,27 +562,29 @@ class Visualizer:
         fig = self.fig
         canvas = fig.canvas
 
-        if self._background is None:
-            timer = time.time()
-            self.on_draw(None)
-            print(f"Background created in {time.time() - timer:.2f}s")
+        if self.blitting:
+            if self._background is None:
+                timer = time.time()
+                self.on_draw(None)
+                print(f"Background created in {time.time() - timer:.2f}s")
 
-            timer = time.time()
-            # canvas.draw_idle()
-            print(f"\tPlot drawn in {time.time() - timer:.2f}s")
+            else:
+                timer = time.time()
+                canvas.restore_region(self._background)
+                print(f"Background restored in {time.time() - timer:.2f}s")
+
+                timer = time.time()
+                self._draw_animated()
+                print(f"\tArtists drawn in {time.time() - timer:.2f}s")
+
+                timer = time.time()
+                canvas.blit(fig.bbox)
+                print(f"\tPlot blitted in {time.time() - timer:.2f}s")
         else:
             timer = time.time()
-            canvas.restore_region(self._background)
-            print(f"Background restored in {time.time() - timer:.2f}s")
+            canvas.draw_idle()
+            print(f"\tPlot drawn in {time.time() - timer:.2f}s")
 
-            timer = time.time()
-            self._draw_animated()
-            print(f"\tArtists drawn in {time.time() - timer:.2f}s")
-
-            timer = time.time()
-            canvas.blit(fig.bbox)
-            print(f"\tPlot blitted in {time.time() - timer:.2f}s")
-        
         timer = time.time()
         canvas.flush_events()  # Ensures the GUI updates immediately without blocking.
         print(f"\tEvents flushed in {time.time() - timer:.2f}s")

@@ -252,7 +252,6 @@ contains
                 call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
                 call MPI_TYPE_FREE(mat2, ierr)
 
-
                 write (dummy_string, "(A,I5,A,I5)") "Processor ", my_rank, " got : NVR_p = ", NVR_p
                 call vpm_print(dummy_string, nocolor, 2)
             else

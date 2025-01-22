@@ -339,7 +339,7 @@ contains
         ! SCATTERING XP AND QP
         call particles_scat
 
-        ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity field
+        ! WHEN ITYPEB = 1 WE GET THE UP AND GP From the velocity field and the deformation
         ! WHEN ITYPEB = 2 WE GET THE GP FROM THE deformation
         call back_to_particles_3D(XP_scatt, QP_scatt, UP_scatt, GP_scatt, &
                                   velocity_pm, deform_pm, &

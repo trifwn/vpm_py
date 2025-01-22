@@ -198,7 +198,10 @@ contains
             do k = 1, NZpm
                 do j = 1, NYpm
                     do i = 1, NXpm
-                        if (i .lt. NXs .or. i .gt. NXf .or. j .lt. NYs .or. j .ge. NYf .or. k .lt. NZs .or. k .gt. NZf) then
+                        if (                                                      &
+                            (i .lt. NXs) .or. (i .gt. NXf) .or. (j .lt. NYs) .or. &
+                            (j .ge. NYf) .or. (k .lt. NZs) .or. (k .gt. NZf)      &
+                        ) then
                             Qproj(ieq(1:neq), i, j, k) = 0.d0
                             Qproj(ieq(neq), i, j, k) = DVpm
                             cycle

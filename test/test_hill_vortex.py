@@ -14,20 +14,20 @@ from vpm_py.visualization import StandardVisualizer
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
-    REYNOLDS_NUMBER = np.inf #0.1 
+    REYNOLDS_NUMBER = 10. #np.inf 
     SPHERE_RADIUS = 2.0
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
     DT = 0.5 * 0.1 / np.linalg.norm(UINF)
-    TIMESTEPS = 30
+    TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.6
 
     # OPTIONS
     remesh = True
-    apply_vorticity_correction = False
+    apply_vorticity_correction = True #False
 
     # CASE FOLDER
     CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/hill_vortex"
@@ -71,7 +71,8 @@ def main():
             plot_particles= ("charge","magnitude"), 
             plot_slices   = [
                  ('velocity', 'magnitude'),
-                 ("q_pressure","Q"), 
+                 ('charge', 'magnitude'),
+                #  ("q_pressure","Q"), 
                 #  ("u_pressure","U"), 
                  ("pressure","P"), 
             ],
@@ -212,14 +213,8 @@ def main():
             print(f"CFL_z: {CFL_z}")
             print('\n')
 
-            if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS):
-                DT_old = DT
-                DT = CFL_TARGET / CFL * DT
-                print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
-                print_red(f"DT: was {DT_old} -> Adjusting to {DT}")
-            else:
-                print_green("CFL condition is satisfied", rank)
-            print('\n')
+            # Adjust the timestep
+            DT = adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT)
 
             print_IMPORTANT("Convecting Particles", rank)
             st = MPI.Wtime()
@@ -270,16 +265,23 @@ def main():
             if rank == 0:
                 QPR = vpm.particles.QP
                 GPR = vpm.particles.GP
+                print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
+                print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 # Diffuse the particles
-                QPR[:3,:] += GPR * DT
+                QPR[:3,:] = QPR[:3,:] + GPR * DT
                 print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
-                print('MAX(GPR) = ', np.min(np.abs(GPR[:,:])))
+                print('New min(QPR) = ', np.min(np.abs(QPR[:,:])))
+                print('Diffusion finished: with viscosity = ', VISCOSITY)
+                print('min (GPR) = ', np.min(GPR[:,:]))
+                print('mean(GPR) = ', np.mean(GPR[:,:]))
+                print('max (GPR) = ', np.max(GPR[:,:]))
 
         if remesh and i % 20 == 0 and i != 0:
             print_IMPORTANT("Remeshing", rank)
-            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-7)
+            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
         if apply_vorticity_correction:
+            NVR = vpm.particles.NVR
             print_IMPORTANT("Applying Vorticity Correction", rank)
             vpm.vpm_correct_vorticity(
                     particle_positions=XPR,
@@ -296,6 +298,18 @@ def main():
     end_time = MPI.Wtime()
     print_IMPORTANT(f"Time taken: {int((end_time - start_time) / 60)}m {int(end_time - start_time) % 60}s", rank=rank) 
     MPI.Finalize()
+
+def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT):
+    if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS):
+        DT_old = DT
+        DT = CFL_TARGET / CFL * DT
+        print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
+        print_red(f"DT: was {DT_old} -> Adjusting to {DT}")
+    else:
+        print_green("CFL condition is satisfied")
+    print('\n')
+    return DT
+
 
 if __name__ == "__main__":
     main()
