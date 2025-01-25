@@ -11,8 +11,7 @@ module vpm_functions
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
     use parvar, only:     print_particle_info, print_particle_positions, associate_particles
     use pmgrid, only:     print_velocity_stats, print_vortex_stretching_stats, &
-                          set_pm_velocities_zero, set_pm_deformations_zero,    &
-                      associate_velocities, associate_deformations
+                          associate_velocities, associate_deformations
     implicit none
 
 contains
@@ -58,7 +57,7 @@ contains
     end subroutine allocate_sol_and_rhs
 
     subroutine solve_problem(RHS_pm, SOL_pm, RHS_pm_bl, SOL_pm_bl)
-        use pmgrid, only: print_RHS_pm, set_pm_velocities_zero, set_pm_deformations_zero
+        use pmgrid, only: print_RHS_pm
         use vpm_mpi, only: rhsbcast, rhsscat
         use serial_vector_field_operators, only: divergence, laplacian
         implicit none
@@ -322,9 +321,8 @@ contains
         if (my_rank .eq. 0) st = MPI_WTIME()
 
         ! BROADCASTING
-        ! call rhsbcast(RHS_pm, fine_grid%NN, neqpm)
-        ! call rhsbcast(SOL_pm, fine_grid%NN, neqpm)
         if (itypeb .eq. 1) call velbcast
+        call rhsbcast(RHS_pm, fine_grid%NN, neqpm)
         call defbcast
         call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 

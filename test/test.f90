@@ -115,7 +115,7 @@ Program test_pm
    !--- END READ SETTINGS
    
    !--- Problem settings
-   REYNOLDS = 100.0_dp                                        ! Reynolds number
+   REYNOLDS = 1000.0_dp                                        ! Reynolds number
    NI_in    = u_free_stream * sphere_radius / REYNOLDS     ! Viscosity
    DT_in    = 0.5 * DXpm / u_free_stream                    ! =dx/U
    neq      = 3                                             ! NUMBER OF EQUATIONS
@@ -288,6 +288,20 @@ Program test_pm
             write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
          end if
          write (*, "(A)") ''
+
+         ! DT < 1 / (2 * VISCOSITY) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+         write (*, "(A)") 'Stability criterion for diffusion:'
+         write (*, "(A)") '---------------------------------'
+         write (*, "(A)") 'DT < 1 / (2 * VISCOSITY) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)'
+         if (DT_in .gt. 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)) then
+            write (*, "(A)") achar(27)//'[1;31mNot Satisfied', achar(27)//'[0m'
+            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', DT_in, ' > ', 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+            DT_in = 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+         else
+            write (*, "(A)") achar(27)//'[1;92mSatisfied', achar(27)//'[0m'
+            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', DT_in, ' < ', 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+         end if
+         DT_in = min(DT_in, 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2))
 
          !WRITE TO INFOFILE
          if (i.eq.1) then

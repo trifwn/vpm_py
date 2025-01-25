@@ -248,6 +248,7 @@ contains
         integer  :: NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
         real(dp) :: DXpm, DYpm, DZpm
         logical  :: variable_volume
+        real(dp) :: DXpm2, DYpm2, DZpm2, dwxdx, dwydy, dwzdz
 
         NXs_fine_bl = fine_grid%NN_bl(1)
         NYs_fine_bl = fine_grid%NN_bl(2)
@@ -259,7 +260,49 @@ contains
         DXpm = fine_grid%Dpm(1)
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
-        laplace_vort = laplacian( RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
+        ! laplace_vort = laplacian( RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
+        allocate (laplace_vort(3, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl))
+
+        DXpm2 = DXpm**2
+        DYpm2 = DYpm**2
+        DZpm2 = DZpm**2
+        do k = NZs_fine_bl + 1, NZf_fine_bl - 1
+            do j = NYs_fine_bl + 1, NYf_fine_bl - 1
+                do i = NXs_fine_bl + 1, NXf_fine_bl - 1
+                    dwxdx = (RHS_pm(1, i + 1, j, k)  - 2 * RHS_pm(1, i, j, k) &
+                        + RHS_pm(1, i - 1, j, k)) / DXpm2
+                    dwydy = (RHS_pm(1, i, j + 1, k)  - 2 * RHS_pm(1, i, j, k) &
+                        + RHS_pm(1, i, j - 1, k)) / DYpm2
+                    dwzdz = (RHS_pm(1, i, j, k + 1)  - 2 * RHS_pm(1, i, j, k) &
+                        + RHS_pm(1, i, j, k - 1)) / DZpm2
+                    ! U = grad x psi
+                    laplace_vort(1,i,j,k) = (dwxdx+dwydy+dwzdz) ! because RHS=-w
+
+                    dwxdx = (RHS_pm(2, i + 1, j, k)  - 2 * RHS_pm(2, i, j, k) &
+                        + RHS_pm(2, i - 1, j, k)) / DXpm2
+                    dwydy = (RHS_pm(2, i, j + 1, k)  - 2 * RHS_pm(2, i, j, k) &
+                        + RHS_pm(2, i, j - 1, k)) / DYpm2
+                    dwzdz = (RHS_pm(2, i, j, k + 1)  - 2 * RHS_pm(2, i, j, k) &
+                        + RHS_pm(2, i, j, k - 1)) / DZpm2
+                    ! U = grad x psi
+                    laplace_vort(2,i,j,k) = (dwxdx+dwydy+dwzdz) ! because RHS=-w
+
+                    dwxdx = (RHS_pm(3, i + 1, j, k)  - 2 * RHS_pm(3, i, j, k) &
+                        + RHS_pm(3, i - 1, j, k)) / DXpm2
+                    dwydy = (RHS_pm(3, i, j + 1, k)  - 2 * RHS_pm(3, i, j, k) &
+                        + RHS_pm(3, i, j - 1, k)) / DYpm2
+                    dwzdz = (RHS_pm(3, i, j, k + 1)  - 2 * RHS_pm(3, i, j, k) &
+                        + RHS_pm(3, i, j, k - 1)) / DZpm2
+                    ! U = grad x psi
+                    laplace_vort(3,i,j,k) = (dwxdx+dwydy+dwzdz) ! because RHS=-w
+                enddo
+            enddo
+        enddo
+
+        ! Print the min, max and average of laplace_vort
+        print *, "Min laplace_vort: ", minval(laplace_vort) * DXpm * DYpm * DZpm
+        print *, "Max laplace_vort: ", maxval(laplace_vort) * DXpm * DYpm * DZpm
+        print *, "Avg laplace_vort: ", sum(laplace_vort) * DXpm * DYpm * DZpm / size(laplace_vort)
 
         variable_volume = .false.
         if (neqpm .eq. 3) then

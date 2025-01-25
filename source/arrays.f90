@@ -8,6 +8,7 @@ module ND_Arrays
         integer(c_int) :: total_size          ! Total size of the data array
         type(C_PTR) :: shape_ptr       ! Pointer to the shape array
         type(C_PTR) :: data_ptr        ! Pointer to the actual data
+        integer(c_int) :: own_data            ! Does the array own the data?
         ! Optional members
         ! integer :: ref_count           ! Reference count
         ! logical :: is_view             ! Is the array a view?
@@ -85,15 +86,21 @@ contains
         end do
 
         allocate (data_arr(total_size))
-        arr = create_dtype(ndims, total_size, shape_arr, data_arr)
+        ! Assign the C pointers
+        arr%ndims = ndims
+        arr%total_size = total_size
+        arr%shape_ptr = C_LOC(data_arr)
+        arr%data_ptr = C_LOC(shape_arr)
+        arr%own_data = 1 
     end function allocate_and_create
 
-    function create_dtype(ndims, total_size, arr_shape, arr_data) result(arr) bind(C, name='create_dtype')
+    function create_dtype(ndims, total_size, arr_shape, arr_data, own_data) result(arr) bind(C, name='create_dtype')
         implicit none
         integer(c_int), intent(in) :: ndims
         integer(c_int), intent(in) :: total_size
         integer(c_int), dimension(ndims), intent(in), target :: arr_shape
         real(c_double), dimension(total_size), intent(in), target :: arr_data
+        integer(c_int), intent(in) :: own_data
         type(ND_Array) :: arr
 
         ! Assign the C pointers
@@ -101,21 +108,28 @@ contains
         arr%total_size = total_size
         arr%shape_ptr = C_LOC(arr_shape)
         arr%data_ptr = C_LOC(arr_data)
-
+        arr%own_data = own_data
     end function create_dtype
 
-    subroutine free_array(arr) bind(C, name='free_array')
+    subroutine free_array(arr) bind(C, name="free_array")
         implicit none
         type(ND_Array), intent(inout) :: arr
-        ! real, pointer :: b(:)
-        ! Deallocate the data array if allocated
-        ! call C_F_POINTER(arr%data_ptr, b, [arr%total_size])
-        ! deallocate (b)
+        real(c_double), pointer, contiguous :: data_arr(:)
 
-        ! Reset structure members to avoid dangling pointers
+        ! Free data if allocated
+        if (arr%own_data.eq.0) then
+            if (C_ASSOCIATED(arr%data_ptr)) then
+                call C_F_POINTER(arr%data_ptr, data_arr, [arr%total_size])
+                if (associated(data_arr)) then
+                    deallocate(data_arr)
+                    print *, 'F: Data deallocated'
+                endif
+            end if
+        end if
+            
+        ! Reset pointers to NULL
         arr%data_ptr = C_NULL_PTR
         arr%shape_ptr = C_NULL_PTR
-
     end subroutine free_array
 
     !!!!!!!!!!!!!!!!!!END INITIALIZATION AND DEALLOCATION !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -411,6 +425,7 @@ contains
         integer :: i, total_size
         integer, dimension(:), pointer :: shape_ptr
         real(c_double), dimension(:), pointer :: data_ptr
+        integer(c_int) :: own_data = 0
 
         total_size = 1
         do i = 1, size(shape_arr)
@@ -427,8 +442,12 @@ contains
         ! of the data_array
         ! first_element => data_array(1)
         call C_F_POINTER(C_LOC(data_array), data_ptr, [total_size])
-
-        arr = create_dtype(size(shape_arr), total_size, shape_ptr, data_ptr)
+        
+        arr%ndims = size(shape_arr)
+        arr%total_size = total_size
+        arr%shape_ptr = C_LOC(shape_ptr)
+        arr%data_ptr = C_LOC(data_ptr)
+        arr%own_data = own_data 
     end function from_intrinsic
 
     subroutine convert_to_1D_array(arr, f_1D)

@@ -149,8 +149,10 @@ contains
         if (NVR .eq. 0) return
 
         call define_sizes
-        call set_pm_velocities_zero
-        call set_pm_deformations_zero
+        if (my_rank .eq. 0) then
+            call set_pm_velocities_zero
+            call set_pm_deformations_zero
+        endif 
         call allocate_sol_and_rhs(my_rank + 1)
     end subroutine vpm_define_problem
 

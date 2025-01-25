@@ -40,7 +40,7 @@ contains
         integer, intent(in)                    :: NVR_in, NVR_size_in
         real(dp), intent(in), target           :: XP_in(:, :), QP_in(:, :)
         real(dp), intent(in), target, optional :: UP_in(:, :), GP_in(:, :)
-        integer                          :: ierr, my_rank
+        integer                                :: ierr, my_rank
         call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
 
         if (associated(XP)) nullify (XP)
