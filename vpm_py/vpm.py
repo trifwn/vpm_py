@@ -164,17 +164,17 @@ class VPM(object):
         
         self.visualizer.update_all_plots(
                 title = title,
-                particle_positions= self.particles.XP,
-                particle_charges= self.particles.QP,
-                particle_velocities= self.particles.UP,
-                particle_deformations= self.particles.GP,
-                pm_positions= self.particle_mesh.grid_positions,
-                pm_velocities= self.particle_mesh.U,
-                pm_charges= self.particle_mesh.RHS,
-                pm_vortex_stretching= self.particle_mesh.deformation,
-                pm_pressure= self.particle_mesh.pressure,
-                pm_q_pressure= self.particle_mesh.q_pressure,
-                pm_u_pressure= self.particle_mesh.u_pressure,
+                particle_positions= self.particles.XP[:,:],
+                particle_charges= self.particles.QP[:,:],
+                particle_velocities= self.particles.UP[:,:],
+                particle_deformations= self.particles.GP[:,:],
+                pm_positions= self.particle_mesh.grid_positions[:,:],
+                pm_velocities= self.particle_mesh.U[:,:],
+                pm_charges= self.particle_mesh.RHS[:,:],
+                pm_vortex_stretching= self.particle_mesh.deformation[:,:],
+                pm_pressure= self.particle_mesh.pressure[:,:],
+                pm_q_pressure= self.particle_mesh.q_pressure[:,:],
+                pm_u_pressure= self.particle_mesh.u_pressure[:,:],
             )
         if self.has_animation_writer:
             self.visualizer.grab_frame()
@@ -226,8 +226,9 @@ class VPM(object):
         GP_ptr = dp_array_to_pointer(particle_deformations, copy = True)
 
         # Get the pointers to arrays for the grid values
-        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
-        Velocity_ptr = F_Array_Struct.null(ndims=4, total_size= 1)
+        # Create null pointers for the arrays using ctypes
+        RHS_pm_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+        Velocity_ptr = F_Array_Struct.null(ndims=4, total_size=1)
 
         if num_particles is None:
             num_particles = NVR_size
@@ -249,11 +250,11 @@ class VPM(object):
 
         self.particle_mesh.number_equations = neq
         if not Velocity_ptr.is_null():
-            U_arr = F_Array.from_ctype(Velocity_ptr, ownership=True, name = "U")
+            U_arr = F_Array.from_ctype(Velocity_ptr, owns_data = False, name = "U")
             self.particle_mesh.U = U_arr.transfer_data_ownership()
         
         if not RHS_pm_ptr.is_null():
-            RHS_arr = F_Array.from_ctype(RHS_pm_ptr, ownership=True, name = "RHS")
+            RHS_arr = F_Array.from_ctype(RHS_pm_ptr, owns_data = False, name = "RHS")
             self.particle_mesh.RHS = RHS_arr.transfer_data_ownership()
 
     def vpm_project_solve(
@@ -553,7 +554,7 @@ class VPM(object):
         )
 
         if Pressure_ptr and not Pressure_ptr.is_null() and Pressure_ptr.total_size > 0:
-            pressure = F_Array.from_ctype(Pressure_ptr, ownership=True, name="Pressure").transfer_data_ownership()
+            pressure = F_Array.from_ctype(Pressure_ptr, owns_data = False, name="Pressure").transfer_data_ownership()
             self.particle_mesh.q_pressure = np.copy(pressure[0, :, :, :])
             self.particle_mesh.u_pressure = np.copy(pressure[1, :, :, :])
             self.particle_mesh.pressure = np.copy(pressure[2, :, :, :])
@@ -580,10 +581,10 @@ class VPM(object):
             byref(UP_struct), byref(GP_struct),
             byref(NVR), byref(c_double(cut_off))
         )
-        XP_arr = F_Array.from_ctype(XP_struct, ownership=True, name = "XP_remesh")
-        QP_arr = F_Array.from_ctype(QP_struct, ownership=True, name = "QP_remesh")
-        UP_arr = F_Array.from_ctype(UP_struct, ownership=True, name = "UP_remesh")
-        GP_arr = F_Array.from_ctype(GP_struct, ownership=True, name = "GP_remesh")
+        XP_arr = F_Array.from_ctype(XP_struct, owns_data = True, name = "XP_remesh")
+        QP_arr = F_Array.from_ctype(QP_struct, owns_data = True, name = "QP_remesh")
+        UP_arr = F_Array.from_ctype(UP_struct, owns_data = True, name = "UP_remesh")
+        GP_arr = F_Array.from_ctype(GP_struct, owns_data = True, name = "GP_remesh")
 
         # store the results
         self.particles.particle_positions = XP_arr.transfer_data_ownership()
@@ -657,9 +658,9 @@ class VPM(object):
     def _store_mesh_results(self, RHS_ptr, Velocity_ptr=None, Deform_ptr=None):
         """Store mesh results if pointers are not null."""
         if not RHS_ptr.is_null():
-            self.particle_mesh.RHS = F_Array.from_ctype(RHS_ptr, ownership=True, name="RHS").transfer_data_ownership()
+            self.particle_mesh.RHS = F_Array.from_ctype(RHS_ptr, owns_data = False, name="RHS").transfer_data_ownership()
         if Velocity_ptr and not Velocity_ptr.is_null():
-            self.particle_mesh.U = F_Array.from_ctype(Velocity_ptr, ownership=True, name="U").transfer_data_ownership()
+            self.particle_mesh.U = F_Array.from_ctype(Velocity_ptr, owns_data = False, name="U").transfer_data_ownership()
         if Deform_ptr and not Deform_ptr.is_null():
-            self.particle_mesh.deformation = F_Array.from_ctype(Deform_ptr, ownership=True, name="Deform").transfer_data_ownership()
+            self.particle_mesh.deformation = F_Array.from_ctype(Deform_ptr, owns_data = False, name="Deform").transfer_data_ownership()
 

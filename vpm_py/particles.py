@@ -1,12 +1,8 @@
 import os
-import glob
-from shutil import copy2
-from tempfile import NamedTemporaryFile
-from ctypes import c_double, c_int, POINTER, cdll, CDLL, byref, c_char_p, create_string_buffer
+from ctypes import c_double, c_int, POINTER, byref
 import numpy as np
 
 from vpm_py.arrays import F_Array, F_Array_Struct
-from vpm_py.console_io import print_IMPORTANT
 from vpm_py.vpm_lib import VPM_Lib
 
 class Particles:

@@ -10,7 +10,7 @@ import re
 import time
 
 from vpm_py.console_io import print_IMPORTANT
-from vpm_py.process_files import process_particle_ouput_file, process_pm_output_file
+from vpm_py.file_io import process_particle_file, process_pm_file
 
 from . import ResultPlot
 from . import QuantityOfInterest
@@ -94,8 +94,8 @@ class Visualizer:
     def add_folder(
         self,
         folder: str,
-        particle_filename_pattern: str = r'particles.*\.h5',
-        mesh_filename_pattern: str = r'pm_output.*\.h5',
+        particle_filename_pattern: str = r'particles.*h5',
+        mesh_filename_pattern: str = r'particle_mesh.*h5',
         show_animation_buttons: bool = True,
         show_folder_name: bool = True,
     ):
@@ -223,7 +223,7 @@ class Visualizer:
         if self.has_particles:
             (
                 particle_positions, particle_velocities, particle_charges, particle_deformations
-            ) = process_particle_ouput_file(file_particles)
+            ) = process_particle_file(file_particles)
             self._update_particle_plots(
                 particle_positions,
                 particle_charges,
@@ -235,7 +235,7 @@ class Visualizer:
             (
                 neq, mesh_positions, mesh_velocities, mesh_charges, mesh_vortex_stretching, 
                 mesh_solutions, mesh_pressure, mesh_q_pressure, mesh_u_pressure
-            ) = process_pm_output_file(file_particle_mesh)
+            ) = process_pm_file(file_particle_mesh)
             self._update_mesh_plots(
                 mesh_positions,
                 mesh_charges,

@@ -1,5 +1,5 @@
 import numpy as np
-from ctypes import c_double, POINTER, cast, _Pointer, Array
+from ctypes import c_double, POINTER, cast, _Pointer
 np.set_printoptions(precision= 3, suppress= True)
 
 def dp_array_to_pointer(array: np.ndarray, copy = False) -> _Pointer:

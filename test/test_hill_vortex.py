@@ -23,11 +23,11 @@ def main():
     DT = 0.5 * 0.1 / np.linalg.norm(UINF)
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
-    CFL_TARGET = 0.6
+    CFL_TARGET = 0.5
 
     # OPTIONS
     remesh = True
-    apply_vorticity_correction = True #False
+    apply_vorticity_correction = False
 
     # CASE FOLDER
     CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/hill_vortex"
@@ -46,6 +46,8 @@ def main():
     
     CASE_FOLDER += "/"
 
+    INITIALIZE_CASE = False 
+    
     # Initialize MPI
     comm = MPI.COMM_WORLD
     start_time = MPI.Wtime()
@@ -100,51 +102,30 @@ def main():
     print_red(f"DT: {DT}", rank)
     print_red(f"Approximate CFL: {np.sum(np.linalg.norm(UINF) * DT / vpm.dpm)}", rank)
     neq = 3 
-    # Create particles
-    NVR = 100
-    XPR_zero = np.zeros((3, NVR), dtype=np.float64)
-    XPR_zero[:, 0] = np.array([-2., -2., -2.])
-    XPR_zero[:, 1] = np.array([2., 2., 2.])
-    QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
 
-    # Initialization VPM
-    comm.Barrier()
-    vpm.vpm_define(
-        num_equations=neq,
-        particle_positions= XPR_zero, 
-        particle_charges= QPR_zero, 
-    )
-    comm.Barrier()
+    if INITIALIZE_CASE:
+        # Initialize the particles
+        XPR_zero, QPR_zero, NVR = initialize_hill_vortex(
+            vpm= vpm,
+            neq= neq,
+            SPHERE_RADIUS= SPHERE_RADIUS,
+            UINF= UINF,
+            comm= comm,
+            rank= rank,
+        )
+        print_IMPORTANT(f"Initalized {NVR} particles", rank)
+    else:
+        from vpm_py.file_io import get_latest_particle_file
+        XPR_zero, _, QPR_zero, _ = get_latest_particle_file(
+            folder= CASE_FOLDER
+        )
+        # Load the particles
+        NVR = XPR_zero.shape[1]
+        comm.Barrier()
+        print_IMPORTANT(f"Loaded particles from file: {NVR} particles", rank)
 
-    # Initialize Hill Vortex
-    if rank == 0:
-        st = MPI.Wtime()
-        print_IMPORTANT("Hill vortex initialization", rank)
-    _, RHS_pm_hill = hill_assign_parallel(
-        Dpm= vpm.dpm,
-        NN= vpm.particle_mesh.nn,
-        NN_bl= vpm.particle_mesh.nn_bl,
-        Xbound= vpm.particle_mesh.xbound,
-        neqpm= vpm.num_equations,
-        sphere_radius = SPHERE_RADIUS,
-        u_freestream = UINF[2],
-        sphere_z_center = 0.0,
-    )
-    vpm.particle_mesh.set_rhs_pm(RHS_pm_hill)
-    print_red("Setting RHS_pm as computed from the hill vortex", rank)
-    
-    if rank == 0:
-        st = MPI.Wtime()
-        print_red("Remeshing")
-    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
-    if rank == 0:
-        et = MPI.Wtime()
-        print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
-
-    print_IMPORTANT("Particles initialized", rank)
-
-    XPR = XPR_hill.copy()
-    QPR = QPR_hill.copy()
+    XPR = XPR_zero.copy()
+    QPR = QPR_zero.copy()
     comm.Barrier()
     vpm.vpm_define(
         num_equations= vpm.num_equations,
@@ -213,14 +194,27 @@ def main():
             print(f"CFL_z: {CFL_z}")
             print('\n')
 
+            # THE STABILITY CRITERION FOR THE DIFFUSION IS: DT < dx^2 / (2 * nu)
+            print('Stability criterion for diffusion:')
+            print('\tDT < 1 / (2 * nu) * 1 / (1/dx^2 + 1/dy^2 + 1/dz^2)')
+            if DT > 1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2):
+                print_red('\tNot Satisfied')
+                print(f"\tDT: {DT} > {1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
+                DT_diffusion = 1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)
+            else:
+                print_green('\tSatisfied')
+                print(f"\tDT: {DT} < {1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
+                DT_diffusion = DT
+            print('\n')
+            
             # Adjust the timestep
-            DT = adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT)
+            DT = adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_diffusion)
 
             print_IMPORTANT("Convecting Particles", rank)
             st = MPI.Wtime()
             # Convect the particles and apply vortex stretching
-            XPR[:3,:] += UPR * DT
-            QPR[:3,:] -= GPR * DT
+            XPR[:3,:] += UPR[:3, :] * DT
+            QPR[:3,:] -= GPR[:3, :] * DT
 
             et = MPI.Wtime()
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
@@ -255,27 +249,6 @@ def main():
             timestep=i,
         )
 
-        if REYNOLDS_NUMBER != np.inf:
-            print_IMPORTANT("Applying Diffusion", rank)
-            vpm.vpm_diffuse(
-                viscosity= VISCOSITY,
-                particle_positions= XPR,
-                particle_charges= QPR,
-            )
-            if rank == 0:
-                QPR = vpm.particles.QP
-                GPR = vpm.particles.GP
-                print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
-                print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
-                # Diffuse the particles
-                QPR[:3,:] = QPR[:3,:] + GPR * DT
-                print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
-                print('New min(QPR) = ', np.min(np.abs(QPR[:,:])))
-                print('Diffusion finished: with viscosity = ', VISCOSITY)
-                print('min (GPR) = ', np.min(GPR[:,:]))
-                print('mean(GPR) = ', np.mean(GPR[:,:]))
-                print('max (GPR) = ', np.max(GPR[:,:]))
-
         if remesh and i % 20 == 0 and i != 0:
             print_IMPORTANT("Remeshing", rank)
             XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
@@ -293,18 +266,101 @@ def main():
         if rank == 0:
             XPR = vpm.particles.XP
             QPR = vpm.particles.QP
+
+        if REYNOLDS_NUMBER != np.inf:
+            print_IMPORTANT("Applying Diffusion", rank)
+            vpm.vpm_diffuse(
+                viscosity= VISCOSITY,
+                particle_positions= XPR,
+                particle_charges= QPR,
+            )
+            if rank == 0:
+                QPR = vpm.particles.QP
+                GPR = vpm.particles.GP
+                print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
+                print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
+                # Diffuse the particles
+                QPR[:3,:] = QPR[:3,:] + GPR[:, :] *  DT
+                print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
+                print('New min(QPR) = ', np.min(np.abs(QPR[:,:])))
+                print('Diffusion finished: with viscosity = ', VISCOSITY)
+                print('min (GPR) = ', np.min(GPR[:,:]))
+                print('mean(GPR) = ', np.mean(GPR[:,:]))
+                print('max (GPR) = ', np.max(GPR[:,:]))
+
+        if rank == 0:
+            print('\n')
+            print('-----------------------------------------')
+            XPR = vpm.particles.XP
+            QPR = vpm.particles.QP
         
     # Finalize
     end_time = MPI.Wtime()
     print_IMPORTANT(f"Time taken: {int((end_time - start_time) / 60)}m {int(end_time - start_time) % 60}s", rank=rank) 
     MPI.Finalize()
 
-def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT):
-    if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS):
+def initialize_hill_vortex(
+    vpm: VPM, 
+    neq: int, 
+    SPHERE_RADIUS: float, 
+    UINF, 
+    comm, 
+    rank
+):
+    # Create particles
+    NVR = 100
+    XPR_zero = np.zeros((3, NVR), dtype=np.float64)
+    XPR_zero[:, 0] = np.array([-2., -2., -2.])
+    XPR_zero[:, 1] = np.array([2., 2., 2.])
+    QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
+
+    # Initialization VPM
+    comm.Barrier()
+    vpm.vpm_define(
+        num_equations=neq,
+        particle_positions= XPR_zero, 
+        particle_charges= QPR_zero, 
+    )
+    comm.Barrier()
+
+    # Initialize Hill Vortex
+    if rank == 0:
+        st = MPI.Wtime()
+        print_IMPORTANT("Hill vortex initialization", rank)
+    _, RHS_pm_hill = hill_assign_parallel(
+        Dpm= vpm.dpm,
+        NN= vpm.particle_mesh.nn,
+        NN_bl= vpm.particle_mesh.nn_bl,
+        Xbound= vpm.particle_mesh.xbound,
+        neqpm= vpm.num_equations,
+        sphere_radius = SPHERE_RADIUS,
+        u_freestream = UINF[2],
+        sphere_z_center = 0.0,
+    )
+    vpm.particle_mesh.set_rhs_pm(RHS_pm_hill)
+    print_red("Setting RHS_pm as computed from the hill vortex", rank)
+    
+    if rank == 0:
+        st = MPI.Wtime()
+        print_red("Remeshing")
+    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
+    if rank == 0:
+        et = MPI.Wtime()
+        print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
+
+    print_IMPORTANT("Particles initialized", rank)
+    return XPR_hill, QPR_hill, NVR
+
+def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_Limit):
+    if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS) :
         DT_old = DT
         DT = CFL_TARGET / CFL * DT
         print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
         print_red(f"DT: was {DT_old} -> Adjusting to {DT}")
+    elif DT > DT_Limit:
+        print_red("Adjusting the timestep so difussion is stable")
+        print_red(f"DT: was {DT} -> Adjusting to {DT_Limit}")
+        DT = DT_Limit
     else:
         print_green("CFL condition is satisfied")
     print('\n')

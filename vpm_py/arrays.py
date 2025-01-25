@@ -9,8 +9,7 @@ import glob
 from shutil import copy2
 from typing import Any
 
-from vpm_py.console_io import print_red, print_green, print_IMPORTANT
-from vpm_py.vpm_dtypes import dp_array_to_pointer, pointer_to_dp_array
+from vpm_py.console_io import print_green, print_IMPORTANT
 
 here = os.path.abspath(os.path.dirname(__file__))
 lib_locations = os.path.join(here, 'shared_libs')
@@ -22,26 +21,28 @@ class F_Array_Struct(ctypes.Structure):
         ("ndims", c_int),              # Integer for the number of dimensions
         ("total_size", c_int),         # Integer for the total size of the data array
         ("shape_ptr", POINTER(c_int)),  # Pointer to the shape array (array of integers)
-        ("data_ptr", POINTER(c_double)) # Pointer to the data array (array of doubles)
+        ("data_ptr", POINTER(c_double)),# Pointer to the data array (array of doubles)
+        ('own_data', c_int)           # Integer to check if the data are owned by the object
     ]
 
-    def __init__(self, ndims=0, total_size=0, shape_ptr=None, data_ptr=None):
+    def __init__(self, ndims=0, total_size=0, shape_ptr=None, data_ptr=None, own_data=0):
         super().__init__()
         self.ndims = c_int(ndims)
         self.total_size = c_int(total_size)
         self.shape_ptr = shape_ptr
         self.data_ptr = data_ptr
+        self.own_data = c_int(own_data)
 
     def __str__(self) -> str:
         _str = f"ND_Array with {self.ndims} dimensions and total size {self.total_size}\n"
         # Print the memory address of the shape and data pointers
         # Check for null pointers
         if not self.shape_ptr:
-            _str += f"Shape pointer is null\n"
+            _str += "Shape pointer is null\n"
         else:
             _str += f"Shape pointer address: {ctypes.addressof(self.shape_ptr.contents)}\n"
         if not self.data_ptr:
-            _str += f"Data pointer is null\n"
+            _str += "Data pointer is null\n"
         else:
             _str += f"Data pointer address: {ctypes.addressof(self.data_ptr.contents)}\n"
         _str += f"Shape pointer: {self.shape_ptr}\n"
@@ -64,7 +65,8 @@ class F_Array_Struct(ctypes.Structure):
             ndims= ndims,
             total_size= total_size,
             data_ptr= cast(0, POINTER(c_double)),
-            shape_ptr= cast(0, POINTER(c_int))
+            shape_ptr= cast(0, POINTER(c_int)),
+            own_data=0
         )
 
 class F_Array(object):
@@ -76,7 +78,7 @@ class F_Array(object):
             self, 
             shape: tuple[int,...] | np.ndarray[Any, np.dtype[np.int32]], 
             data_container : np.ndarray | None =None, 
-            name: str | None = None
+            name: str | None = None,
         ):
         """
         An F_Array is a data container that can easily interoperate with fortran.
@@ -94,8 +96,8 @@ class F_Array(object):
         self.shape_container = np.array(shape, dtype=np.int32, order='F')
 
         if data_container is not None:
-            self.data_container = None
-            self.owns_data = False
+            self.data_container = data_container 
+            self.owns_data = True 
         else:
             data_container = np.zeros(shape, dtype=np.float64, order='F')
             self.data_container = data_container
@@ -110,7 +112,7 @@ class F_Array(object):
         data_ptr_zero = cast(self.data_ptr, POINTER(c_double))
         shape_ptr_zero = cast(self.shape_ptr, POINTER(c_int))
         _ = self._lib_array.create_dtype(
-            c_int(self.ndims), c_int(self.total_size), shape_ptr_zero, data_ptr_zero
+            c_int(self.ndims), c_int(self.total_size), shape_ptr_zero, data_ptr_zero, c_int(self.owns_data)
         )
         self.data_ptr_zero = data_ptr_zero
 
@@ -131,7 +133,7 @@ class F_Array(object):
     
     @classmethod
     def _setup_function_signatures(cls):
-        cls._lib_array.create_dtype.argtypes = [POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_double)]
+        cls._lib_array.create_dtype.argtypes = [POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_double), POINTER(c_int)]
         cls._lib_array.create_dtype.restype = F_Array_Struct
         cls._lib_array.get_data_ptr.argtypes = []
         cls._lib_array.get_data_ptr.restype = POINTER(c_double)
@@ -148,7 +150,7 @@ class F_Array(object):
     def from_ctype(
         self, 
         array_struct: F_Array_Struct, 
-        ownership= False, 
+        owns_data: bool = False,
         name=None
     ):
         # Get the shape from the shape pointer
@@ -165,6 +167,7 @@ class F_Array(object):
         data = np.asarray(data_ptr.contents, dtype=np.float64).reshape(shape, order='F')
         
         arr = F_Array(shape, data_container=data, name=name)
+        arr.owns_data = owns_data
         return arr
     
     @classmethod
@@ -324,7 +327,12 @@ class F_Array(object):
             # print_green(f"\tThe array data are in {self.data.__array_interface__["data"]} ")
             # Ensure to call free_array correctly
             # Free the memory allocated by the Fortran code
-            # self.libc.free(self.data_ptr)
+            # Free data only if the object owns it
+            if self.owns_data and self.data_container is not None:
+                # Ensure Fortran deallocation is called
+                array_struct = self.to_ctype()
+                # self._lib_array.free_array(byref(array_struct))
+                print("Deallocated memory using Fortran API.", self.name)
             del self.data_container
             del self.shape_container
             del self.shape_ptr
@@ -416,17 +424,17 @@ def main():
 
     print("Testing the Fortran API")
     
-    print(f"Testing operations between arrays")
-    print(f"Array 1:")
+    print("Testing operations between arrays")
+    print("Array 1:")
     arr.print_in_fortran()
-    print(f"Array 2:")
+    print("Array 2:")
     arr2.print_in_fortran()
-    print(f"Adding the arrays")
+    print("Adding the arrays")
     res = arr + arr2
-    print(f"Result:")
+    print("Result:")
     res.print_in_fortran()
 
-    print(f"SO COOL! Now let's change the data in the array")
+    print("SO COOL! Now let's change the data in the array")
     for i in range(arr.shape[0]):
         for j in range(arr.shape[1]):
             seed = np.random.randint(0,100)
