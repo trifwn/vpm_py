@@ -116,17 +116,17 @@ contains
 
             ! Check if particle is within the PM grid
             if (inode - ips < 1 .or. inode + ipf > NXpm) then
-                print *, 'Particle out of bounds in X direction', inode, ips, ipf, nv
+                print *, 'Particle out of bounds in X direction', inode, ips, ipf, nv, XP(1, nv)
                 read *, ierr
                 STOP
             end if
             if (jnode - ips < 1 .or. jnode + ipf > NYpm) then
-                print *, 'Particle out of bounds in Y direction', jnode, ips, ipf, nv
+                print *, 'Particle out of bounds in Y direction', jnode, ips, ipf, nv, XP(2, nv)
                 read *, ierr
                 STOP
             end if
             if (ND == 3 .and. (knode - ips < 1 .or. knode + ipf > NZpm)) then
-                print *, 'Particle out of bounds in Z direction', knode, ips, ipf, nv
+                print *, 'Particle out of bounds in Z direction', knode, ips, ipf, nv, XP(3, nv)
                 read *, ierr
                 STOP
             end if

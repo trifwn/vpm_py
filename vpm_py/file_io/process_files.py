@@ -48,4 +48,4 @@ def get_latest_particle_file(
         return None
     latest_file = files[-1]
     print(f"Latest file: {latest_file}")
-    return process_particle_file(filename= latest_file, folder= folder)
+    return *process_particle_file(filename= latest_file, folder= folder), len(files)

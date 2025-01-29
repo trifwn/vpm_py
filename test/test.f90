@@ -25,7 +25,7 @@ Program test_pm
    use test_app, only:   hill_assign
    use parvar, only:     NVR
    use vpm_lib, only:    vpm, vpm_solve_pressure, vpm_correct_vorticity, vpm_diffuse, vpm_define_problem, vpm_solve_velocity_deformation
-   use vpm_remesh, only: remesh_particles_3d
+   use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
    use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, write_pressure_hdf5, case_folder 
    use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
    use serial_vector_field_operators, only: divergence
@@ -37,7 +37,7 @@ Program test_pm
    integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
    logical              :: pmfile_exists
    real(dp)             :: REYNOLDS
-   real(dp)             :: sphere_radius = 2.0_dp
+   real(dp)             :: sphere_radius = 1.0_dp
    real(dp)             :: sphere_z_0 = 0.0_dp
    real(dp)             :: u_free_stream = 1.0_dp
    real(dp)             :: CFL_x, CFL_y, CFL_z, CFL
@@ -46,11 +46,11 @@ Program test_pm
    real(dp)             :: CFL_target = 0.6_dp
    character(len=250)   :: cfl_file
    real(dp), allocatable :: divergence_HILL(:,:,:)
-   real(dp),  pointer    :: pressure(:,:,:,:)
+   real(dp), allocatable :: pressure(:,:,:,:)
    
    ! PARAMTERS
    logical, parameter   :: CORRECT_VORTICITY = .true.
-   integer, parameter   :: REMESH_FREQ = 20
+   integer, parameter   :: REMESH_FREQ = 1
    ! integer, parameter   :: 
 
    call MPI_INIT(ierr)
@@ -90,9 +90,9 @@ Program test_pm
          print *, achar(9), 'DZpm=', DZpm
       end if
    else
-      DXpm = 0.1_dp
-      DYpm = 0.1_dp
-      DZpm = 0.1_dp
+      DXpm = .1
+      DYpm = .1
+      DZpm = .1
  
       NBI = 1
       NBJ = 2
@@ -115,7 +115,7 @@ Program test_pm
    !--- END READ SETTINGS
    
    !--- Problem settings
-   REYNOLDS = 1000.0_dp                                        ! Reynolds number
+   REYNOLDS = 10.0_dp                                        ! Reynolds number
    NI_in    = u_free_stream * sphere_radius / REYNOLDS     ! Viscosity
    DT_in    = 0.5 * DXpm / u_free_stream                    ! =dx/U
    neq      = 3                                             ! NUMBER OF EQUATIONS
@@ -168,7 +168,7 @@ Program test_pm
    deallocate (RHS_ptr)
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
-   call remesh_particles_3d(-1,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+   call remesh_particles_3d(RHS_ptr, fine_grid,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
    ! Reinitalize the domain
    call vpm_define_problem(0, XPR, QPR, NVR_ext, NVR_size, neq)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -373,7 +373,7 @@ Program test_pm
       ! Apply the diffusion 
       if (my_rank .eq. 0) then
          do j = 1, NVR
-            QPR(1:3, j) = QPR(1:3, j) + GPR(1:3, j)*DT_in
+            QPR(1:3, j) = QPR(1:3, j) - GPR(1:3, j)*DT_in
          end do
       end if
       ! --- END VPM DIFFUSION
@@ -385,7 +385,7 @@ Program test_pm
       ! VPM REMESH
       if ((mod(i, REMESH_FREQ).eq. REMESH_FREQ) .and. (i .ne. 0)) then        
          ! Remesh the particles
-         call remesh_particles_3d(1, ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+         call interpolate_and_remesh_particles(ncell_rem, XPR, QPR, GPR, UPR, NVR_ext)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
          NVR_size = NVR_EXT
@@ -395,6 +395,7 @@ Program test_pm
    end do
    !--- END MAIN LOOP
    call MPI_FINALIZE(ierr)
+   print *, 'END'
 end Program test_pm
 
 subroutine find_par_out

@@ -385,7 +385,6 @@ contains
         use parvar, only: QP, XP, NVR, NVR_size
         use serial_vector_field_operators, only: divergence, curl
         use vpm_interpolate, only: interpolate_particle_Q
-        use vpm_remesh, only: remesh_particles_3d
         use pmgrid, only: RHS_pm
         implicit none
 
@@ -512,7 +511,7 @@ contains
         use vpm_interpolate, only: interpolate_particle_Q
         real(dp), pointer, intent(in)           :: vorticity(:,:,:,:)
         real(dp), pointer, intent(in)           :: velocity(:,:,:,:)
-        real(dp), pointer, intent(out)          :: pressure(:,:,:,:)
+        real(dp), allocatable,  intent(out)     :: pressure(:,:,:,:)
         real(dp), intent(in)                    :: density
         real(dp), pointer, intent(in), optional :: dphi_dt(:,:,:,:)
         real(dp), value, optional               :: p_reference
@@ -614,7 +613,6 @@ contains
         use parvar, only: QP, XP, NVR, NVR_size
         use serial_vector_field_operators, only: divergence, curl
         use vpm_interpolate, only: interpolate_particle_Q
-        use vpm_remesh, only: remesh_particles_3d
         use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm
         implicit none
 

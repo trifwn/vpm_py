@@ -302,7 +302,6 @@ contains
         ! Print the min, max and average of laplace_vort
         print *, "Min laplace_vort: ", minval(laplace_vort) * DXpm * DYpm * DZpm
         print *, "Max laplace_vort: ", maxval(laplace_vort) * DXpm * DYpm * DZpm
-        print *, "Avg laplace_vort: ", sum(laplace_vort) * DXpm * DYpm * DZpm / size(laplace_vort)
 
         variable_volume = .false.
         if (neqpm .eq. 3) then
