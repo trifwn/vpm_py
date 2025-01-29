@@ -155,10 +155,14 @@ class VPM_Lib:
         
         # API.remesh_particles_3d
         cls._lib_vpm.remesh_particles_3d.argtypes = [
-            POINTER(c_int), POINTER(c_int), 
-            POINTER(F_Array_Struct), POINTER(F_Array_Struct),
-            POINTER(F_Array_Struct), POINTER(F_Array_Struct), 
-            POINTER(c_int), POINTER(c_double)
+            POINTER(c_int),          # iflag
+            POINTER(c_int),          # npar_per_cell
+            POINTER(F_Array_Struct), # XP
+            POINTER(F_Array_Struct), # QP
+            POINTER(F_Array_Struct), # UP
+            POINTER(F_Array_Struct), # GP
+            POINTER(c_int),          # num_particles
+            POINTER(c_double)        # cutoff
         ]
         cls._lib_vpm.remesh_particles_3d.restype = None
 
