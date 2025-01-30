@@ -78,7 +78,7 @@ contains
         integer, intent(in)     :: BLOCKS, NBI, NBJ, NBK
         type(cartesian_grid), intent(in)  :: my_block, all_blocks(BLOCKS), fine_grid
         real(dp), intent(in)    :: SOL_pm_bl(neqpm, my_block%NN(1), my_block%NN(2), my_block%NN(3))
-        real(dp), intent(out)   :: SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3))
+        real(dp), intent(out), allocatable   :: SOL_pm(:, :, :, :)
 
         ! Local variables
         real(dp), allocatable   :: SOL_pm_tmp(:, :, :, :)
@@ -109,7 +109,10 @@ contains
             ixf = ixs + (NXf - NXs + 1) - 1
             jxf = jxs + (NYf - NYs + 1) - 1
             kxf = kxs + (NZf - NZs + 1) - 1
-
+            if (.not. allocated(SOL_pm)) then
+                allocate (SOL_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+                SOL_pm = 0.d0
+            end if
             SOL_pm(1:neqpm, ixs:ixf, jxs:jxf, kxs:kxf) = SOL_pm_bl(1:neqpm, NXs:NXf, NYs:NYf, NZs:NZf)
             !-->Assign
             do k = 1, NBK

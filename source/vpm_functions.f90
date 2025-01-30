@@ -17,14 +17,17 @@ module vpm_functions
 contains
     subroutine allocate_sol_and_rhs(n_block)
         use pmgrid, only: SOL_pm, RHS_pm, SOL_pm_bl, RHS_pm_bl
+        use MPI
         implicit none
         integer, intent(in) :: n_block
         integer, dimension(3) :: NN_block
+        integer :: my_rank, ierr
         ! neqpm        : is the number of equations to be solved
         ! NN           : is the number of cells in each direction
         ! NN_tmp       : is the number of cells in each direction (block cells)
         ! NN_bl_tmp    : is the start and finish of the cells in each direction
         ! Xbound       : is the boundary of the domain
+        call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         NN_block = block_grids(n_block)%NN
 
         ! SOL_pm block

@@ -204,8 +204,8 @@ contains
         RHS_pm_ptr &
     )
         use MPI
-        use pmgrid, only: RHS_pm, deform_pm
-        use parvar, only: NVR, QP, QP_scatt, GP_scatt, GP
+        use pmgrid, only: RHS_pm
+        use parvar, only: NVR
         implicit none
         real(dp), intent(in)                      :: NI_in
         real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
@@ -224,8 +224,11 @@ contains
         RHS_pm_ptr => RHS_pm
 
         if (NVR .eq. 0) then
-            print *, 'No particles to interpolate'
-            return
+            if (size(XP_in, 2) .eq. 0) then
+                print *, 'No particles to interpolate'
+                return
+            end if
+            NVR = size(XP_in, 2)
         end if
 
         ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
@@ -429,15 +432,15 @@ contains
         ! Allocate the solution and the RHS
         ND = 3
         neqpm = 1
+
+        nb = my_rank + 1
         allocate (SOL2_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
         allocate (RHS2_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
-        nb = my_rank + 1
-        allocate (SOL2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
-        allocate (RHS2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
-
-        
         SOL2_pm = 0.d0
         RHS2_pm = 0.d0
+        allocate (SOL2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
+        allocate (RHS2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
+        
         ! Get the divergence of the RHS of the equations:
         ! 1) 1st equation \nabla ^ 2 \pi = \nabla \cdot \omega that gives the pi field decomposition of
         !    the vorticity field. \omega = \nabla pi + \naabla x \qi => \nabla \cdot \omega = \nabla^2 pi
@@ -496,7 +499,10 @@ contains
                                 100 - sum(abs(QP))/sum(abs(QP_old)) * 100, " %"
             deallocate (XP_old, QP_old)
         end if
-        deallocate (SOL2_pm, RHS2_pm, SOL2_pm_bl, RHS2_pm_bl)
+        if (allocated(SOL2_pm)) deallocate (SOL2_pm)
+        if (allocated(RHS2_pm)) deallocate (RHS2_pm)
+        if (allocated(SOL2_pm_bl)) deallocate (SOL2_pm_bl)
+        if (allocated(RHS2_pm_bl)) deallocate (RHS2_pm_bl)
         ! call project_calc_div
     end subroutine vpm_correct_vorticity
 
@@ -605,7 +611,10 @@ contains
         
         neqpm = 3
         ! DEALLOCATE THE MEMORY
-        deallocate (SOL2_pm, RHS2_pm, SOL2_pm_bl, RHS2_pm_bl)
+        if (allocated(SOL2_pm)) deallocate (SOL2_pm)
+        if (allocated(RHS2_pm)) deallocate (RHS2_pm)
+        if (allocated(SOL2_pm_bl)) deallocate (SOL2_pm_bl)
+        if (allocated(RHS2_pm_bl)) deallocate (RHS2_pm_bl)
     end subroutine vpm_solve_pressure
 
     subroutine project_calc_div

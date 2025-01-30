@@ -21,12 +21,18 @@ def pointer_to_dp_array(
     """
     Convert a pointer to a double array to a numpy array.
     """
-    pointer = cast(pointer, POINTER(c_double))
-    data = np.ctypeslib.as_array(pointer, shape= shape)
-    if not data.flags['F_CONTIGUOUS']:
-        data = data.reshape(shape, order= 'F')
-    else:
-        data = data.reshape(shape)
+    p_arr_type = POINTER(_ctype_ndarray(c_double, shape))
+
+    obj = cast(pointer, p_arr_type).contents
+    data = np.asarray(obj, dtype= np.float64, order= 'F').reshape(shape)
     if copy:
         data = np.array(data, copy= True, order= 'F')
     return data
+
+def _ctype_ndarray(element_type, shape):
+    """ Create an ndarray of the given element type and shape """
+    for dim in shape[::-1]:
+        element_type = dim * element_type
+        # prevent the type name include np.ctypeslib
+        element_type.__module__ = None
+    return element_type

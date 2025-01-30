@@ -79,7 +79,7 @@ print_red("Setting RHS_PM as computed from the hill vortex", rank)
 if rank == 0:
     st = MPI.Wtime()
     print_red("Remeshing")
-XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False)
+NVR, XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False)
 if rank == 0:
     et = MPI.Wtime()
     print(f"\tRemeshing finished in {int((et - st) / 60)}m {int(et - st) % 60}s\n")

@@ -103,7 +103,7 @@ class OperatorsLib:
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, 
             byref(c_int(order)), byref(c_int(direction)), byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -119,7 +119,7 @@ class OperatorsLib:
         cls._lib.divergence(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -135,7 +135,7 @@ class OperatorsLib:
         cls._lib.curl(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -150,7 +150,7 @@ class OperatorsLib:
         cls._lib.laplacian(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -165,7 +165,7 @@ class OperatorsLib:
         cls._lib.gradient(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -180,7 +180,7 @@ class OperatorsLib:
         cls._lib.vector_laplacian(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -195,7 +195,7 @@ class OperatorsLib:
         cls._lib.hessian(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np
 
@@ -210,6 +210,6 @@ class OperatorsLib:
         cls._lib.jacobian(
             byref(field_f.to_ctype()), byref(c_int(3)), dpm_pointer, byref(result)
         )
-        result_arr = F_Array.from_ctype(result, ownership=True)
+        result_arr = F_Array.from_ctype(result)
         result_np = result_arr.transfer_data_ownership()
         return result_np

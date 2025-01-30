@@ -1,6 +1,6 @@
 import numpy as np
 import ctypes
-from ctypes import c_int,  byref, POINTER, c_double, cast, cdll, Array
+from ctypes import c_int,  byref, POINTER, c_double, cast, cdll, Array, c_void_p
 from ctypes.util import find_library
 from ctypes import CDLL
 from tempfile import NamedTemporaryFile
@@ -88,38 +88,26 @@ class F_Array(object):
             data_container (np.ndarray | None, optional): The actual data. If provided will be used otherwise will be initialized to 0.
             name (str | None, optional): Debugging parameter to track arrays. Will be removed.
         """
-        self.name = name
         if not F_Array._lib_array:
             F_Array._load_library()
         self.ndims = len(shape)
         self.total_size = int(np.prod(shape)) # Total size of the data array
         self.shape_container = np.array(shape, dtype=np.int32, order='F')
 
-        if data_container is not None:
-            self.data_container = data_container 
-            self.owns_data = True 
-        else:
-            data_container = np.zeros(shape, dtype=np.float64, order='F')
-            self.data_container = data_container
-            self.owns_data = True
         data_dtype: type[c_double] | type[Array[Any]] = (c_double)
         for dim in shape:
             data_dtype = data_dtype * dim
         self.data_ptr_type = data_dtype
+        
         self.shape_ptr = self.shape_container.ctypes.data_as(POINTER(c_int * self.ndims))
-        self.data_ptr =  data_container.ctypes.data_as(POINTER(data_dtype))
 
-        data_ptr_zero = cast(self.data_ptr, POINTER(c_double))
-        shape_ptr_zero = cast(self.shape_ptr, POINTER(c_int))
-        _ = self._lib_array.create_dtype(
-            c_int(self.ndims), c_int(self.total_size), shape_ptr_zero, data_ptr_zero, c_int(self.owns_data)
-        )
-        self.data_ptr_zero = data_ptr_zero
-
-        # print_red(f"Created array {self.name}")
-        # print_green(f"\tThe array owns the data: {self.owns_data}")
-        # print_green(f"\tThe array has shape {self.shape}")
-        # print_green(f"\tThe array data are in {data_container.__array_interface__["data"]} ")
+        self.data_container = data_container 
+        if data_container is None:
+            self.data_ptr: c_void_p | POINTER[Any] =  c_void_p
+            self.data_ptr_zero: c_void_p | POINTER[Any] = c_void_p
+        else:
+            self.data_ptr =  data_container.ctypes.data_as(POINTER(data_dtype))
+            self.data_ptr_zero = cast(self.data_ptr, POINTER(c_double))
 
     @classmethod
     def _load_library(cls):
@@ -147,11 +135,13 @@ class F_Array(object):
         cls._lib_array.free_array.argtypes = [POINTER(F_Array_Struct)]
 
     @classmethod
+    def null(self):
+        return F_Array((0,), data_container=None)
+
+    @classmethod
     def from_ctype(
         self, 
         array_struct: F_Array_Struct, 
-        owns_data: bool = False,
-        name=None
     ):
         # Get the shape from the shape pointer
         ndims = array_struct.ndims
@@ -162,12 +152,13 @@ class F_Array(object):
             dtype=np.int32,
             count=ndims
         )
-        data_ptr = array_struct.data_ptr
-        data_ptr = cast(data_ptr, POINTER(c_double*array_struct.total_size))
-        data = np.asarray(data_ptr.contents, dtype=np.float64).reshape(shape, order='F')
-        
-        arr = F_Array(shape, data_container=data, name=name)
-        arr.owns_data = owns_data
+        try:
+            data_ptr = array_struct.data_ptr
+            data_ptr = cast(data_ptr, POINTER(c_double*array_struct.total_size))
+            data = np.asarray(data_ptr.contents, dtype=np.float64).reshape(shape, order='F')
+            arr = F_Array(shape, data_container=data)
+        except ValueError:
+            arr = F_Array.null()
         return arr
     
     @classmethod
@@ -196,20 +187,9 @@ class F_Array(object):
         Returns:
             ndarray: The data array
         """
-        if self.owns_data:
-            # Ensure the data are not deleted and just returned to the caller
-            self.owns_data = False
-            ret = self.data_container
-            self.data_container = None
-        else:
-            ret = self.data
-        return ret
+        return self.data
 
     def to_ctype(self):
-        # We need to get the 0 index pointe of the data_ptr
-        # If data is 1D, we need to get the pointer to the data_ptr[0]
-        # If data is 2D, we need to get the pointer to the data_ptr[0][0]
-        # If data is 3D, we need to get the pointer to the data_ptr[0][0][0] and so on
         return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr_zero)
 
     def print_in_fortran(self):
@@ -218,7 +198,7 @@ class F_Array(object):
 
     def _call_fortran_op(self, other: "F_Array", op: str):
         # Call Fortran operation
-        result_array = F_Array(np.array(self.shape, copy=True, dtype=np.float64), name=f"{self.name}_{op}_{other.name}")
+        result_array = F_Array(np.array(self.shape, copy=True, dtype=np.float64))
 
         if op == 'add':
             self._lib_array.add(byref(self.to_ctype()), byref(other.to_ctype()), byref(result_array.to_ctype()))
@@ -321,18 +301,9 @@ class F_Array(object):
 
     def __del__(self):
         try:
-            # print_red(f"Deleting array {self.name}")
-            # print_green(f"\tThe array owns the data: {self.owns_data}")
-            # print_green(f"\tThe array has shape {self.shape}")
-            # print_green(f"\tThe array data are in {self.data.__array_interface__["data"]} ")
-            # Ensure to call free_array correctly
-            # Free the memory allocated by the Fortran code
-            # Free data only if the object owns it
-            if self.owns_data and self.data_container is not None:
-                # Ensure Fortran deallocation is called
-                array_struct = self.to_ctype()
+            # Free the memory allocated by the Fortran code if the object owns it
+                # array_struct = self.to_ctype()
                 # self._lib_array.free_array(byref(array_struct))
-                print("Deallocated memory using Fortran API.", self.name)
             del self.data_container
             del self.shape_container
             del self.shape_ptr

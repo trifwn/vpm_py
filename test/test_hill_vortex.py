@@ -1,6 +1,6 @@
 import numpy as np
 from mpi4py import MPI
-from hill_vortex.hill_problem import hill_assign_parallel
+from test_problems.hill_vortex import hill_assign_parallel
 
 from vpm_py import VPM
 from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
@@ -14,13 +14,14 @@ from vpm_py.visualization import StandardVisualizer
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
-    REYNOLDS_NUMBER = 10. #np.inf 
     SPHERE_RADIUS = 2.0
+    REYNOLDS_NUMBER = 10. #np.inf 
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    DT = 0.5 * 0.1 / np.linalg.norm(UINF)
+    dpm = np.array([0.2, 0.2, 0.2])
+    DT = 0.5 * (dpm[0]) / np.linalg.norm(UINF)
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.5
@@ -46,8 +47,7 @@ def main():
     
     CASE_FOLDER += "/"
 
-    INITIALIZE_CASE = False 
-    
+    INITIALIZE_CASE = True 
     # Initialize MPI
     comm = MPI.COMM_WORLD
     start_time = MPI.Wtime()
@@ -62,10 +62,10 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 1,
-        dx_particle_mesh= 0.1,
-        dy_particle_mesh= 0.1,
-        dz_particle_mesh= 0.1,
+        verbocity= 0,
+        dx_particle_mesh= dpm[0],
+        dy_particle_mesh= dpm[1],
+        dz_particle_mesh= dpm[2],
         case_folder= CASE_FOLDER,
     )
     if rank == 0:
@@ -114,9 +114,10 @@ def main():
             rank= rank,
         )
         print_IMPORTANT(f"Initalized {NVR} particles", rank)
+        start_iter = 0
     else:
         from vpm_py.file_io import get_latest_particle_file
-        XPR_zero, _, QPR_zero, _ = get_latest_particle_file(
+        XPR_zero, _, QPR_zero, _, start_iter = get_latest_particle_file(
             folder= CASE_FOLDER
         )
         # Load the particles
@@ -142,11 +143,11 @@ def main():
 
     # Main loop
     T = 0
-    for i in range(1, TIMESTEPS+1):
-        comm.Barrier()
+    for i in range(start_iter, start_iter +  TIMESTEPS+1):
         NVR = vpm.particles.NVR
+        comm.Barrier()
         print_IMPORTANT(
-            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}",
+            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}\nNumber of particles: {NVR}",
             rank = rank,
             color_divider="green",
             color_text="green"
@@ -162,10 +163,10 @@ def main():
 
         if rank == 0:
             print_IMPORTANT("INFO", rank)
-            XPR = vpm.particles.XP
-            QPR = vpm.particles.QP
-            UPR = vpm.particles.UP
-            GPR = vpm.particles.GP
+            XPR = vpm.particles.particle_positions
+            QPR = vpm.particles.particle_charges
+            UPR = vpm.particles.particle_velocities
+            GPR = vpm.particles.particle_deformations
             U_PM = vpm.particle_mesh.U
             PRESSURE_PM = vpm.particle_mesh.pressure
 
@@ -197,13 +198,13 @@ def main():
             # THE STABILITY CRITERION FOR THE DIFFUSION IS: DT < dx^2 / (2 * nu)
             print('Stability criterion for diffusion:')
             print('\tDT < 1 / (2 * nu) * 1 / (1/dx^2 + 1/dy^2 + 1/dz^2)')
-            if DT > 1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2):
+            if DT > 1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2):
                 print_red('\tNot Satisfied')
-                print(f"\tDT: {DT} > {1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
-                DT_diffusion = 1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)
+                print(f"\tDT: {DT} > {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
+                DT_diffusion = 1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)
             else:
                 print_green('\tSatisfied')
-                print(f"\tDT: {DT} < {1 / (2 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
+                print(f"\tDT: {DT} < {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
                 DT_diffusion = DT
             print('\n')
             
@@ -249,9 +250,9 @@ def main():
             timestep=i,
         )
 
-        if remesh and i % 20 == 0 and i != 0:
-            print_IMPORTANT("Remeshing", rank)
-            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
+        # if remesh and i % 20 == 0 and i != 0:
+        #     print_IMPORTANT("Remeshing", rank)
+        #     XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
         if apply_vorticity_correction:
             NVR = vpm.particles.NVR
@@ -349,6 +350,7 @@ def initialize_hill_vortex(
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
     print_IMPORTANT("Particles initialized", rank)
+    NVR = vpm.particles.NVR
     return XPR_hill, QPR_hill, NVR
 
 def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_Limit):
@@ -357,7 +359,7 @@ def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_Limit):
         DT = CFL_TARGET / CFL * DT
         print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
         print_red(f"DT: was {DT_old} -> Adjusting to {DT}")
-    elif DT > DT_Limit:
+    if DT > DT_Limit:
         print_red("Adjusting the timestep so difussion is stable")
         print_red(f"DT: was {DT} -> Adjusting to {DT_Limit}")
         DT = DT_Limit

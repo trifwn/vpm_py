@@ -283,26 +283,62 @@ contains
     end subroutine call_vpm_solve_pressure
 
     subroutine call_remesh_particles_3d(iflag, npar_per_cell, XP_arr, QP_arr, GP_arr, UP_arr,   &
-        NVR_out, cuttof_value &
+        NVRR, cuttof_value &
     )bind(C, name='remesh_particles_3d')
-        use vpm_remesh, only: remesh_particles_3d
+        use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
         use vpm_types, only: dp
+        use vpm_size, only: fine_grid
+        use vpm_vars, only: neqpm
+        use pmgrid, only: RHS_pm
         use ND_Arrays
 
         implicit none
         integer(c_int), intent(in) :: iflag, npar_per_cell
-        type(ND_Array), intent(out), target :: XP_arr, QP_arr, GP_arr, UP_arr
-        integer(c_int), intent(out) :: NVR_out
+        type(ND_Array), intent(inout), target :: XP_arr, QP_arr, GP_arr, UP_arr
+        integer(c_int), intent(inout) :: NVRR
         real(c_double), intent(in), optional :: cuttof_value
-
+        
         ! Local variables
         real(dp), allocatable, target, save :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
+        real(dp), dimension(:,:), pointer :: XP_ptr,  QP_ptr, GP_ptr, UP_ptr
+        integer :: NVR_size_in
 
-        if (present(cuttof_value)) then
-            call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out, cuttof_value)
+        if ( iflag == 1 )then
+            print *, XP_arr%ndims
+            print *, QP_arr%ndims
+            print *, GP_arr%ndims
+            print *, UP_arr%ndims
+
+            call convert_to_2D_array(XP_arr, XP_ptr)
+            call convert_to_2D_array(QP_arr, QP_ptr)
+            call convert_to_2D_array(GP_arr, GP_ptr)
+            call convert_to_2D_array(UP_arr, UP_ptr) 
+            
+            if (allocated(XP_out)) deallocate(XP_out)
+            if (allocated(QP_out)) deallocate(QP_out)
+            if (allocated(GP_out)) deallocate(GP_out)
+            if (allocated(UP_out)) deallocate(UP_out)
+
+            NVR_size_in = size(XP_ptr, 2)
+            allocate(XP_out(3, NVR_size_in)); XP_out = XP_ptr
+            allocate(UP_out(3, NVR_size_in)); UP_out = UP_ptr
+            allocate(GP_out(3, NVR_size_in)); GP_out = GP_ptr
+            allocate(QP_out(neqpm + 1, NVR_size_in)); QP_out = QP_ptr
+
+            if (present(cuttof_value)) then
+                call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in, cuttof_value)
+            else
+                call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in, 1e-9_dp)
+            end if
         else
-            call remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_out, UP_out, NVR_out)
+            if (present(cuttof_value)) then
+                call remesh_particles_3d(RHS_pm, fine_grid, npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, cuttof_value)
+            else
+                call remesh_particles_3d(RHS_pm, fine_grid, npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR)
+            end if
         end if
+
+        print *, "FORTRAN: ", NVRR
         XP_arr = from_intrinsic(XP_out, shape(XP_out))
         QP_arr = from_intrinsic(QP_out, shape(QP_out))
         GP_arr = from_intrinsic(GP_out, shape(GP_out))

@@ -25,7 +25,7 @@ Program test_pm
    use test_app, only:   hill_assign
    use parvar, only:     NVR
    use vpm_lib, only:    vpm, vpm_solve_pressure, vpm_correct_vorticity, vpm_diffuse, vpm_define_problem, vpm_solve_velocity_deformation
-   use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
+   ! use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
    use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, write_pressure_hdf5, case_folder 
    use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
    use serial_vector_field_operators, only: divergence
@@ -168,7 +168,7 @@ Program test_pm
    deallocate (RHS_ptr)
    !------------ Remeshing ----------------
    ! We remesh the particles in order to properly distribute them in the domain
-   call remesh_particles_3d(RHS_ptr, fine_grid,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
+   ! call remesh_particles_3d(RHS_ptr, fine_grid,ncell_rem, XPR, QPR, GPR, UPR, NVR_EXT)
    ! Reinitalize the domain
    call vpm_define_problem(0, XPR, QPR, NVR_ext, NVR_size, neq)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -385,7 +385,7 @@ Program test_pm
       ! VPM REMESH
       if ((mod(i, REMESH_FREQ).eq. REMESH_FREQ) .and. (i .ne. 0)) then        
          ! Remesh the particles
-         call interpolate_and_remesh_particles(ncell_rem, XPR, QPR, GPR, UPR, NVR_ext)
+         ! call interpolate_and_remesh_particles(ncell_rem, XPR, QPR, GPR, UPR, NVR_ext)
          ! ! BCAST NVR_EXT
          call MPI_BCAST(NVR_EXT, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
          NVR_size = NVR_EXT

@@ -1,8 +1,39 @@
 module vpm_remesh
-    use vpm_types, only: dp
+    use vpm_types, only: dp, cartesian_grid
+    use console_io, only: vpm_print, nocolor, tab_level, yellow, dummy_string, red, blue
+
     implicit none
 
 contains
+
+    subroutine interpolate_and_remesh_particles(npar_per_cell, XPR, QPR, UPR, GPR, NVR_in, NVR_size_in, cutoff_value)
+        use vpm_functions, only: project_particles_parallel
+        use parvar, only: associate_particles
+        use vpm_size, only: fine_grid
+        use pmgrid, only: RHS_pm
+        use MPI
+
+        integer, intent(in)                                             :: npar_per_cell
+        real(dp), intent(inout), allocatable, target, dimension(:, :)   :: XPR, QPR, GPR, UPR
+        integer, intent(inout)                                          :: NVR_in, NVR_size_in
+        real(dp), intent(in), optional                                  :: cutoff_value
+        ! LOCAL VARIABLES
+        integer                          :: my_rank, ierr, np
+
+        call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
+        call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
+
+        ! Project particles on PM grid to get RHS
+        call associate_particles(NVR_in, NVR_size_in, XPR, QPR, UPR, GPR)
+        call project_particles_parallel
+
+        ! Remesh particles
+        if (present(cutoff_value)) then
+            call remesh_particles_3d(RHS_pm, fine_grid, npar_per_cell, XPR, QPR, UPR, GPR, NVR_in, cutoff_value)
+        else
+            call remesh_particles_3d(RHS_pm, fine_grid, npar_per_cell, XPR, QPR, UPR, GPR, NVR_in)
+        end if
+    end subroutine interpolate_and_remesh_particles
 
     !--------------------------------------------------------------------------------
     !subroutine remesh_particles
@@ -13,27 +44,21 @@ contains
     !-->The loops starts from 2 because we need cells that DO NOT contain particles  !
     !-->Total Number of Cells                                                        !
     !--------------------------------------------------------------------------------!
-    subroutine remesh_particles_3d(iflag, npar_per_cell, XP_out, QP_out, GP_OUT, UP_OUT, NVR_out, cutoff_value)
-        use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm, &
-                          YMAX_pm, XMAX_pm, ZMAX_pm, DVpm, &
-                          NXpm_fine, NYpm_fine, NZpm_fine, &
-                          NXs_fine_bl, NYs_fine_bl, NZs_fine_bl, &
-                          NXf_fine_bl, NYf_fine_bl, NZf_fine_bl, &
-                          RHS_pm
+    subroutine remesh_particles_3d(RHS_pm, grid, npar_per_cell, XPR, QPR, UPR, GPR, NVRR, cutoff_value)
         use vpm_vars, only: mrem, neqpm, interf_iproj, V_ref
         use vpm_interpolate, only: interpolate_particle_Q
-        use vpm_functions, only: project_particles_parallel
         use parvar, only: NVR, XP, QP, GP, UP, NVR_size
-        use console_io, only: vpm_print, nocolor, tab_level, yellow, dummy_string, red
         use MPI
 
         implicit None
 
         ! PARAMETERS
-        integer, intent(in)                                         :: iflag, npar_per_cell
-        real(dp), intent(out), allocatable, target, dimension(:, :) :: XP_out, QP_out, GP_OUT, UP_OUT
-        integer, intent(out)                                        :: NVR_out
-        real(dp), intent(in), optional                              :: cutoff_value
+        type(cartesian_grid), intent(in)                              :: grid
+        real(dp), intent(in)                                          :: RHS_pm(neqpm, grid%NN(1), grid%NN(2), grid%NN(3))
+        integer, intent(in)                                           :: npar_per_cell
+        real(dp), intent(out), allocatable, target, dimension(:, :)   :: XPR, QPR, GPR, UPR
+        integer, intent(inout)                                        :: NVRR
+        real(dp), intent(in), optional                                :: cutoff_value
 
         ! LOCAL VARIABLES
         real(dp), dimension(8)           :: X, Y, Z
@@ -44,7 +69,7 @@ contains
         integer                          :: nc
         integer                          :: NVR_old
         integer                          :: my_rank, ierr, np, NN(3), NN_bl(6)
-        real(dp)                         :: Xbound(6), Dpm(3), wmag, cutoff
+        real(dp)                         :: Xbound(6), Dpm(3), wmag, cutoff, XMIN_pm, YMIN_pm, ZMIN_pm, DVpm
         real(dp)                         :: st, et
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -59,40 +84,27 @@ contains
         if (my_rank .eq. 0) then
             st = MPI_WTIME()
             write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value: ', cutoff
-            call vpm_print(dummy_string, red, 1)
+            call vpm_print(dummy_string, blue, 0)
             write (dummy_string, "(A)") 'RHS_PM will be used to remesh the particles'
             call vpm_print(dummy_string, nocolor, 2)
-            if (iflag .eq. 1) then
-                write (dummy_string, "(A)") 'RHS_PM will be interpolated from the particle data'
-                call vpm_print(dummy_string, nocolor, 2)
-            end if
+            ! Print the Dimensions of RHS_PM and the Maximum and Minimum values
+            write (dummy_string, "(A, I5, A, I5, A, I5)") achar(9)//'Dimensions of RHS_PM:', grid%NN(1), 'x', grid%NN(2), 'x', grid%NN(3)
+            call vpm_print(dummy_string, nocolor, 2)
+            write (dummy_string, "(A, F8.2)") achar(9)//'Maximal value of RHS_PM:', maxval(RHS_pm)
+            call vpm_print(dummy_string, nocolor, 2)
+            write (dummy_string, "(A, F8.2)") achar(9)//'Minimal value of RHS_PM:', minval(RHS_pm)
+            call vpm_print(dummy_string, nocolor, 2)
+
         end if
         tab_level = tab_level + 1
 
-        NVR_old = NVR
+        NVR_old = NVRR
 
         ! Get PM grid parameters
-        Dpm(1) = DXpm
-        Dpm(2) = DYpm
-        Dpm(3) = DZpm
-
-        Xbound(1) = XMIN_pm
-        Xbound(2) = YMIN_pm
-        Xbound(3) = ZMIN_pm
-        Xbound(4) = XMAX_pm 
-        Xbound(5) = YMAX_pm 
-        Xbound(6) = ZMAX_pm
-
-        NN(1) = NXpm_fine
-        NN(2) = NYpm_fine
-        NN(3) = NZpm_fine
-
-        NN_bl(1) = NXs_fine_bl
-        NN_bl(2) = NYs_fine_bl
-        NN_bl(3) = NZs_fine_bl
-        NN_bl(4) = NXf_fine_bl
-        NN_bl(5) = NYf_fine_bl
-        NN_bl(6) = NZf_fine_bl
+        Dpm = grid%Dpm
+        Xbound = grid%Xbound
+        NN = grid%NN
+        NN_bl = grid%NN_bl
 
         NN = NN*mrem
         NN_bl = NN_bl*mrem
@@ -100,11 +112,9 @@ contains
         Dpm(2) = (Xbound(5) - Xbound(2))/(NN(2) - 1)
         Dpm(3) = (Xbound(6) - Xbound(3))/(NN(3) - 1)
         DVpm = Dpm(1)*Dpm(2)*Dpm(3)
-
-        ! Project particles on PM grid to get RHS
-        if (iflag .eq. 1) then
-            call project_particles_parallel
-        end if
+        XMIN_pm = Xbound(1) 
+        YMIN_pm = Xbound(2)
+        ZMIN_pm = Xbound(3)
 
         ! Particle remeshing
         if (my_rank .eq. 0) then
@@ -146,10 +156,8 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
 
             allocate (XP_tmp(3, NVR), QP_tmp(neqpm + 1, NVR))
-            XP => XP_tmp
-            QP => QP_tmp
-            XP = 0
-            QP = 0
+            XP_tmp = 0
+            QP_tmp = 0
             npar = 0
             V_ref = 1.d0/float(ncell)*DVpm
 
@@ -193,21 +201,21 @@ contains
                             XC = cell3d_interp_euler(X, ncell, 2)
                             do nc = 1, ncell
                                 npar = npar + 1
-                                XP(1, npar) = XC(nc)
-                                XP(2, npar) = YC(nc)
-                                XP(3, npar) = ZC(nc)
-                                QP(neqpm + 1, npar) = DVpm/float(ncell)
+                                XP_tmp(1, npar) = XC(nc)
+                                XP_tmp(2, npar) = YC(nc)
+                                XP_tmp(3, npar) = ZC(nc)
+                                QP_tmp(neqpm + 1, npar) = DVpm/float(ncell)
                             end do
                         else
                             wmag = sqrt(RHS_pm(1, i, j, k)**2 + RHS_pm(2, i, j, k)**2 + RHS_pm(3, i, j, k)**2)
                             if (wmag .lt. cutoff) cycle
                             npar = npar + 1
-                            XP(1, npar) = X(1)
-                            XP(2, npar) = Y(1)
-                            XP(3, npar) = Z(1)
+                            XP_tmp(1, npar) = X(1)
+                            XP_tmp(2, npar) = Y(1)
+                            XP_tmp(3, npar) = Z(1)
 
-                            QP(neqpm + 1, npar) = DVpm
-                            QP(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k)*DVpm
+                            QP_tmp(neqpm + 1, npar) = DVpm
+                            QP_tmp(1:neqpm, npar) = RHS_pm(1:neqpm, i, j, k)*DVpm
                         end if
                     end do
                 end do
@@ -216,37 +224,36 @@ contains
             !!$omp endparallel
 
             NVR = npar
-            NVR_size = NVR
-            NVR_out = NVR
         end if
 
         ! BCAST NEW NVR
         call MPI_BCAST(NVR, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+        NVRR = NVR
+        NVR_size = NVR
+        if (allocated(XPR)) deallocate (XPR)
+        if (allocated(QPR)) deallocate (QPR)
+        allocate (XPR(3, NVR), QPR(neqpm + 1, NVR))
+        
+        if (allocated(GPR)) deallocate (GPR)
+        if (allocated(UPR)) deallocate (UPR)
+        allocate (GPR(3, NVR), UPR(3, NVR))
 
-        if (allocated(XP_out)) deallocate (XP_out)
-        allocate (XP_out(3, NVR), QP_out(neqpm + 1, NVR))
-        if (allocated(GP_OUT)) deallocate (GP_OUT)
-        allocate (GP_OUT(3, NVR), UP_OUT(3, NVR))
-        if (associated(XP) .and. associated(QP)) then
-            XP_out = XP(:, 1:NVR)
-            QP_out = QP(:, 1:NVR)
+        if (allocated(XP_tmp).and.allocated(QP_tmp)) then
+            XPR = XP_tmp(:, 1:NVR)
+            QPR = QP_tmp(:, 1:NVR)
         else
-            XP_out = 0
-            QP_out = 0
+            XPR = 0
+            QPR = 0
         end if
 
-        if (associated(GP) .and. associated(UP)) then
-            ! GP_OUT = 0 !GP(:, 1:NVR)
-            ! UP_OUT = 0 !UP(:, 1:NVR)
-        end if
-        GP_OUT = 0
-        UP_OUT = 0
+        GPR = 0
+        UPR = 0
 
         nullify (XP, QP, GP, UP)
-        XP => XP_out
-        QP => QP_out
-        GP => GP_OUT
-        UP => UP_OUT
+        XP => XPR
+        QP => QPR
+        UP => UPR
+        GP => GPR
 
         if (my_rank .eq. 0) then
             deallocate (XP_tmp, QP_tmp)
@@ -261,13 +268,15 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
             write (dummy_string, *) achar(9), 'Volume of a cell', DVpm
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Number of cells', NXpm_fine, NYpm_fine, NZpm_fine
+            write (dummy_string, *) achar(9), 'Number of cells', grid%NN(1), grid%NN(2), grid%NN(3) 
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Size of XP', size(XP, 1), size(XP, 2)
+            write (dummy_string, *) achar(9), 'Maximal value of QPR', maxval(QP(:, :))
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Size of QP', size(QP, 1), size(QP, 2)
+            write (dummy_string, *) achar(9), 'Minimal value of QPR', minval(QP(:, :))
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Maximal value of QPR', maxval(QP(neqpm, :))
+            write (dummy_string, *) achar(9), 'Maximal value of XP', maxval(XP(:, :))
+            call vpm_print(dummy_string, nocolor, 2)
+            write (dummy_string, *) achar(9), 'Minimal value of XP', minval(XP(:, :))
             call vpm_print(dummy_string, nocolor, 2)
         end if
 

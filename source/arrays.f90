@@ -117,14 +117,13 @@ contains
         real(c_double), pointer, contiguous :: data_arr(:)
 
         ! Free data if allocated
-        if (arr%own_data.eq.0) then
-            if (C_ASSOCIATED(arr%data_ptr)) then
-                call C_F_POINTER(arr%data_ptr, data_arr, [arr%total_size])
-                if (associated(data_arr)) then
-                    deallocate(data_arr)
-                    print *, 'F: Data deallocated'
-                endif
-            end if
+        if (arr%own_data.eq.1) then
+            ! Check for null pointer
+            call C_F_POINTER(arr%data_ptr, data_arr, [arr%total_size])
+            if (associated(data_arr)) then
+                deallocate(data_arr)
+                print * , 'Data deallocated'
+            endif
         end if
             
         ! Reset pointers to NULL
