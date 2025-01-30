@@ -1,5 +1,5 @@
 import os
-from ctypes import c_double, c_int, POINTER, byref
+from ctypes import c_int, POINTER, byref
 import numpy as np
 
 from vpm_py.arrays import F_Array, F_Array_Struct
@@ -31,14 +31,6 @@ class Particles:
         self._lib_particles.get_particle_velocities.restype = None
         self._lib_particles.get_particle_deformation.argtypes = [POINTER(F_Array_Struct)]
         self._lib_particles.get_particle_deformation.restype = None
-        self._lib_particles.set_particle_positions.argtypes = [POINTER(c_double)]
-        self._lib_particles.set_particle_positions.restype = None
-        self._lib_particles.set_particle_strengths.argtypes = [POINTER(c_double)]
-        self._lib_particles.set_particle_strengths.restype = None
-        self._lib_particles.set_particle_velocities.argtypes = [POINTER(c_double)]
-        self._lib_particles.set_particle_velocities.restype = None
-        self._lib_particles.set_particle_deformation.argtypes = [POINTER(c_double)]
-        self._lib_particles.set_particle_deformation.restype = None
         self._lib_particles.print_particles.argtypes = []
         self._lib_particles.print_particles.restype = None
     
@@ -62,12 +54,6 @@ class Particles:
         # self.particle_positions = XP_arr.data
         return XP_arr
 
-    @XP.setter
-    def XP(self, XP):
-        XP = np.ascontiguousarray(XP, dtype=np.float64)
-        XP_ptr = XP.ctypes.data_as(POINTER(c_double))
-        self._lib_particles.set_particle_positions(XP_ptr)
-
     @property
     def QP(self):
         """
@@ -80,12 +66,6 @@ class Particles:
         QP_arr = F_Array.from_ctype(QP_struct, name ="from fortran QP")
         return QP_arr
 
-    @QP.setter
-    def QP(self, QP):
-        QP = np.ascontiguousarray(QP, dtype=np.float64)
-        QP_ptr = QP.ctypes.data_as(POINTER(c_double))
-        self._lib_particles.set_particle_strengths(QP_ptr)
-
     @property
     def UP(self):
         """
@@ -97,12 +77,6 @@ class Particles:
         UP_arr = F_Array.from_ctype(UP_struct,name = "from fortran UP")
         return UP_arr
         
-    @UP.setter
-    def UP(self, UP):
-        UP = np.ascontiguousarray(UP, dtype=np.float64)
-        UP_ptr = UP.ctypes.data_as(POINTER(c_double))
-        self._lib_particles.set_particle_velocities(UP_ptr)
-    
     @property
     def GP(self):
         """
@@ -114,12 +88,6 @@ class Particles:
         GP_arr = F_Array.from_ctype(GP_struct,name = "from fortran GP")
         return GP_arr
     
-    @GP.setter
-    def GP(self, GP):
-        GP = np.ascontiguousarray(GP, dtype=np.float64)
-        GP_ptr = GP.ctypes.data_as(POINTER(c_double))
-        self._lib_particles.set_particle_deformation(GP_ptr)
-
     @property
     def NVR(self):
         NVR = c_int()

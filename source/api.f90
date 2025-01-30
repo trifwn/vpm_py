@@ -270,13 +270,14 @@ contains
         type(ND_Array), intent(out)            :: pressure_ptr
         real(c_double), intent(in)             :: density
         ! Local variables
-        real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:), pressure(:,:,:,:)
+        real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:)
+        real(c_double), allocatable            :: pressure(:,:,:,:)
 
         call convert_to_4D_array(vorticity_ptr, vorticity)
         call convert_to_4D_array(velocity_ptr, velocity)
 
         call vpm_solve_pressure(vorticity, velocity, pressure, density)
-        if (associated(pressure)) then
+        if (allocated(pressure)) then
             pressure_ptr = from_intrinsic(pressure, shape(pressure))
         end if
     end subroutine call_vpm_solve_pressure

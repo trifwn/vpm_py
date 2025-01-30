@@ -13,13 +13,13 @@ class ParticleMesh:
         self.number_equations = num_equations
         
         self.load_lib()
-        self.U = np.zeros((3, 1, 1, 1))
-        self.deformation = np.zeros((3, 1, 1, 1))
-        self.pressure = np.zeros((1, 1, 1))
-        self.q_pressure = np.zeros((1, 1, 1))
-        self.u_pressure = np.zeros((1, 1, 1))
-        self.SOL = np.zeros((num_equations, 1, 1, 1))
-        self.RHS = np.zeros((num_equations , 1, 1, 1))
+        self.U = np.array([])
+        self.deformation = np.array([])
+        self.pressure = np.array([]) 
+        self.q_pressure = np.array([]) 
+        self.u_pressure = np.array([]) 
+        self.SOL = np.array([])
+        self.RHS = np.array([])
     
     def load_lib(self):
         lib = VPM_Lib()
@@ -77,11 +77,6 @@ class ParticleMesh:
         self._lib.get_Zbounds(byref(Zmin), byref(Zmax))
         Zmin = Zmin.value
         Zmax = Zmax.value
-
-        # Get dx, dy, dz
-        dx = (Xmax - Xmin) / (NX_pm - 1)
-        dy = (Ymax - Ymin) / (NY_pm - 1)
-        dz = (Zmax - Zmin) / (NZ_pm - 1)
         
         X = np.linspace(Xmin, Xmax, NX_pm)
         Y = np.linspace(Ymin, Ymax, NY_pm)
