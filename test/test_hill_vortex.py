@@ -20,7 +20,7 @@ def main():
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    dpm = np.array([0.2, 0.2, 0.2])
+    dpm = np.array([0.1, 0.1, 0.1])
     DT = 0.5 * (dpm[0]) / np.linalg.norm(UINF)
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
@@ -73,10 +73,10 @@ def main():
             plot_particles= ("charge","magnitude"), 
             plot_slices   = [
                  ('velocity', 'magnitude'),
-                #  ('charge', 'magnitude'),
+                 ('charge', 'magnitude'),
                 #  ("q_pressure","Q"), 
                 #  ("u_pressure","U"), 
-                #  ("pressure","P"), 
+                 ("pressure","P"), 
             ],
             # Figure size should be 1920x1080
             figure_size= (18.2, 10.0),
@@ -136,9 +136,9 @@ def main():
 
     for i in range(1, 2):
         vpm.vpm_correct_vorticity(
-            # particle_positions=XPR,
-            # particle_charges=QPR,
-            # num_particles=NVR,
+            particle_positions=XPR,
+            particle_charges=QPR,
+            num_particles=NVR,
         )
 
     # Main loop
@@ -146,8 +146,9 @@ def main():
     for i in range(start_iter, start_iter +  TIMESTEPS+1):
         NVR = vpm.particles.NVR
         comm.Barrier()
+        grid_dimensions = vpm.particle_mesh.nn
         print_IMPORTANT(
-            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}\nNumber of particles: {NVR}",
+            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}\nNumber of particles: {NVR}\nPM Cells: {np.prod(grid_dimensions)}",
             rank = rank,
             color_divider="green",
             color_text="green"
@@ -221,10 +222,6 @@ def main():
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
             print_IMPORTANT("Updating the plot", rank)
-            print(f"MAX XPR = {np.max(XPR[:3,:])}")
-            print(f"MIN XPR = {np.min(XPR[:3,:])}")
-            print(f"MIN QPR = {np.min(QPR[:3,:])}")
-            print(f"MAX QPR = {np.max(QPR[:3,:])}")
             st = MPI.Wtime()
             remesh_str = 'remesh = True' if remesh else 'remesh = False'
             correct_str = 'correction = True' if apply_vorticity_correction else 'correction = False'
@@ -273,16 +270,9 @@ def main():
             if rank == 0:
                 QPR = vpm.particles.particle_charges
                 GPR = vpm.particles.particle_deformations
-                print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
-                print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 # Diffuse the particles
                 QPR[:3,:] = QPR[:3,:] + GPR[:, :] *  DT
-                print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
-                print('New min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 print('Diffusion finished: with viscosity = ', VISCOSITY)
-                print('min (GPR) = ', np.min(GPR[:,:]))
-                print('mean(GPR) = ', np.mean(GPR[:,:]))
-                print('max (GPR) = ', np.max(GPR[:,:]))
         
     # Finalize
     end_time = MPI.Wtime()

@@ -309,8 +309,6 @@ class VPM(object):
         )
 
         NVR = self.particles.NVR
-        xp = pointer_to_dp_array(XP_ptr, (3, NVR))
-        # print(xp[2, :10])
         self.particles.store_particles(
             pointer_to_dp_array(XP_ptr, (3, NVR)), 
             pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
@@ -512,7 +510,6 @@ class VPM(object):
             byref(c_int(num_equations)),
             byref(NVR_size),
         )
-        print(f"Corrected vorticity. New number of particles: {NVR_size.value}")
         NVR_size = NVR_size.value
         self.particles.store_particles(
             # positions= pointer_to_dp_array(XP_ptr, (3, NVR_size)), 

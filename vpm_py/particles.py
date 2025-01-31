@@ -6,9 +6,6 @@ from vpm_py.arrays import F_Array, F_Array_Struct
 from vpm_py.vpm_lib import VPM_Lib
 from .vpm_dtypes import dp_array_to_pointer
 
-from mpi4py import MPI
-rank = MPI.COMM_WORLD.Get_rank()
-
 class Particles:
     def __init__(self, number_equations: int) -> None:
         self.number_equations = number_equations
@@ -205,21 +202,21 @@ class Particles:
             del self._particle_deformations
             self.particle_deformations = deformations
 
-        if rank == 0:
-            positions = self.particle_positions
-            print(f"Stored particles: {self.NVR} == {positions.shape[1]}")
-            mystring = f"Particle positions: type: {type(positions)} "
-            mystring += f"shape: {positions.shape}\n"
-            if positions.size > 1:
-                mystring += f"\tmax: {np.max(positions[:]):.6f}, min: {np.min(positions[:]):.6f} size in MB: {positions.nbytes/1024/1024:.6f}"
-            print(mystring)
+        # if rank == 0:
+        #     positions = self.particle_positions
+        #     print(f"Stored particles: {self.NVR} == {positions.shape[1]}")
+        #     mystring = f"Particle positions: type: {type(positions)} "
+        #     mystring += f"shape: {positions.shape}\n"
+        #     if positions.size > 1:
+        #         mystring += f"\tmax: {np.max(positions[:]):.6f}, min: {np.min(positions[:]):.6f} size in MB: {positions.nbytes/1024/1024:.6f}"
+        #     print(mystring)
 
-            charges = self.particle_charges
-            mystring = f"Particle charges: type: {type(charges)} "
-            mystring += f"shape: {charges.shape}\n"
-            if charges.size > 1:
-                mystring += f"\tmax: {np.max(charges[:]):.6f}, min: {np.min(charges[:]):.6f} size in MB: {charges.nbytes/1024/1024:.6f}"
-            print(mystring)
+        #     charges = self.particle_charges
+        #     mystring = f"Particle charges: type: {type(charges)} "
+        #     mystring += f"shape: {charges.shape}\n"
+        #     if charges.size > 1:
+        #         mystring += f"\tmax: {np.max(charges[:]):.6f}, min: {np.min(charges[:]):.6f} size in MB: {charges.nbytes/1024/1024:.6f}"
+        #     print(mystring)
 
     def save_to_file(self, filename: str = "particles", folder: str = "results", filetype: str = "h5"):
         """
