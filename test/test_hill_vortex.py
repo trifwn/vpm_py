@@ -214,8 +214,8 @@ def main():
             print_IMPORTANT("Convecting Particles", rank)
             st = MPI.Wtime()
             # Convect the particles and apply vortex stretching
-            # XPR[:3,:] += UPR[:3, :] * DT
-            # QPR[:3,:] -= GPR[:3, :] * DT
+            XPR[:3,:] += UPR[:3, :] * DT
+            QPR[:3,:] -= GPR[:3, :] * DT
 
             et = MPI.Wtime()
             print(f"\tConvection finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
@@ -247,25 +247,25 @@ def main():
         print_IMPORTANT("Redefine Bounds", rank)
         comm.Barrier()
 
-        # vpm.vpm_define(
-        #     num_equations=neq,
-        #     particle_positions  =  XPR,
-        #     particle_charges    =  QPR,
-        #     timestep=i,
-        # )
+        vpm.vpm_define(
+            num_equations=neq,
+            particle_positions  =  XPR,
+            particle_charges    =  QPR,
+            timestep=i,
+        )
 
-        # # if remesh and i % 20 == 0 and i != 0:
-        # #     print_IMPORTANT("Remeshing", rank)
-        # #     XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
+        if remesh and i % 20 == 0 and i != 0:
+            print_IMPORTANT("Remeshing", rank)
+            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
-        # if apply_vorticity_correction:
-        #     NVR = vpm.particles.NVR
-        #     print_IMPORTANT("Applying Vorticity Correction", rank)
-        #     vpm.vpm_correct_vorticity(
-        #             particle_positions=XPR,
-        #             particle_charges=QPR,
-        #             num_particles=NVR,
-        #         )
+        if apply_vorticity_correction:
+            NVR = vpm.particles.NVR
+            print_IMPORTANT("Applying Vorticity Correction", rank)
+            vpm.vpm_correct_vorticity(
+                    particle_positions=XPR,
+                    particle_charges=QPR,
+                    num_particles=NVR,
+                )
         T += DT
         if REYNOLDS_NUMBER != np.inf:
             print_IMPORTANT("Applying Diffusion", rank)
@@ -276,7 +276,7 @@ def main():
                 print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
                 print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 # Diffuse the particles
-                # QPR[:3,:] = QPR[:3,:] + GPR[:, :] *  DT
+                QPR[:3,:] = QPR[:3,:] + GPR[:, :] *  DT
                 print('New max(QPR) = ', np.max(np.abs(QPR[:,:])))
                 print('New min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 print('Diffusion finished: with viscosity = ', VISCOSITY)

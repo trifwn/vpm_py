@@ -235,10 +235,10 @@ class VPM(object):
         # store the results of the particles
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-            pointer_to_dp_array(UP_ptr, (3, NVR)), 
-            pointer_to_dp_array(GP_ptr, (3, NVR)), 
+            positions= pointer_to_dp_array(XP_ptr, (3, NVR)), 
+            charges = pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
+            velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
+            deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
 
@@ -275,12 +275,6 @@ class VPM(object):
             byref(c_int(num_equations)),
             byref(RHS_pm_ptr),
         )
-
-        NVR = self.particles.NVR
-        self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-        )
         self._store_mesh_results(RHS_pm_ptr)
 
     def vpm_define(
@@ -302,9 +296,6 @@ class VPM(object):
             self.particles.particle_charges = particle_charges
         
         NVR_size = self.particles.particle_positions.shape[1] 
-        if num_particles is None:
-            num_particles = NVR_size
-
         self.particles.validate_stored_particle_counts(NVR_size) 
         if num_particles is None:
             num_particles = NVR_size
@@ -318,6 +309,8 @@ class VPM(object):
         )
 
         NVR = self.particles.NVR
+        xp = pointer_to_dp_array(XP_ptr, (3, NVR))
+        # print(xp[2, :10])
         self.particles.store_particles(
             pointer_to_dp_array(XP_ptr, (3, NVR)), 
             pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
@@ -355,9 +348,9 @@ class VPM(object):
 
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-            pointer_to_dp_array(UP_ptr, (3, NVR)), 
+            positions = pointer_to_dp_array(XP_ptr, (3, NVR)), 
+            charges = pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
+            velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
 
@@ -398,10 +391,10 @@ class VPM(object):
 
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-            pointer_to_dp_array(UP_ptr, (3, NVR)), 
-            pointer_to_dp_array(GP_ptr, (3, NVR)), 
+            positions = pointer_to_dp_array(XP_ptr, (3, NVR)), 
+            charges = pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
+            velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
+            deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr, Deform_ptr)
 
@@ -449,10 +442,10 @@ class VPM(object):
 
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-            pointer_to_dp_array(UP_ptr, (3, NVR)), 
-            pointer_to_dp_array(GP_ptr, (3, NVR)), 
+            positions = pointer_to_dp_array(XP_ptr, (3, NVR)), 
+            charges = pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
+            velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
+            deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr)
 
@@ -488,10 +481,7 @@ class VPM(object):
 
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
-            pointer_to_dp_array(UP_ptr, (3, NVR)), 
-            pointer_to_dp_array(GP_ptr, (3, NVR)), 
+            deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr)
 

@@ -153,7 +153,7 @@ class Particles:
                 self.particle_velocities,
                 self.particle_deformations
             ])
-        return [dp_array_to_pointer(arr, copy=False) for arr in arrays]
+        return [dp_array_to_pointer(arr, copy=True) for arr in arrays]
 
     def validate_stored_particle_counts(self, NVR: int | None = None) -> None:
         """Validate particle counts match across arrays and return NVR_size."""

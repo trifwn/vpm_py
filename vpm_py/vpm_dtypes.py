@@ -1,5 +1,6 @@
 import numpy as np
-from ctypes import c_double, POINTER, cast, _Pointer
+from ctypes import c_double, POINTER, cast, _Pointer, Array
+from typing import Any
 
 def dp_array_to_pointer(array: np.ndarray, copy = False) -> _Pointer:
     """
@@ -21,13 +22,18 @@ def pointer_to_dp_array(
     """
     Convert a pointer to a double array to a numpy array.
     """
-    p_arr_type = POINTER(_ctype_ndarray(c_double, shape))
+    data_dtype: type[c_double] | type[Array[Any]] = (c_double)
+    for dim in shape:
+        data_dtype = data_dtype * dim
+    data_ptr_type = data_dtype
 
-    obj = cast(pointer, p_arr_type).contents
-    data = np.asarray(obj, dtype= np.float64, order= 'F').reshape(shape)
-    if copy:
-        data = np.array(data, copy= True, order= 'F')
-    return data
+    data_ptr = cast(pointer, POINTER(data_ptr_type)).contents 
+    data_ = np.frombuffer(
+        data_ptr, 
+        dtype =np.float64,
+        count = np.prod(shape),
+    ).reshape(shape, order='F')
+    return data_
 
 def _ctype_ndarray(element_type, shape):
     """ Create an ndarray of the given element type and shape """
