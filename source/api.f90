@@ -338,7 +338,6 @@ contains
             end if
         end if
 
-        print *, "FORTRAN: ", NVRR
         XP_arr = from_intrinsic(XP_out, shape(XP_out))
         QP_arr = from_intrinsic(QP_out, shape(QP_out))
         GP_arr = from_intrinsic(GP_out, shape(GP_out))

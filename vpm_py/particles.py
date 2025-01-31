@@ -132,15 +132,15 @@ class Particles:
     def _convert_to_numpy(self, array: np.ndarray | F_Array) -> np.ndarray:
         """Convert F_Array to numpy array if needed."""
         if isinstance(array, F_Array):
-            return array.data
+            array = array.data
         
         if not isinstance(array, np.ndarray):
             raise ValueError("Invalid array type")
         
+        # Make sure the array has Fortran order
         if not array.flags['F_CONTIGUOUS']:
-            return np.asfortranarray(array, dtype=np.float64)
-        else:
-            return array
+            array = np.asfortranarray(array, dtype=np.float64)
+        return array 
     
     def get_array_pointers(self, return_all = False) -> list[_Pointer]:
         """Create pointers for arrays with copy."""
@@ -181,12 +181,21 @@ class Particles:
             print(f"Warning: NVR size mismatch: {NVR} != {deformations.shape[1]} for deformations")
             self.particle_deformations = np.zeros((3, NVR), dtype=np.float64, order='F')
 
-    def store_particles(self, positions, charges, velocities=None, deformations=None):
+    def store_particles(
+            self, 
+            positions: np.ndarray | F_Array | None = None, 
+            charges: np.ndarray | F_Array | None = None, 
+            velocities: np.ndarray | F_Array | None = None, 
+            deformations: np.ndarray | F_Array | None = None
+        ) -> None:
         """Store particle results back to class attributes."""
-        del self._particle_positions 
-        del self._particle_charges
-        self.particle_positions = positions
-        self.particle_charges = charges
+        if positions is not None:
+            del self._particle_positions 
+            self.particle_positions = positions
+
+        if charges is not None:
+            del self._particle_charges
+            self.particle_charges = charges
 
         if velocities is not None:
             del self._particle_velocities
@@ -197,6 +206,7 @@ class Particles:
             self.particle_deformations = deformations
 
         if rank == 0:
+            positions = self.particle_positions
             print(f"Stored particles: {self.NVR} == {positions.shape[1]}")
             mystring = f"Particle positions: type: {type(positions)} "
             mystring += f"shape: {positions.shape}\n"
@@ -204,6 +214,7 @@ class Particles:
                 mystring += f"\tmax: {np.max(positions[:]):.6f}, min: {np.min(positions[:]):.6f} size in MB: {positions.nbytes/1024/1024:.6f}"
             print(mystring)
 
+            charges = self.particle_charges
             mystring = f"Particle charges: type: {type(charges)} "
             mystring += f"shape: {charges.shape}\n"
             if charges.size > 1:

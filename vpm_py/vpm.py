@@ -163,17 +163,17 @@ class VPM(object):
         
         self.visualizer.update_all_plots(
                 title = title,
-                particle_positions= self.particles.particle_positions[:,:],
-                particle_charges= self.particles.particle_charges[:,:],
-                particle_velocities= self.particles.particle_velocities[:,:],
-                particle_deformations= self.particles.particle_deformations[:,:],
-                pm_positions= self.particle_mesh.grid_positions[:,:],
-                pm_velocities= self.particle_mesh.U[:,:],
-                pm_charges= self.particle_mesh.RHS[:,:],
-                pm_vortex_stretching= self.particle_mesh.deformation[:,:],
-                pm_pressure= self.particle_mesh.pressure[:,:],
-                pm_q_pressure= self.particle_mesh.q_pressure[:,:],
-                pm_u_pressure= self.particle_mesh.u_pressure[:,:],
+                particle_positions= self.particles.particle_positions,
+                particle_charges= self.particles.particle_charges,
+                particle_velocities= self.particles.particle_velocities,
+                particle_deformations= self.particles.particle_deformations,
+                pm_positions= self.particle_mesh.grid_positions,
+                pm_velocities= self.particle_mesh.U,
+                pm_charges= self.particle_mesh.RHS,
+                pm_vortex_stretching= self.particle_mesh.deformation,
+                pm_pressure= self.particle_mesh.pressure,
+                pm_q_pressure= self.particle_mesh.q_pressure,
+                pm_u_pressure= self.particle_mesh.u_pressure,
             )
         if self.has_animation_writer:
             self.visualizer.grab_frame()
@@ -459,8 +459,8 @@ class VPM(object):
     def vpm_diffuse(
         self,
         viscosity: float,
-        particle_positions: np.ndarray | F_Array,
-        particle_charges: np.ndarray | F_Array,
+        particle_positions: np.ndarray | F_Array | None = None,
+        particle_charges: np.ndarray | F_Array | None = None,
         num_particles: int | None = None,
     ):
         """Apply diffusion to particles."""
@@ -525,8 +525,8 @@ class VPM(object):
         print(f"Corrected vorticity. New number of particles: {NVR_size.value}")
         NVR_size = NVR_size.value
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR_size)), 
-            pointer_to_dp_array(QP_ptr, (num_equations + 1, NVR_size))
+            # positions= pointer_to_dp_array(XP_ptr, (3, NVR_size)), 
+            charges = pointer_to_dp_array(QP_ptr, (num_equations + 1, NVR_size))
         )
     
     def vpm_solve_pressure( 
