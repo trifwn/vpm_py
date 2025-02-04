@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from ctypes import (byref,  c_double, c_int)
+import gc
 
 # Local imports
 from . import ParticleMesh, Particles
@@ -168,7 +169,7 @@ class VPM(object):
                 particle_velocities= self.particles.particle_velocities,
                 particle_deformations= self.particles.particle_deformations,
                 pm_positions= self.particle_mesh.grid_positions,
-                pm_velocities= self.particle_mesh.U,
+                pm_velocities= self.particle_mesh.velocity,
                 pm_charges= self.particle_mesh.RHS,
                 pm_vortex_stretching= self.particle_mesh.deformation,
                 pm_pressure= self.particle_mesh.pressure,
@@ -241,6 +242,8 @@ class VPM(object):
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_project_solve(
         self,
@@ -276,6 +279,8 @@ class VPM(object):
             byref(RHS_pm_ptr),
         )
         self._store_mesh_results(RHS_pm_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_define(
         self,
@@ -310,9 +315,11 @@ class VPM(object):
 
         NVR = self.particles.NVR
         self.particles.store_particles(
-            pointer_to_dp_array(XP_ptr, (3, NVR)), 
-            pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
+            positions= pointer_to_dp_array(XP_ptr, (3, NVR)), 
+            charges= pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
         )
+        # Call garbage collector
+        gc.collect()
 
     def vpm_solve_velocity(
         self,
@@ -351,6 +358,8 @@ class VPM(object):
             velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_solve_velocity_deformation(
         self,
@@ -395,6 +404,8 @@ class VPM(object):
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr, Velocity_ptr, Deform_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_interpolate(
         self,
@@ -446,6 +457,8 @@ class VPM(object):
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_diffuse(
         self,
@@ -482,6 +495,8 @@ class VPM(object):
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
         self._store_mesh_results(RHS_pm_ptr)
+        # Call garbage collector
+        gc.collect()
 
     def vpm_correct_vorticity(
         self,
@@ -510,11 +525,12 @@ class VPM(object):
             byref(c_int(num_equations)),
             byref(NVR_size),
         )
-        NVR_size = NVR_size.value
+        NVR = self.particles.NVR
         self.particles.store_particles(
-            # positions= pointer_to_dp_array(XP_ptr, (3, NVR_size)), 
-            charges = pointer_to_dp_array(QP_ptr, (num_equations + 1, NVR_size))
+            charges = pointer_to_dp_array(QP_ptr, (num_equations + 1, NVR))
         )
+        # Call garbage collector
+        gc.collect()
     
     def vpm_solve_pressure( 
         self,
@@ -524,14 +540,20 @@ class VPM(object):
     ):
         """Solve pressure field."""
         if velocity is None:
-            velocity = self.particle_mesh.U[:, :, :, :]
+            if self.particle_mesh.velocity is not None:
+                velocity = self.particle_mesh.velocity[:, :, :, :]
+            else:
+                velocity = self.particle_mesh.velocity
         if vorticity is None:
-            vorticity = self.particle_mesh.RHS[:3, :, :, :]
+            if self.particle_mesh.RHS is not None:
+                vorticity = self.particle_mesh.RHS[:3, :, :, :]
+            else:
+                vorticity = self.particle_mesh.RHS
 
         # If numpy arrays are passed, convert them to F_Array
-        if isinstance(velocity, np.ndarray):
+        if isinstance(velocity, np.ndarray) or velocity is None:
             velocity = F_Array.from_ndarray(velocity)
-        if isinstance(vorticity, np.ndarray):
+        if isinstance(vorticity, np.ndarray) or vorticity is None:
             vorticity = F_Array.from_ndarray(vorticity)
 
         if not isinstance(velocity, F_Array) or not isinstance(vorticity, F_Array):
@@ -550,10 +572,15 @@ class VPM(object):
             self.particle_mesh.q_pressure = np.copy(pressure[0, :, :, :])
             self.particle_mesh.u_pressure = np.copy(pressure[1, :, :, :])
             self.particle_mesh.pressure = np.copy(pressure[2, :, :, :])
+            pressure.free()
+            del pressure
+        # Call garbage collector
+        gc.collect()
 
 
     def remesh_particles(
-        self, project_particles: bool, 
+        self, 
+        project_particles: bool, 
         particles_per_cell: int= 1, 
         cut_off: float = 1e-9
     ):
@@ -583,12 +610,24 @@ class VPM(object):
 
         assert(NVR == self.particles.NVR)
         # store the results
+        XP_arr = F_Array.from_ctype(XP_struct)
+        QP_arr = F_Array.from_ctype(QP_struct)
+        UP_arr = F_Array.from_ctype(UP_struct)
+        GP_arr = F_Array.from_ctype(GP_struct)
+
+        if self.rank == 0:
+            print("The shape of the arrays are: ", XP_arr.shape, QP_arr.shape, UP_arr.shape, GP_arr.shape)
+            print("XP: -> max: ", np.max(XP_arr[:]), " min: ", np.min(XP_arr[:]))
+            print("QP: -> max: ", np.max(QP_arr[:]), " min: ", np.min(QP_arr[:]))
+
         self.particles.store_particles(
-            F_Array.from_ctype(XP_struct).to_numpy(),
-            F_Array.from_ctype(QP_struct).to_numpy(),
-            F_Array.from_ctype(UP_struct).to_numpy(),
-            F_Array.from_ctype(GP_struct).to_numpy(),
+            positions = XP_arr.to_numpy(copy= True) if XP_arr.total_size > 0 else None, 
+            charges = QP_arr.to_numpy(copy= True) if QP_arr.total_size > 0 else None,
+            velocities =UP_arr.to_numpy(copy= True) if UP_arr.total_size > 0 else None,
+            deformations = GP_arr.to_numpy(copy= True) if GP_arr.total_size > 0 else None,
         )
+        # Call garbage collector
+        gc.collect()
         return self.particles.particle_positions, self.particles.particle_charges 
 
     def set_verbosity(self, verbosity: int):
@@ -623,7 +662,7 @@ class VPM(object):
         if rhs_ptr and not rhs_ptr.is_null():
             self.particle_mesh.RHS = F_Array.from_ctype(rhs_ptr).transfer_data_ownership()
         if velocity_ptr and not velocity_ptr.is_null():
-            self.particle_mesh.U = F_Array.from_ctype(velocity_ptr).transfer_data_ownership()
+            self.particle_mesh.velocity = F_Array.from_ctype(velocity_ptr).transfer_data_ownership()
         if deform_ptr and not deform_ptr.is_null():
             self.particle_mesh.deformation = F_Array.from_ctype(deform_ptr).transfer_data_ownership()
 

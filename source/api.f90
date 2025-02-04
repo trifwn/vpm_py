@@ -273,9 +273,13 @@ contains
         real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:)
         real(c_double), allocatable            :: pressure(:,:,:,:)
 
-        call convert_to_4D_array(vorticity_ptr, vorticity)
-        call convert_to_4D_array(velocity_ptr, velocity)
-
+        if (vorticity_ptr%total_size .ne. 0 ) then
+            call convert_to_4D_array(vorticity_ptr, vorticity)
+        end if
+        
+        if (velocity_ptr%total_size .ne. 0 ) then
+            call convert_to_4D_array(velocity_ptr, velocity)
+        end if
         call vpm_solve_pressure(vorticity, velocity, pressure, density)
         if (allocated(pressure)) then
             pressure_ptr = from_intrinsic(pressure, shape(pressure))
@@ -291,6 +295,7 @@ contains
         use vpm_vars, only: neqpm
         use pmgrid, only: RHS_pm
         use ND_Arrays
+        use MPI
 
         implicit none
         integer(c_int), intent(in) :: iflag, npar_per_cell
@@ -301,14 +306,11 @@ contains
         ! Local variables
         real(dp), allocatable, target, save :: XP_out(:, :), QP_out(:, :), GP_out(:, :), UP_out(:, :)
         real(dp), dimension(:,:), pointer :: XP_ptr,  QP_ptr, GP_ptr, UP_ptr
-        integer :: NVR_size_in
+        integer :: NVR_size_in, my_rank, ierr
+
+        call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
 
         if ( iflag == 1 )then
-            print *, XP_arr%ndims
-            print *, QP_arr%ndims
-            print *, GP_arr%ndims
-            print *, UP_arr%ndims
-
             call convert_to_2D_array(XP_arr, XP_ptr)
             call convert_to_2D_array(QP_arr, QP_ptr)
             call convert_to_2D_array(GP_arr, GP_ptr)
@@ -325,10 +327,18 @@ contains
             allocate(GP_out(3, NVR_size_in)); GP_out = GP_ptr
             allocate(QP_out(neqpm + 1, NVR_size_in)); QP_out = QP_ptr
 
+                    ! Check RHS_PM if the maxval is 0 then we have a problem
+            if (my_rank.eq.0) then
+                print *, 'Number of particles before', NVRR
+                print *, 'Number of particles after', NVR_size_in
+                print *, 'XP -> min and max', minval(XP_out), maxval(XP_out) 
+                print *, 'QP -> min and max', minval(QP_out), maxval(QP_out)
+            end if
+
             if (present(cuttof_value)) then
                 call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in, cuttof_value)
             else
-                call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in, 1e-9_dp)
+                call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in)
             end if
         else
             if (present(cuttof_value)) then
@@ -338,6 +348,14 @@ contains
             end if
         end if
 
+
+        if (my_rank.eq.0) then
+            print *, "EXITING REMESH"
+            print *, 'Number of particles before', NVR_size_in
+            print *, 'Number of particles after', NVRR
+            print *, 'XP -> min and max', minval(XP_out), maxval(XP_out), "Shape", shape(XP_out)
+            print *, 'QP -> min and max', minval(QP_out), maxval(QP_out), "Shape", shape(QP_out)
+        end if
         XP_arr = from_intrinsic(XP_out, shape(XP_out))
         QP_arr = from_intrinsic(QP_out, shape(QP_out))
         GP_arr = from_intrinsic(GP_out, shape(GP_out))

@@ -13,13 +13,93 @@ class ParticleMesh:
         self.number_equations = num_equations
         
         self.load_lib()
-        self.U = np.array([])
-        self.deformation = np.array([])
-        self.pressure = np.array([]) 
-        self.q_pressure = np.array([]) 
-        self.u_pressure = np.array([]) 
-        self.SOL = np.array([])
-        self.RHS = np.array([])
+        self._velocity = np.zeros((3,0,0,0), dtype=np.float64, order='F')
+        self._deformation = np.zeros((3,0,0,0), dtype=np.float64, order='F')
+        self._pressure = np.zeros((0,0,0), dtype=np.float64, order='F')
+        self._q_pressure = np.zeros((0,0,0), dtype=np.float64, order='F')
+        self._u_pressure = np.zeros((0,0,0,0), dtype=np.float64, order='F')
+        self._SOL = np.array([])
+        self._RHS = np.array([])
+    
+    @property
+    def velocity(self):
+        if np.size(self._velocity) == 0:
+            return None
+        return self._velocity
+    
+    @velocity.setter
+    def velocity(self, value: np.ndarray):
+        if np.size(self._velocity) > 0:
+            del self._velocity
+        self._velocity = value
+    
+    @property
+    def deformation(self):
+        if np.size(self._deformation) == 0:
+            return None
+        return self._deformation
+    
+    @deformation.setter
+    def deformation(self, value: np.ndarray):
+        if np.size(self._deformation) > 0 :
+            del self._deformation
+        self._deformation = value
+    
+    @property
+    def pressure(self):
+        if np.size(self._pressure) == 0:
+            return None
+        return self._pressure
+    
+    @pressure.setter
+    def pressure(self, value: np.ndarray):
+        if np.size(self._pressure) > 0:
+            del self._pressure
+        self._pressure = value
+    
+    @property
+    def q_pressure(self):
+        if np.size(self._q_pressure) == 0:
+            return None
+        return self._q_pressure
+    
+    @q_pressure.setter
+    def q_pressure(self, value: np.ndarray):
+        if np.size(self._q_pressure) > 0:
+            del self._q_pressure
+        self._q_pressure = value
+    
+    @property
+    def u_pressure(self):
+        if np.size(self._u_pressure) == 0:
+            return None
+        return self._u_pressure
+    
+    @u_pressure.setter
+    def u_pressure(self, value: np.ndarray):
+        if np.size(self._u_pressure) > 0:
+            del self._u_pressure
+        self._u_pressure = value
+
+    @property
+    def SOL(self):
+        if np.size(self._SOL) == 0:
+            return None
+        return self._SOL
+    
+    @SOL.setter
+    def SOL(self, value: np.ndarray):
+        self._SOL = value
+    
+    @property
+    def RHS(self):
+        if np.size(self._RHS) == 0:
+            return None
+        return self._RHS
+    
+    @RHS.setter
+    def RHS(self, value: np.ndarray):
+        self._RHS = value
     
     def load_lib(self):
         lib = VPM_Lib()
@@ -54,7 +134,6 @@ class ParticleMesh:
     
     @property
     def grid_positions(self):
-
         # First, we need to get the number of grid points in each direction
         NX_pm = self.NX_pm
         NY_pm = self.NY_pm
@@ -223,35 +302,9 @@ class ParticleMesh:
             filetype : str
                 The filetype to write to
         """
-        # if not folder.endswith("/"):
-        #     folder += "/"
-
-        # filename_b = filename.encode('utf-8')
-        # folder_b = folder.encode('utf-8')
-
-        # os.makedirs(folder, exist_ok=True)
-        # os.makedirs(os.path.join(folder,'results'), exist_ok=True)
-
-        # if filetype == "h5":
-        #     # Convert pressure to F_Array
-        #     pressure = F_Array.from_ndarray(self.pressure)
-        #     self._lib.write_pressure_hdf5(folder_b, filename_b, byref(pressure.to_ctype()))
-        # else:
-        #     raise ValueError(f"Filetype {filetype} not recognized")
-
         import h5py as h5
         if not folder.endswith("/"):
             folder += "/"
         filename = os.path.join(folder, filename)
         with h5.File(filename, 'w') as f:
             f.create_dataset(filename, data=self.pressure)
-
-        
-
-    # def get_dpm(self):
-    #     """
-    #         Get the particle positions
-    #     """
-    #     dpm = F_Array_Struct.null(ndims=1, total_size = 3)
-    #     self._lib.get_dpm(byref(dpm))
-    #     return dpm

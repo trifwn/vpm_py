@@ -7,7 +7,7 @@ module vpm_remesh
 contains
 
     subroutine interpolate_and_remesh_particles(npar_per_cell, XPR, QPR, UPR, GPR, NVR_in, NVR_size_in, cutoff_value)
-        use vpm_functions, only: project_particles_parallel
+        use vpm_functions, only: project_particles_parallel, allocate_sol_and_rhs
         use parvar, only: associate_particles
         use vpm_size, only: fine_grid
         use pmgrid, only: RHS_pm
@@ -25,7 +25,22 @@ contains
 
         ! Project particles on PM grid to get RHS
         call associate_particles(NVR_in, NVR_size_in, XPR, QPR, UPR, GPR)
+        call allocate_sol_and_rhs(my_rank + 1)
+ 
         call project_particles_parallel
+
+        ! Check RHS_PM if the maxval is 0 then we have a problem
+        if (my_rank.eq.0) then
+        if ((maxval(RHS_pm) ) .le. 1e-8_dp) then
+            write (dummy_string, "(A)") 'RHS_PM is zero, no particles to remesh'
+            call vpm_print(dummy_string, red, 0)
+            ! Print the particle stats
+            print *, 'Number of particles before', NVR_in
+            print *, 'Number of particles after', NVR_size_in
+            print *, 'XP -> min and max', minval(XPR), maxval(XPR)
+            print *, 'QP -> min and max', minval(QPR), maxval(QPR)
+        end if
+        end if
 
         ! Remesh particles
         if (present(cutoff_value)) then
@@ -78,13 +93,15 @@ contains
         if (present(cutoff_value)) then
             cutoff = cutoff_value
         else
-            cutoff = 1e-09
+            cutoff = 1e-7_dp
         end if
 
         if (my_rank .eq. 0) then
             st = MPI_WTIME()
             write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value: ', cutoff
             call vpm_print(dummy_string, blue, 0)
+            write (dummy_string, "(A, I5)") 'Number of particles before', NVRR
+            call vpm_print(dummy_string, nocolor, 2)
             write (dummy_string, "(A)") 'RHS_PM will be used to remesh the particles'
             call vpm_print(dummy_string, nocolor, 2)
             ! Print the Dimensions of RHS_PM and the Maximum and Minimum values
@@ -94,7 +111,8 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
             write (dummy_string, "(A, F8.2)") achar(9)//'Minimal value of RHS_PM:', minval(RHS_pm)
             call vpm_print(dummy_string, nocolor, 2)
-
+            write (dummy_string, "(A, F8.2)") achar(9)//'Average value of RHS_PM:', sum(RHS_pm)/float(grid%NN(1)*grid%NN(2)*grid%NN(3))
+            call vpm_print(dummy_string, nocolor, 2)
         end if
         tab_level = tab_level + 1
 
@@ -108,9 +126,6 @@ contains
 
         NN = NN*mrem
         NN_bl = NN_bl*mrem
-        Dpm(1) = (Xbound(4) - Xbound(1))/(NN(1) - 1)
-        Dpm(2) = (Xbound(5) - Xbound(2))/(NN(2) - 1)
-        Dpm(3) = (Xbound(6) - Xbound(3))/(NN(3) - 1)
         DVpm = Dpm(1)*Dpm(2)*Dpm(3)
         XMIN_pm = Xbound(1) 
         YMIN_pm = Xbound(2)
@@ -232,52 +247,53 @@ contains
         NVR_size = NVR
         if (allocated(XPR)) deallocate (XPR)
         if (allocated(QPR)) deallocate (QPR)
-        allocate (XPR(3, NVR), QPR(neqpm + 1, NVR))
-        
         if (allocated(GPR)) deallocate (GPR)
         if (allocated(UPR)) deallocate (UPR)
-        allocate (GPR(3, NVR), UPR(3, NVR))
 
-        if (allocated(XP_tmp).and.allocated(QP_tmp)) then
+        
+        if (my_rank.eq.0) then
+            allocate (XPR(3, NVR), QPR(neqpm + 1, NVR))
+            allocate (GPR(3, NVR), UPR(3, NVR))
             XPR = XP_tmp(:, 1:NVR)
             QPR = QP_tmp(:, 1:NVR)
-        else
-            XPR = 0
-            QPR = 0
-        end if
-
-        GPR = 0
-        UPR = 0
-
-        nullify (XP, QP, GP, UP)
-        XP => XPR
-        QP => QPR
-        UP => UPR
-        GP => GPR
-
-        if (my_rank .eq. 0) then
+            GPR = 0
+            UPR = 0
+            
+            nullify (XP, QP, GP, UP)
+            XP => XPR
+            QP => QPR
+            UP => UPR
+            GP => GPR
             deallocate (XP_tmp, QP_tmp)
             deallocate (XC, YC, ZC, QC)
 
             if (ncell .gt. 1) call interpolate_particle_Q(RHS_pm, XP, QP(1:neqpm, :), NVR, 4, NVR_size)
-            write (dummy_string, *) 'After remesh'
+            write (dummy_string, '(A)') 'After remesh'
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Number of particles before', NVR_old
+            write (dummy_string, '(A, I0)') achar(9) // 'Number of particles before ', NVR_old
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Number of particles after', NVR
+            write (dummy_string, '(A, I0)') achar(9) // 'Number of particles after ', NVR
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Volume of a cell', DVpm
+            write (dummy_string, '(A, ES12.5)') achar(9) // 'Volume of a cell ', DVpm
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Number of cells', grid%NN(1), grid%NN(2), grid%NN(3) 
+            write (dummy_string, '(A, 3I0)') achar(9) // 'Number of cells ', grid%NN(1), grid%NN(2), grid%NN(3)
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Maximal value of QPR', maxval(QP(:, :))
+            write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of QPR ', shape(QPR), maxval(QPR)
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Minimal value of QPR', minval(QP(:, :))
+            write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of QPR ', shape(QPR), minval(QPR)
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Maximal value of XP', maxval(XP(:, :))
+            write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of XPR ', shape(XPR), maxval(XPR)
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, *) achar(9), 'Minimal value of XP', minval(XP(:, :))
+            write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of XPR ', shape(XPR), minval(XPR)
             call vpm_print(dummy_string, nocolor, 2)
+            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of QP ', shape(QP), maxval(QP)
+            ! call vpm_print(dummy_string, nocolor, 2)
+            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of QP ', shape(QP), minval(QP)
+            ! call vpm_print(dummy_string, nocolor, 2)
+            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of XP ', shape(XP), maxval(XP)
+            ! call vpm_print(dummy_string, nocolor, 2)
+            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of XP ', shape(XP), minval(XP)
+            ! call vpm_print(dummy_string, nocolor, 2)
         end if
 
         if (my_rank .eq. 0) then

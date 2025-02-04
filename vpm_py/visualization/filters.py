@@ -74,6 +74,9 @@ class SliceFilter_3D(Filter):
         # Extract slice data
         sliced_data = {}
         for key, slice in data.items():
+            if slice is None:
+                continue
+
             if key == 'position':
                 continue
             if isinstance(slice, np.ndarray):

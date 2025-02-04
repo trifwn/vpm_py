@@ -300,8 +300,8 @@ contains
         enddo
 
         ! Print the min, max and average of laplace_vort
-        print *, "Min laplace_vort: ", minval(laplace_vort) * DXpm * DYpm * DZpm
-        print *, "Max laplace_vort: ", maxval(laplace_vort) * DXpm * DYpm * DZpm
+        print *, "Min laplace_vort: ", minval(abs(laplace_vort)) * DXpm * DYpm * DZpm
+        print *, "Max laplace_vort: ", maxval(abs(laplace_vort)) * DXpm * DYpm * DZpm
 
         variable_volume = .false.
         if (neqpm .eq. 3) then

@@ -282,7 +282,7 @@ contains
         if (my_rank .eq. 0) then
             write (*, *) ""
             tab_level = tab_level - 1
-            write (dummy_string, "(A)") 'Solving Primary Problem'
+            write (dummy_string, "(A)") 'Solving Poisson problem for the vorticity field'
             call vpm_print(dummy_string, blue, 0)
             tab_level = tab_level + 1
             st = MPI_WTIME()
@@ -299,7 +299,6 @@ contains
         NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr &
     )
         use MPI
-        use parvar, only: UP
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
         integer, intent(in)              :: NVR_in
         integer, intent(in)              :: neqpm_in, NVR_size_in
@@ -311,9 +310,7 @@ contains
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
         
-        if (my_rank .eq. 0) then
-            UP => UP_in
-        end if
+        call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in, UP_in, GP_in)
         call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
         call associate_velocities(vel_ptr)
 
@@ -352,13 +349,14 @@ contains
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
-        ! Project the particles to the PM grid and solve the problem
-        call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
-
-        ! Calculate the velocity and deformation on the PM grid
         call associate_velocities(vel_ptr)
         if (present(deform_ptr)) call associate_deformations(deform_ptr)
         call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in, UP_in, GP_in)
+        
+        ! Project the particles to the PM grid and solve the problem
+        call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
+        
+        ! Calculate the velocity and deformation on the PM grid
         if (my_rank .eq. 0) then
             print *, ''
             ! FROM THE SOLUTION OF PM WE GET THE VELOCITIES ON THE GRID
@@ -412,6 +410,8 @@ contains
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
         
+        call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in)
+        
         tab_level = 0
         if (my_rank .eq. 0) then
             write (*, *) ""
@@ -428,8 +428,6 @@ contains
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
         
-        call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in)
-        ! Allocate the solution and the RHS
         ND = 3
         neqpm = 1
 

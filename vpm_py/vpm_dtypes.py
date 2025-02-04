@@ -2,7 +2,7 @@ import numpy as np
 from ctypes import c_double, POINTER, cast, _Pointer, Array
 from typing import Any
 
-def dp_array_to_pointer(array: np.ndarray, copy = False) -> _Pointer:
+def dp_array_to_pointer(array: np.ndarray, copy = False) -> tuple[np.ndarray, _Pointer]:
     """
     Convert a numpy array to a pointer to a double array.
     """
@@ -12,7 +12,7 @@ def dp_array_to_pointer(array: np.ndarray, copy = False) -> _Pointer:
     # If copy is True, make a copy of the array
     if copy:
         array = np.array(array, copy= True, order= 'F').reshape(array.shape)
-    return array.ctypes.data_as(POINTER(c_double))
+    return array, array.ctypes.data_as(POINTER(c_double))
 
 def pointer_to_dp_array(
         pointer: _Pointer, 
@@ -33,12 +33,8 @@ def pointer_to_dp_array(
         dtype =np.float64,
         count = np.prod(shape),
     ).reshape(shape, order='F')
-    return data_
 
-def _ctype_ndarray(element_type, shape):
-    """ Create an ndarray of the given element type and shape """
-    for dim in shape[::-1]:
-        element_type = dim * element_type
-        # prevent the type name include np.ctypeslib
-        element_type.__module__ = None
-    return element_type
+    if not data_.flags['F_CONTIGUOUS']:
+        print("Warning: The array is not Fortran contiguous.")
+        data_ = np.asfortranarray(data_, dtype= np.float64)
+    return data_

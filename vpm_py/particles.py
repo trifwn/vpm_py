@@ -141,16 +141,22 @@ class Particles:
     
     def get_array_pointers(self, return_all = False) -> list[_Pointer]:
         """Create pointers for arrays with copy."""
-        arrays = [
-            self.particle_positions,
-            self.particle_charges,
-        ]
+        particle_positions, pos_pointer = dp_array_to_pointer(self.particle_positions, copy=True)
+        particle_charges, charges_pointer = dp_array_to_pointer(self.particle_charges, copy=True)
+        pointers = [pos_pointer, charges_pointer]
+
         if return_all:
-            arrays.extend([
-                self.particle_velocities,
-                self.particle_deformations
-            ])
-        return [dp_array_to_pointer(arr, copy=True) for arr in arrays]
+            particle_velocities, vel_pointer = dp_array_to_pointer(self.particle_velocities, copy=True)
+            particle_deformations, def_pointer = dp_array_to_pointer(self.particle_deformations, copy=True)
+            pointers.extend([vel_pointer, def_pointer])
+
+        self.store_particles(
+            positions=particle_positions,
+            charges=particle_charges,
+            velocities=particle_velocities if return_all else None,
+            deformations=particle_deformations if return_all else None
+        )
+        return pointers
 
     def validate_stored_particle_counts(self, NVR: int | None = None) -> None:
         """Validate particle counts match across arrays and return NVR_size."""
@@ -187,20 +193,32 @@ class Particles:
         ) -> None:
         """Store particle results back to class attributes."""
         if positions is not None:
-            del self._particle_positions 
-            self.particle_positions = positions
+            if not np.shares_memory(self._particle_positions, positions): 
+                del self._particle_positions 
+                self.particle_positions = positions
+            else:
+                print("Memory shared for positions size: ", positions.shape)
 
         if charges is not None:
-            del self._particle_charges
-            self.particle_charges = charges
+            if not np.shares_memory(self._particle_charges, charges):
+                del self._particle_charges
+                self.particle_charges = charges
+            else:
+                print("Memory shared for charges size: ", charges.shape)
 
         if velocities is not None:
-            del self._particle_velocities
-            self.particle_velocities = velocities
+            if not np.shares_memory(self._particle_velocities, velocities):
+                del self._particle_velocities
+                self.particle_velocities = velocities
+            else:
+                print("Memory shared for velocities size: ", velocities.shape)
 
         if deformations is not None:
-            del self._particle_deformations
-            self.particle_deformations = deformations
+            if not np.shares_memory(self._particle_deformations, deformations):
+                del self._particle_deformations
+                self.particle_deformations = deformations
+            else:
+                print("Memory shared for deformations size: ", deformations.shape)
 
         # if rank == 0:
         #     positions = self.particle_positions

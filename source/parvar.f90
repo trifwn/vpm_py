@@ -43,21 +43,31 @@ contains
         integer                                :: ierr, my_rank
         call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
 
-        if (associated(XP)) nullify (XP)
-        if (associated(QP)) nullify (QP)
-        if (associated(UP)) nullify (UP)
-        if (associated(GP)) nullify (GP)
 
         if (my_rank .eq. 0) then
             NVR = NVR_in
             NVR_size = NVR_size_in
-            XP => XP_in
-            QP => QP_in
+            if (.not.(associated(XP, XP_in))) then
+                if (associated(XP)) nullify (XP)
+                XP => XP_in
+            end if
+
+            if (.not.(associated(QP, QP_in))) then
+                if (associated(QP)) nullify (QP)
+                QP => QP_in
+            end if
+
             if (present(UP_in)) then
-                UP => UP_in
+                if (.not.(associated(UP, UP_in))) then
+                    if (associated(UP)) nullify (UP)
+                    UP => UP_in
+                end if
             end if
             if (present(GP_in)) then
-                GP => GP_in
+                if (.not.(associated(GP, GP_in))) then
+                    if (associated(GP)) nullify (GP)
+                    GP => GP_in
+                end if
             end if
         end if
 

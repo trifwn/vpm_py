@@ -162,7 +162,9 @@ class F_Array(object):
         return arr
     
     @classmethod
-    def from_ndarray(self, np_array):
+    def from_ndarray(self, np_array: np.ndarray | None):
+        if np_array is None:
+            return F_Array.null()
         # If the array is not Fortran ordered, make it Fortran ordered
         if not np_array.flags['F_CONTIGUOUS']:
             np_array = np.asfortranarray(np_array, dtype=np.float64)
@@ -188,8 +190,13 @@ class F_Array(object):
             ndarray: The data array
         """
         return self.data
+    
+    def is_null(self):
+        return self.total_size == 0 
 
     def to_ctype(self):
+        if self.is_null():
+            return F_Array_Struct.null(self.ndims, self.total_size)
         return F_Array_Struct(self.ndims, self.total_size, self.shape_ptr[0], self.data_ptr_zero)
 
     def print_in_fortran(self):
@@ -315,6 +322,10 @@ class F_Array(object):
             del self
         except Exception as e:
             print(f"Error during deletion: {e}")
+
+    def free(self):
+        array_struct = self.to_ctype()
+        self._lib_array.free_array(byref(array_struct))
 
     def __getitem__(self, index):
         "Return the data array with the given index"

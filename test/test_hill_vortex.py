@@ -11,11 +11,21 @@ from vpm_py.visualization import StandardVisualizer
 # matplotlib.use('Agg')
 
 
+import psutil
+import os
+
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    return memory_info.rss  # Resident Set Size (RSS) in bytes
+
+
+
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
-    SPHERE_RADIUS = 2.0
-    REYNOLDS_NUMBER = 10. #np.inf 
+    SPHERE_RADIUS = 1.0
+    REYNOLDS_NUMBER = 100. #np.inf 
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
@@ -25,6 +35,7 @@ def main():
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.5
+    REMESH_FREQUENCY = 40
 
     # OPTIONS
     remesh = True
@@ -44,6 +55,8 @@ def main():
     
     if not remesh:
         CASE_FOLDER += "_no_remesh"
+    else:
+        CASE_FOLDER += f"_remesh_{REMESH_FREQUENCY}"
     
     CASE_FOLDER += "/"
 
@@ -143,7 +156,26 @@ def main():
 
     # Main loop
     T = 0
+    # Open the file to write the memory usage
+    if rank == 0:
+        with open(f"{CASE_FOLDER}memory_usage.txt", "w") as f:
+            f.write("".join([f"Process {i}, " for i in range(1, np_procs)]) + "\n")  
+
     for i in range(start_iter, start_iter +  TIMESTEPS+1):
+        memory_usage = get_memory_usage()
+        if rank == 0:
+            memory_usages = np.zeros(np_procs)
+            memory_usages[0] = memory_usage / 1024**2
+            for j in range(1, np_procs):
+                memory_usages[j] = comm.recv(source=j) / 1024**2
+            # Append the memory usage to the file
+            with open(f"{CASE_FOLDER}memory_usage.txt", "a") as f:
+                # Write the values separated by commas
+                f.write(",".join([f"{memory:.2f}" for memory in memory_usages]) + "\n")
+        else:
+            comm.send(memory_usage, dest=0)
+
+
         NVR = vpm.particles.NVR
         comm.Barrier()
         grid_dimensions = vpm.particle_mesh.nn
@@ -168,7 +200,7 @@ def main():
             QPR = vpm.particles.particle_charges
             UPR = vpm.particles.particle_velocities
             GPR = vpm.particles.particle_deformations
-            U_PM = vpm.particle_mesh.U
+            U_PM = vpm.particle_mesh.velocity
             PRESSURE_PM = vpm.particle_mesh.pressure
 
             for name, u in zip(["Ux", "Uy", "Uz"], U_PM): 
@@ -178,12 +210,13 @@ def main():
                 print(f"Min: {np.min(u)}")
                 print('\n')
 
-            for name, p in zip(["P", "Q"], PRESSURE_PM):
-                print_green(f"{name}:")
-                print(f"Mean: {np.mean(p)}")
-                print(f"Max: {np.max(p)}")
-                print(f"Min: {np.min(p)}")
-                print('\n')
+            if PRESSURE_PM is not None:
+                for name, p in zip(["P", "Q"], PRESSURE_PM):
+                    print_green(f"{name}:")
+                    print(f"Mean: {np.mean(p)}")
+                    print(f"Max: {np.max(p)}")
+                    print(f"Min: {np.min(p)}")
+                    print('\n')
             
             # Calculate CFL
             CFL_x = np.max(np.abs(U_PM[0, :, :, :])) * DT / vpm.dpm[0]
@@ -203,6 +236,7 @@ def main():
                 print_red('\tNot Satisfied')
                 print(f"\tDT: {DT} > {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
                 DT_diffusion = 1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)
+                DT_diffusion = 0.7 * DT_diffusion
             else:
                 print_green('\tSatisfied')
                 print(f"\tDT: {DT} < {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
@@ -226,7 +260,7 @@ def main():
             remesh_str = 'remesh = True' if remesh else 'remesh = False'
             correct_str = 'correction = True' if apply_vorticity_correction else 'correction = False'
             vpm.update_plot(
-                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | Iteration: {i}/{TIMESTEPS} | {remesh_str} | {correct_str}",
+                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | DT = {DT:.2e} | Iteration: {i}/{TIMESTEPS} | {remesh_str} | {correct_str}",
             )
             
             et = MPI.Wtime()
@@ -251,7 +285,7 @@ def main():
             timestep=i,
         )
 
-        if remesh and i % 20 == 0 and i != 0:
+        if remesh and i % REMESH_FREQUENCY == 0 and i != 0:
             print_IMPORTANT("Remeshing", rank)
             XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
@@ -271,8 +305,13 @@ def main():
                 QPR = vpm.particles.particle_charges
                 GPR = vpm.particles.particle_deformations
                 # Diffuse the particles
-                QPR[:3,:] = QPR[:3,:] + GPR[:, :] *  DT
+                QPR[:3,:] = QPR[:3,:] - GPR[:, :] *  DT
                 print('Diffusion finished: with viscosity = ', VISCOSITY)
+        
+        XPR = vpm.particles.particle_positions
+        QPR = vpm.particles.particle_charges
+        UPR = vpm.particles.particle_velocities
+        GPR = vpm.particles.particle_deformations
         
     # Finalize
     end_time = MPI.Wtime()
@@ -333,17 +372,23 @@ def initialize_hill_vortex(
     return XPR_hill, QPR_hill, NVR
 
 def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_Limit):
+    DT_old = DT
     if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS) :
-        DT_old = DT
-        DT = CFL_TARGET / CFL * DT
-        print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
-        print_red(f"DT: was {DT_old} -> Adjusting to {DT}")
-    if DT > DT_Limit:
-        print_red("Adjusting the timestep so difussion is stable")
-        print_red(f"DT: was {DT} -> Adjusting to {DT_Limit}")
-        DT = DT_Limit
+        DT_CFL = CFL_TARGET / CFL * DT
     else:
+        DT_CFL = max(CFL_LIMITS) / CFL * DT
         print_green("CFL condition is satisfied")
+
+    if DT_CFL < DT_Limit:
+        if DT_CFL < DT:
+            print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
+            print_red(f"DT: was {DT_old} -> Adjusting to {DT_CFL}")
+            DT = DT_CFL
+    else:
+        if DT_Limit < DT:
+            print_red("Adjusting the timestep so difussion is stable")
+            print_red(f"DT: was {DT_old} -> Adjusting to {DT_Limit}")
+            DT = DT_Limit
     print('\n')
     return DT
 
