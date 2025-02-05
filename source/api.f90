@@ -327,13 +327,12 @@ contains
             allocate(GP_out(3, NVR_size_in)); GP_out = GP_ptr
             allocate(QP_out(neqpm + 1, NVR_size_in)); QP_out = QP_ptr
 
-                    ! Check RHS_PM if the maxval is 0 then we have a problem
-            if (my_rank.eq.0) then
-                print *, 'Number of particles before', NVRR
-                print *, 'Number of particles after', NVR_size_in
-                print *, 'XP -> min and max', minval(XP_out), maxval(XP_out) 
-                print *, 'QP -> min and max', minval(QP_out), maxval(QP_out)
-            end if
+            ! if (my_rank.eq.0) then
+            !     print *, 'Number of particles before', NVRR
+            !     print *, 'Number of particles after', NVR_size_in
+            !     print *, 'XP -> min and max', minval(XP_out), maxval(XP_out) 
+            !     print *, 'QP -> min and max', minval(QP_out), maxval(QP_out)
+            ! end if
 
             if (present(cuttof_value)) then
                 call interpolate_and_remesh_particles(npar_per_cell, XP_out, QP_out, UP_out, GP_out, NVRR, NVR_size_in, cuttof_value)
@@ -349,13 +348,13 @@ contains
         end if
 
 
-        if (my_rank.eq.0) then
-            print *, "EXITING REMESH"
-            print *, 'Number of particles before', NVR_size_in
-            print *, 'Number of particles after', NVRR
-            print *, 'XP -> min and max', minval(XP_out), maxval(XP_out), "Shape", shape(XP_out)
-            print *, 'QP -> min and max', minval(QP_out), maxval(QP_out), "Shape", shape(QP_out)
-        end if
+        ! if (my_rank.eq.0) then
+        !     print *, "EXITING REMESH"
+        !     print *, 'Number of particles before', NVR_size_in
+        !     print *, 'Number of particles after', NVRR
+        !     print *, 'XP -> min and max', minval(XP_out), maxval(XP_out), "Shape", shape(XP_out)
+        !     print *, 'QP -> min and max', minval(QP_out), maxval(QP_out), "Shape", shape(QP_out)
+        ! end if
         XP_arr = from_intrinsic(XP_out, shape(XP_out))
         QP_arr = from_intrinsic(QP_out, shape(QP_out))
         GP_arr = from_intrinsic(GP_out, shape(GP_out))

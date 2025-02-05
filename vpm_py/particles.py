@@ -169,19 +169,15 @@ class Particles:
         deformations = self.particle_deformations
 
         if not (NVR == positions.shape[1]):
-            print(f"Warning: NVR size mismatch: {NVR} != {positions.shape[1]}, for positions")
             self.particle_positions = np.zeros((3, NVR), dtype=np.float64, order='F')
         
         if not (NVR == charges.shape[1]):
-            print(f"Warning: NVR size mismatch: {NVR} != {charges.shape[1]}, for charges")
             self.particle_charges = np.zeros((self.number_equations + 1, NVR), dtype=np.float64, order='F')
 
         if velocities is not None and not (NVR == velocities.shape[1]):
-            print(f"Warning: NVR size mismatch: {NVR} != {velocities.shape[1]}, for velocities")
             self.particle_velocities = np.zeros((3, NVR), dtype=np.float64, order='F')
 
         if deformations is not None and not (NVR == deformations.shape[1]):
-            print(f"Warning: NVR size mismatch: {NVR} != {deformations.shape[1]} for deformations")
             self.particle_deformations = np.zeros((3, NVR), dtype=np.float64, order='F')
 
     def store_particles(
@@ -197,28 +193,32 @@ class Particles:
                 del self._particle_positions 
                 self.particle_positions = positions
             else:
-                print("Memory shared for positions size: ", positions.shape)
+                # print("Memory shared for positions size: ", positions.shape)
+                pass
 
         if charges is not None:
             if not np.shares_memory(self._particle_charges, charges):
                 del self._particle_charges
                 self.particle_charges = charges
             else:
-                print("Memory shared for charges size: ", charges.shape)
+                # print("Memory shared for charges size: ", charges.shape)
+                pass
 
         if velocities is not None:
             if not np.shares_memory(self._particle_velocities, velocities):
                 del self._particle_velocities
                 self.particle_velocities = velocities
             else:
-                print("Memory shared for velocities size: ", velocities.shape)
+                # print("Memory shared for velocities size: ", velocities.shape)
+                pass
 
         if deformations is not None:
             if not np.shares_memory(self._particle_deformations, deformations):
                 del self._particle_deformations
                 self.particle_deformations = deformations
             else:
-                print("Memory shared for deformations size: ", deformations.shape)
+                # print("Memory shared for deformations size: ", deformations.shape)
+                pass
 
         # if rank == 0:
         #     positions = self.particle_positions

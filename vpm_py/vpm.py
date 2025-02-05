@@ -615,11 +615,6 @@ class VPM(object):
         UP_arr = F_Array.from_ctype(UP_struct)
         GP_arr = F_Array.from_ctype(GP_struct)
 
-        if self.rank == 0:
-            print("The shape of the arrays are: ", XP_arr.shape, QP_arr.shape, UP_arr.shape, GP_arr.shape)
-            print("XP: -> max: ", np.max(XP_arr[:]), " min: ", np.min(XP_arr[:]))
-            print("QP: -> max: ", np.max(QP_arr[:]), " min: ", np.min(QP_arr[:]))
-
         self.particles.store_particles(
             positions = XP_arr.to_numpy(copy= True) if XP_arr.total_size > 0 else None, 
             charges = QP_arr.to_numpy(copy= True) if QP_arr.total_size > 0 else None,

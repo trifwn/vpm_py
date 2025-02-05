@@ -31,7 +31,7 @@ contains
 
         ! Check RHS_PM if the maxval is 0 then we have a problem
         if (my_rank.eq.0) then
-        if ((maxval(RHS_pm) ) .le. 1e-8_dp) then
+        if ((maxval(abs(RHS_pm)) ) .le. 1e-8_dp) then
             write (dummy_string, "(A)") 'RHS_PM is zero, no particles to remesh'
             call vpm_print(dummy_string, red, 0)
             ! Print the particle stats
