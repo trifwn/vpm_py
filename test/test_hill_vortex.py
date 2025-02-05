@@ -203,48 +203,26 @@ def main():
             U_PM = vpm.particle_mesh.velocity
             PRESSURE_PM = vpm.particle_mesh.pressure
 
-            for name, u in zip(["Ux", "Uy", "Uz"], U_PM): 
-                print_green(f"{name}:")
-                print(f"Mean: {np.mean(u)}")
-                print(f"Max: {np.max(u)}")
-                print(f"Min: {np.min(u)}")
-                print('\n')
+            # Position statistics
+            for name, x in zip(["X", "Y", "Z"], XPR):
+                print_green(f"{name} Statistics:")
+                print(f"  Mean: {np.mean(x):.6e}  Max:  {np.max(x):.6e} Min:  {np.min(x):.6e}")
+                print()
 
+            # Velocity statistics
+            for name, u in zip(["Ux", "Uy", "Uz"], U_PM):
+                print_green(f"{name} Statistics:")
+                print(f"  Mean: {np.mean(u):.6e}  Max:  {np.max(u):.6e} Min:  {np.min(u):.6e}")
+                print()  
+
+            # Pressure statistics
             if PRESSURE_PM is not None:
                 for name, p in zip(["P", "Q"], PRESSURE_PM):
-                    print_green(f"{name}:")
-                    print(f"Mean: {np.mean(p)}")
-                    print(f"Max: {np.max(p)}")
-                    print(f"Min: {np.min(p)}")
-                    print('\n')
-            
-            # Calculate CFL
-            CFL_x = np.max(np.abs(U_PM[0, :, :, :])) * DT / vpm.dpm[0]
-            CFL_y = np.max(np.abs(U_PM[1, :, :, :])) * DT / vpm.dpm[1]
-            CFL_z = np.max(np.abs(U_PM[2, :, :, :])) * DT / vpm.dpm[2]
-            CFL   = CFL_x + CFL_y + CFL_z
-            print_green(f"CFL: {CFL}")
-            print(f"CFL_x: {CFL_x}")
-            print(f"CFL_y: {CFL_y}")
-            print(f"CFL_z: {CFL_z}")
-            print('\n')
+                    print_green(f"{name} Statistics:")
+                    print(f"  Mean: {np.mean(p):.6e} Max:  {np.max(p):.6e} Min:  {np.min(p):.6e}")
+                    print()
 
-            # THE STABILITY CRITERION FOR THE DIFFUSION IS: DT < dx^2 / (2 * nu)
-            print('Stability criterion for diffusion:')
-            print('\tDT < 1 / (2 * nu) * 1 / (1/dx^2 + 1/dy^2 + 1/dz^2)')
-            if DT > 1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2):
-                print_red('\tNot Satisfied')
-                print(f"\tDT: {DT} > {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
-                DT_diffusion = 1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)
-                DT_diffusion = 0.7 * DT_diffusion
-            else:
-                print_green('\tSatisfied')
-                print(f"\tDT: {DT} < {1 / (6 * VISCOSITY) / (1 / vpm.dpm[0]**2 + 1 / vpm.dpm[1]**2 + 1 / vpm.dpm[2]**2)}")
-                DT_diffusion = DT
-            print('\n')
-            
-            # Adjust the timestep
-            DT = adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_diffusion)
+            DT = stability_check(DT, VISCOSITY, U_PM, vpm.dpm, CFL_LIMITS, CFL_TARGET)
 
             print_IMPORTANT("Convecting Particles", rank)
             st = MPI.Wtime()
@@ -285,7 +263,7 @@ def main():
             timestep=i,
         )
 
-        if remesh and i % REMESH_FREQUENCY == 0 and i != 0:
+        if remesh and i % REMESH_FREQUENCY == 0:
             print_IMPORTANT("Remeshing", rank)
             XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
@@ -371,25 +349,73 @@ def initialize_hill_vortex(
     NVR = vpm.particles.NVR
     return XPR_hill, QPR_hill, NVR
 
-def adjust_CFL(CFL, CFL_LIMITS, CFL_TARGET, DT, DT_Limit):
-    DT_old = DT
-    if CFL > max(CFL_LIMITS) or CFL < min(CFL_LIMITS) :
-        DT_CFL = CFL_TARGET / CFL * DT
-    else:
-        DT_CFL = max(CFL_LIMITS) / CFL * DT
-        print_green("CFL condition is satisfied")
+def stability_check(DT, VISCOSITY, U_PM, dpm, CFL_LIMITS, CFL_TARGET):
+    # Calculate CFL components
+    CFL_x = np.max(np.abs(U_PM[0, :, :, :])) * DT / dpm[0]
+    CFL_y = np.max(np.abs(U_PM[1, :, :, :])) * DT / dpm[1]
+    CFL_z = np.max(np.abs(U_PM[2, :, :, :])) * DT / dpm[2]
+    CFL = CFL_x + CFL_y + CFL_z
 
-    if DT_CFL < DT_Limit:
-        if DT_CFL < DT:
-            print_red(f"Adjusting the timestep so that the CFL condition is satisfied and the new CFL is {CFL_TARGET}")
-            print_red(f"DT: was {DT_old} -> Adjusting to {DT_CFL}")
-            DT = DT_CFL
+    # Check CFL stability
+    print(f"CFL_x: {CFL_x:.3f}, CFL_y: {CFL_y:.3f}, CFL_z: {CFL_z:.3f}")
+    if CFL > 1:
+        print_red(f"CFL: {CFL:.3f}") 
+        print_red("CFL stability criterion violated\n")
     else:
-        if DT_Limit < DT:
-            print_red("Adjusting the timestep so difussion is stable")
-            print_red(f"DT: was {DT_old} -> Adjusting to {DT_Limit}")
-            DT = DT_Limit
-    print('\n')
+        print_green(f"CFL: {CFL:.3f}")
+        print_green("CFL stability criterion satisfied\n")
+
+    # Calculate diffusion stability criterion
+    stability_criterion = 1 / (6 * VISCOSITY) / (1 / dpm[0]**2 + 1 / dpm[1]**2 + 1 / dpm[2]**2)
+    print('Stability criterion for diffusion:')
+    print(f'\tDT < 1/(2ν) * [1/(1/dx² + 1/dy² + 1/dz²)] = {stability_criterion:.3e}')
+
+    # Determine diffusion safety limit
+    if DT > stability_criterion:
+        print_red('\tNot Satisfied')
+        print(f"\tCurrent DT: {DT:.3e} > Stability limit: {stability_criterion:.3e}")
+        DT_diffusion = 0.7 * stability_criterion  # Apply safety factor
+    else:
+        print_green('\tSatisfied')
+        print(f"\tCurrent DT: {DT:.3e} < Stability limit: {stability_criterion:.3e}")
+        DT_diffusion = stability_criterion  # Use full stability limit
+
+    # Calculate CFL-based timestep boundaries
+    DT_CFL_LOW = (CFL_LIMITS[0] / CFL) * DT
+    DT_CFL_HIGH = (CFL_LIMITS[1] / CFL) * DT
+    DT_CFL_TARGET = (CFL_TARGET / CFL) * DT
+    DT_initial = DT  # Store initial DT for logging
+
+    # Determine dominant constraint
+    if DT_CFL_HIGH < DT_diffusion:
+        print("\nCFL condition is stricter than diffusion")
+    elif DT_CFL_LOW > DT_diffusion:
+        print("\nDiffusion is stricter than CFL condition")
+
+    # Adjust DT for CFL constraints
+    if DT >= DT_CFL_HIGH:
+        print_red("\nAdjusting timestep to satisfy CFL upper limit")
+        print_red(f"\tDT: {DT:.3e} → {DT_CFL_TARGET:.3e} (CFL target = {CFL_TARGET})")
+        DT = DT_CFL_TARGET
+    elif DT <= DT_CFL_LOW:
+        print_red("\nAdjusting timestep to satisfy CFL lower limit")
+        print_red(f"\tDT: {DT:.3e} → {DT_CFL_TARGET:.3e} (CFL target = {CFL_TARGET})")
+        DT = DT_CFL_TARGET
+
+    # Adjust DT for diffusion constraints after CFL adjustment
+    if DT >= DT_diffusion:
+        new_DT = 0.8 * DT_diffusion  # Additional safety factor
+        print_red("\nAdjusting timestep for diffusion stability")
+        print_red(f"\tDT after CFL: {DT:.3e} → {new_DT:.3e} (0.8 x diffusion limit)")
+        DT = new_DT
+    else:
+        print_green("\nDiffusion stability confirmed")
+        print_green(f"\tCurrent DT: {DT:.3e} < Diffusion limit: {DT_diffusion:.3e}")
+
+    # Final validation
+    assert DT <= DT_CFL_HIGH, "CFL upper limit violated"
+    assert DT <= DT_diffusion, "Diffusion limit violated"
+    print(f"\nFinal DT: {DT:.3e} (Initial: {DT_initial:.3e})")
     return DT
 
 
