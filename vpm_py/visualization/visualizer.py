@@ -280,18 +280,11 @@ class Visualizer:
         """
         Capture the current frame of the animation.
         """
-        try:
-            s_time = time.time()
-            self.writer.grab_frame()
-            e_time = time.time()
-            
-            # Log frame time for monitoring
-            print(f"\tFrame grabbed in {e_time - s_time:.2f}s")
-            
-        except MemoryError:
-            import gc
-            print("Memory error occurred - trying to recover...")
-            gc.collect() # Force garbage collection
+        s_time = time.time()
+        self.writer.grab_frame()
+        e_time = time.time()
+        # Log frame time for monitoring
+        print(f"\tFrame grabbed in {e_time - s_time:.2f}s")
 
     
     def finish_animation(self):
@@ -517,25 +510,6 @@ class Visualizer:
     def _update_figure_title(self, title:str)-> None:
         self.title.set_text(title)
 
-
-    def add_artist(self, art: Artist):
-        """
-        Add an artist to be managed.
-
-        Parameters
-        ----------
-        art : Artist
-
-            The artist to be added.  Will be set to 'animated' (just
-            to be safe).  *art* must be in the figure associated with
-            the canvas this class is managing.
-
-        """
-        if art.figure != self.fig:
-            raise RuntimeError
-        art.set_animated(True)
-        self._artists.append(art)
-
     def _draw_animated(self):
         """Draw all of the animated artists."""
         fig = self.fig
@@ -556,7 +530,6 @@ class Visualizer:
                 raise RuntimeError
         self._background = canvas.copy_from_bbox(canvas.figure.bbox)
         self._draw_animated()
-
 
     def _render_plot(self):
         fig = self.fig

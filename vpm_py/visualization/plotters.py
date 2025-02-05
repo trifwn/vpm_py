@@ -74,7 +74,7 @@ class Plotter(ABC):
         Update the colorbar based on the current plot.
         """
         if self.colorbar is None:
-            self.colorbar: Colorbar | None = self.fig.colorbar(self.plot, ax=self.ax)
+            self.colorbar: Colorbar = self.fig.colorbar(self.plot, ax=self.ax)
             self.colorbar.ax.tick_params(length=0, labelsize=8)  # Reduce tick size
 
         else:
@@ -295,9 +295,8 @@ class SlicePlotter(Plotter):
             self.cax = divider.append_axes('right', size='5%', pad=0.05)
             self.colorbar = self.fig.colorbar(self.plot, cax=self.cax)
         else:
-            self.cax.clear()
-            self.colorbar = self.fig.colorbar(self.plot, cax=self.cax)
-
+            self.colorbar.update_normal(self.plot)
+    
     def setup_plot(self)-> None:
         """
         Set up the initial slice plot.
@@ -328,10 +327,8 @@ class SlicePlotter(Plotter):
             self.slice_plane_surf = None
             self.annotation = None
 
-        self.plot = self.ax.contourf(
-            np.zeros((2,2)), np.zeros((2,2)), np.zeros((2,2)),
-            cmap=self.cmap, levels=self.levels, norm=self.norm
-        )
+        self.plot = self.ax.pcolormesh(np.zeros((2,2)), np.zeros((2,2)), np.zeros((2,2)), cmap=self.cmap, norm=self.norm, shading='auto')
+        self.ax.set_aspect('equal', 'box')
         self.set_labels('X', 'Y')
         self.update_colorbar() 
 
@@ -342,8 +339,6 @@ class SlicePlotter(Plotter):
         """
         if self.slice_plane_ax:
             ax = self.slice_plane_ax
-            if self.slice_plane_surf:
-                self.slice_plane_surf.remove()
 
             # Add the slice plane to the other plot
             min_x, max_x = self.slice_plane_ax.get_xlim()
@@ -380,28 +375,26 @@ class SlicePlotter(Plotter):
                     va='center'
                 )  
                 # self.slice_plane_ax.add_artist(self.annotation)
+
             if np.all(x[0,0] == x):
-                Y, Z = np.meshgrid(np.linspace(min_y, max_y, 100), np.linspace(min_z, max_z, 100))
+                Y, Z = np.meshgrid(np.linspace(min_y, max_y, 3), np.linspace(min_z, max_z, 3))
                 X = np.ones_like(Y) * x[0,0]
-                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color=color)
                 # Name the axes appropriately
                 self.ax.set_xlabel('Y')
                 self.ax.set_ylabel('Z')
                 title = f' Slice at X = {x[0,0]:.4f}' 
                 # self.annotation.update(xyz=(x[0,0], min_y, min_z), s='X={:.2f}'.format(x[0,0]))
             elif np.all(y[0,0] == y):
-                X, Z = np.meshgrid(np.linspace(min_x, max_x, 100), np.linspace(min_z, max_z, 100))
+                X, Z = np.meshgrid(np.linspace(min_x, max_x, 3), np.linspace(min_z, max_z, 3))
                 Y = np.ones_like(X) * y[0,0]
-                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color= color)
                 # Name the axes appropriately
                 self.ax.set_xlabel('X')
                 self.ax.set_ylabel('Z')
                 title = f' Slice at Y = {y[0,0]:.4f}' 
                 # self.annotation.update(xyz=(min_x, y[0,0], min_z), s='Y={:.2f}'.format(y[0,0]))
             elif np.all(z[0,0] == z):
-                X, Y = np.meshgrid(np.linspace(min_x, max_x, 100), np.linspace(min_y, max_y, 100))
+                X, Y = np.meshgrid(np.linspace(min_x, max_x, 3), np.linspace(min_y, max_y, 3))
                 Z = np.ones_like(X) * z[0,0]
-                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color= color)
                 # Name the axes appropriately
                 self.ax.set_xlabel('X')
                 self.ax.set_ylabel('Y')
@@ -409,6 +402,12 @@ class SlicePlotter(Plotter):
                 # self.annotation.update(xyz=(max_x, min_y, z[0,0]), s='Z={:.2f}'.format(z[0,0]))
             else:
                 print('No fixed position found.')
+            
+            if self.slice_plane_surf:
+                self.slice_plane_surf.remove()
+                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color=color)
+            else:
+                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color=color)
             self.set_title(self.ax.get_title() + title)
         else:
             if self.slice_plane_plot:
@@ -428,25 +427,41 @@ class SlicePlotter(Plotter):
     
     def update(self, plot_data, title=None):
         """
-        Update the slice plot with new data.
+        Update the slice plot with new data efficiently using pcolormesh.
 
         Parameters:
-        data (dict): The data used to update the plot.
+        plot_data (dict): The data used to update the plot.
         title (str, optional): The title of the plot.
         """
         x = plot_data['positions']['x']
         y = plot_data['positions']['y']
         z = plot_data['colors']
-        # self.ax.clear()
-        self.plot.remove()
-        self.plot = self.ax.contourf(x, y, z, cmap=self.cmap, levels=self.levels, norm=self.norm)
 
-        # self.plot = self.ax.contourf(x, y, z, cmap=self.cmap, levels=self.levels, norm=self.norm)
+        # Check if the dimensions of x, y, or z have changed
+        if hasattr(self, 'plot'):
+            # Compare current dimensions with previous dimensions
+            prev_x_shape = self.plot.get_array().shape if hasattr(self.plot, 'get_array') else None
+            # print(f"Previous shape: {prev_x_shape} vs Current shape: {x.shape}")
+            if prev_x_shape is not None and (x.shape != prev_x_shape or y.shape != prev_x_shape or z.shape != prev_x_shape):
+                # Dimensions have changed, remove the old plot and create a new one
+                self.plot.remove()
+                self.plot = None
+
+        # If the plot hasn't been initialized or dimensions have changed, create a new plot
+        if not hasattr(self, 'plot') or self.plot is None:
+            self.plot = self.ax.pcolormesh(x, y, z, cmap=self.cmap, norm=self.norm, shading='auto')
+            self.ax.set_aspect('equal', 'box')
+            self.update_colorbar()
+        else:
+            # Update the data array and color limits
+            self.plot.set_array(z.ravel())
+            
         self.plot.set_clim(z.min(), z.max())
+        # Adjust axes limits if the grid has changed
         self.ax.set_xlim(x.min(), x.max())
-        self.ax.set_ylim(y.min(), y.max())
-        self.ax.set_aspect('equal', 'box')
+        self.ax.set_ylim(y.min(), y.max()) 
+
         self.update_colorbar()
+        # Update colorbar and title
         if title:
             self.set_title(title)
-        
