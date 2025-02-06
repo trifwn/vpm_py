@@ -7,7 +7,7 @@ contains
         use MPI
         use pmgrid, only: velocity_pm, SOL_pm
         use vpm_vars, only: neqpm
-        use console_io, only: vpm_print, blue, yellow, dummy_string
+        use console_io, only: vpm_print, blue, yellow, nocolor, dummy_string
         use vpm_types, only: dp
         use vpm_size, only: fine_grid
         implicit none
@@ -19,6 +19,7 @@ contains
         DZpm = fine_grid%Dpm(3)
 
         st = MPI_WTIME()
+        call vpm_print('', nocolor, 1)
         write (dummy_string, "(A)") "Calculating Velocities on PM using FD"
         call vpm_print(dummy_string, blue, 1)
 

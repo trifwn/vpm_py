@@ -10,8 +10,7 @@ module vpm_functions
     ! Printing
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
     use parvar, only:     print_particle_info, print_particle_positions, associate_particles
-    use pmgrid, only:     print_velocity_stats, print_vortex_stretching_stats, &
-                          associate_velocities, associate_deformations
+    use pmgrid, only:     print_velocity_stats, print_vortex_stretching_stats
     implicit none
 
 contains

@@ -54,8 +54,9 @@ class SliceFilter_3D(Filter):
         plane: Plane | str,
         strategy: SliceStrategy,
         filter_quantity: QuantityOfInterest | None = None,
+        value: float | None = None,
     ):
-        self.slicer = Slicer(strategy, plane)
+        self.slicer = Slicer(strategy, plane, value)
         self.filter_quantity = filter_quantity
 
     def apply(
@@ -69,7 +70,7 @@ class SliceFilter_3D(Filter):
             mesh_qoi = quantity_of_interest.get_quantity(data)
 
         # Create slices
-        slices = self.slicer.calculate_slicer(mesh_qoi)
+        slices = self.slicer.calculate_slicer(mesh_qoi, data['position'])
 
         # Extract slice data
         sliced_data = {}

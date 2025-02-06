@@ -2,6 +2,7 @@ import os
 from ctypes import c_double, c_int, POINTER, byref
 import numpy as np
 from vpm_py.vpm_lib import VPM_Lib
+from vpm_py.arrays import F_Array
 
 
 class ParticleMesh: 
@@ -23,83 +24,73 @@ class ParticleMesh:
     
     @property
     def velocity(self):
-        if np.size(self._velocity) == 0:
+        if self._velocity is None or self._velocity.size == 0:
             return None
         return self._velocity
     
     @velocity.setter
     def velocity(self, value: np.ndarray):
-        if np.size(self._velocity) > 0:
-            del self._velocity
-        self._velocity = value
+        self._velocity = self._convert_to_numpy(value) 
     
     @property
     def deformation(self):
-        if np.size(self._deformation) == 0:
+        if self._deformation is None or self._deformation.size == 0:
             return None
         return self._deformation
     
     @deformation.setter
     def deformation(self, value: np.ndarray):
-        if np.size(self._deformation) > 0 :
-            del self._deformation
-        self._deformation = value
+        self._deformation = self._convert_to_numpy(value)
     
     @property
     def pressure(self):
-        if np.size(self._pressure) == 0:
+        if self._pressure is None or self._pressure.size == 0:
             return None
         return self._pressure
     
     @pressure.setter
     def pressure(self, value: np.ndarray):
-        if np.size(self._pressure) > 0:
-            del self._pressure
-        self._pressure = value
+        self._pressure = self._convert_to_numpy(value)
     
     @property
     def q_pressure(self):
-        if np.size(self._q_pressure) == 0:
+        if self._q_pressure is None or self._q_pressure.size == 0:
             return None
         return self._q_pressure
     
     @q_pressure.setter
     def q_pressure(self, value: np.ndarray):
-        if np.size(self._q_pressure) > 0:
-            del self._q_pressure
-        self._q_pressure = value
+        self._q_pressure = self._convert_to_numpy(value)
     
     @property
     def u_pressure(self):
-        if np.size(self._u_pressure) == 0:
+        if self._u_pressure is None or self._u_pressure.size == 0: 
             return None
         return self._u_pressure
     
     @u_pressure.setter
     def u_pressure(self, value: np.ndarray):
-        if np.size(self._u_pressure) > 0:
-            del self._u_pressure
-        self._u_pressure = value
+        self._u_pressure = self._convert_to_numpy(value)
 
     @property
     def SOL(self):
-        if np.size(self._SOL) == 0:
+        if self._SOL is None or self._SOL.size == 0:
             return None
         return self._SOL
     
     @SOL.setter
     def SOL(self, value: np.ndarray):
-        self._SOL = value
+        self._SOL = self._convert_to_numpy(value)
     
     @property
     def RHS(self):
-        if np.size(self._RHS) == 0:
+        if self._RHS is None or self._RHS.size == 0: 
             return None
         return self._RHS
     
     @RHS.setter
     def RHS(self, value: np.ndarray):
-        self._RHS = value
+        self._RHS = self._convert_to_numpy(value)
     
     def load_lib(self):
         lib = VPM_Lib()
@@ -129,8 +120,8 @@ class ParticleMesh:
         self._lib.get_neqpm.restype = None
         self._lib.set_RHS_pm.argtypes = [POINTER(c_double), POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int)]
         self._lib.set_RHS_pm.restype = None
-        # self._lib.get_dpm.argtypes = [POINTER(F_Array_Struct)]
-        # self._lib.get_dpm.restype = None
+        self._lib.get_dpm.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double)]
+        self._lib.get_dpm.restype = None
     
     @property
     def grid_positions(self):
@@ -164,6 +155,14 @@ class ParticleMesh:
         return np.array([X, Y, Z])
 
     @property
+    def grid_spacing(self):
+        dx = c_double()
+        dy = c_double()
+        dz = c_double()
+        self._lib.get_dpm(byref(dx), byref(dy), byref(dz))
+        return np.array([dx.value, dy.value, dz.value])
+
+    @property
     def NX_pm(self):
         NX_pm = c_int()
         self._lib.get_NX_pm(byref(NX_pm))
@@ -182,16 +181,16 @@ class ParticleMesh:
         return NZ_pm.value
 
     @property
-    def nn(self):       
+    def grid_size(self):       
         """
-            NN(6) is the number of cells in each direction
+            NN(3) is the number of cells in each direction
         """
         NN = (c_int * 3)() 
         self._lib.get_NN(byref(NN))
         return np.array(NN)
     
     @property
-    def nn_bl(self):
+    def grid_limits(self):
         """
         NN_bl(6) is the start and end indices of the cells assigned to the processor.
         """
@@ -259,6 +258,72 @@ class ParticleMesh:
             byref(c_int(size3)), 
             byref(c_int(size4))
         )
+    
+    def store_mesh_results(
+        self,
+        rhs: np.ndarray | F_Array | None = None,
+        sol: np.ndarray | F_Array |  None = None,
+        velocity: np.ndarray | F_Array  | None = None,
+        deformation: np.ndarray | F_Array | None = None,
+        pressures: np.ndarray | F_Array |  None = None,
+    ):
+        if rhs is not None:
+            if isinstance(rhs, F_Array):
+                rhs = rhs.to_numpy()
+            if not np.shares_memory(rhs, self._RHS):
+                # del self._RHS
+                self.RHS = rhs
+
+        if sol is not None:
+            if isinstance(sol, F_Array):
+                sol = sol.to_numpy()
+            if not np.shares_memory(sol, self._SOL):
+                # del self._SOL
+                self.SOL = sol
+
+        if velocity is not None:
+            if not np.shares_memory(velocity, self._velocity):
+                # del self._velocity
+                self.velocity = velocity
+
+        if deformation is not None:
+            if isinstance(deformation, F_Array):
+                deformation = deformation.to_numpy()
+            if not np.shares_memory(deformation, self._deformation):
+                # del self._deformation
+                self.deformation = deformation
+
+        if pressures is not None:
+            if isinstance(pressures, F_Array):
+                pressures = pressures.to_numpy()
+                u_pressure = pressures[0, :, :, :]
+                q_pressure = pressures[1, :, :, :]
+                pressure   = pressures[2, :, :, :]
+
+            if not np.shares_memory(pressure, self._pressure):
+                del self._pressure
+                self.pressure = pressure
+            
+            if not np.shares_memory(u_pressure, self._u_pressure):
+                del self._u_pressure
+                self.u_pressure = u_pressure
+            
+            if not np.shares_memory(q_pressure, self._q_pressure):
+                del self._q_pressure
+                self.q_pressure = q_pressure
+ 
+    def _convert_to_numpy(self, array: np.ndarray | F_Array) -> np.ndarray:
+        """Convert F_Array to numpy array if needed."""
+        if isinstance(array, F_Array):
+            array = array.data
+        
+        if not isinstance(array, np.ndarray):
+            raise ValueError("Invalid array type")
+        
+        # Make sure the array has Fortran order
+        if not array.flags['F_CONTIGUOUS']:
+            array = np.asfortranarray(array, dtype=np.float64)
+        return array 
     
     def save_to_file(self,  filename: str = "particle_mesh", folder: str = "results", filetype: str = "h5"):
         """

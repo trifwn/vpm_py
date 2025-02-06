@@ -99,7 +99,6 @@ contains
         call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in, UP_in, GP_in)
         if (NVR .eq. 0) return
         if (associated(RHS_pm_ptr)) nullify (RHS_pm_ptr)
-        call associate_velocities(vel_ptr)
 
         select case (WhatToDo)
         case (DEFINE_PROBLEM)
@@ -127,6 +126,7 @@ contains
             call vpm_correct_vorticity(XP_in, QP_in, NVR_in, NVR_size_in)
         
         end select
+        call associate_velocities(vel_ptr)
         return
     end subroutine vpm
 
@@ -349,12 +349,12 @@ contains
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
-        call associate_velocities(vel_ptr)
-        if (present(deform_ptr)) call associate_deformations(deform_ptr)
         call associate_particles(NVR_in, NVR_size_in, XP_in, QP_in, UP_in, GP_in)
-        
         ! Project the particles to the PM grid and solve the problem
         call vpm_project_and_solve(NTIME_in, XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr)
+
+        call associate_velocities(vel_ptr)
+        if (present(deform_ptr)) call associate_deformations(deform_ptr)
         
         ! Calculate the velocity and deformation on the PM grid
         if (my_rank .eq. 0) then
@@ -515,7 +515,7 @@ contains
         use vpm_interpolate, only: interpolate_particle_Q
         real(dp), pointer, intent(in)           :: vorticity(:,:,:,:)
         real(dp), pointer, intent(in)           :: velocity(:,:,:,:)
-        real(dp), allocatable,  intent(out)     :: pressure(:,:,:,:)
+        real(dp), allocatable, intent(out)      :: pressure(:,:,:,:)
         real(dp), intent(in)                    :: density
         real(dp), pointer, intent(in), optional :: dphi_dt(:,:,:,:)
         real(dp), value, optional               :: p_reference

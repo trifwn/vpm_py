@@ -202,9 +202,15 @@ contains
         
         call vpm_solve_velocity_deformation(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
                                             neqpm_in, RHS_pm_ptr, vel_ptr, deform_ptr)
-        if (associated(RHS_pm_ptr)) RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
-        if (associated(Vel_ptr)) Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
-        if ((associated(deform_ptr)))  Deform_out = from_intrinsic(deform_ptr, shape(deform_ptr))
+        if (associated(RHS_pm_ptr)) then 
+            RHS_pm_out = from_intrinsic(RHS_pm_ptr, shape(RHS_pm_ptr))
+        endif
+        if (associated(Vel_ptr)) then 
+            Vel_out = from_intrinsic(Vel_ptr, shape(Vel_ptr))
+        endif
+        if ((associated(deform_ptr)))  then 
+            Deform_out = from_intrinsic(deform_ptr, shape(deform_ptr))
+        endif
     end subroutine call_vpm_solve_velocity_deformation
 
     subroutine call_vpm_interpolate(NTIME_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in,  &
@@ -271,8 +277,9 @@ contains
         real(c_double), intent(in)             :: density
         ! Local variables
         real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:)
-        real(c_double), allocatable            :: pressure(:,:,:,:)
-
+        real(c_double), allocatable, save      :: pressure(:,:,:,:)
+        
+        if (allocated(pressure)) deallocate(pressure)
         if (vorticity_ptr%total_size .ne. 0 ) then
             call convert_to_4D_array(vorticity_ptr, vorticity)
         end if

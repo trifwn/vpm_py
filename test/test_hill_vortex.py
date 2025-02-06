@@ -25,7 +25,7 @@ def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
     SPHERE_RADIUS = 1.0
-    REYNOLDS_NUMBER = 100. #np.inf 
+    REYNOLDS_NUMBER = 10. #np.inf 
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
@@ -60,7 +60,7 @@ def main():
     
     CASE_FOLDER += "/"
 
-    INITIALIZE_CASE = True 
+    INITIALIZE_CASE = False 
     # Initialize MPI
     comm = MPI.COMM_WORLD
     start_time = MPI.Wtime()
@@ -75,7 +75,7 @@ def main():
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 0,
+        verbocity= 1,
         dx_particle_mesh= dpm[0],
         dy_particle_mesh= dpm[1],
         dz_particle_mesh= dpm[2],
@@ -147,12 +147,12 @@ def main():
         particle_charges    =  QPR[:,:],
     )
 
-    for i in range(1, 2):
-        vpm.vpm_correct_vorticity(
-            particle_positions=XPR,
-            particle_charges=QPR,
-            num_particles=NVR,
-        )
+    # for i in range(1, 2):
+    #     vpm.vpm_correct_vorticity(
+    #         particle_positions=XPR,
+    #         particle_charges=QPR,
+    #         num_particles=NVR,
+    #     )
 
     # Main loop
     T = 0
@@ -178,9 +178,11 @@ def main():
 
         NVR = vpm.particles.NVR
         comm.Barrier()
-        grid_dimensions = vpm.particle_mesh.nn
+        grid_dimensions = vpm.particle_mesh.grid_size
         print_IMPORTANT(
-            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}\nNumber of particles: {NVR}\nPM Cells: {np.prod(grid_dimensions)}",
+            f"Iteration= {i} of {TIMESTEPS}\nT={T}\nDT={DT}\nNumber of particles: {NVR}\n" +
+            f"PM Cells: {np.prod(grid_dimensions)}\n" +
+            f"CASE_FOLDER: {CASE_FOLDER}\n" ,
             rank = rank,
             color_divider="green",
             color_text="green"
@@ -238,7 +240,8 @@ def main():
             remesh_str = 'remesh = True' if remesh else 'remesh = False'
             correct_str = 'correction = True' if apply_vorticity_correction else 'correction = False'
             vpm.update_plot(
-                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | DT = {DT:.2e} | Iteration: {i}/{TIMESTEPS} | {remesh_str} | {correct_str}",
+                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | Iteration: {i}/{TIMESTEPS} | {remesh_str} | {correct_str}",
+                dt = DT
             )
             
             et = MPI.Wtime()
@@ -326,8 +329,8 @@ def initialize_hill_vortex(
         print_IMPORTANT("Hill vortex initialization", rank)
     _, RHS_pm_hill = hill_assign_parallel(
         Dpm= vpm.dpm,
-        NN= vpm.particle_mesh.nn,
-        NN_bl= vpm.particle_mesh.nn_bl,
+        NN= vpm.particle_mesh.grid_size,
+        NN_bl= vpm.particle_mesh.grid_limits,
         Xbound= vpm.particle_mesh.xbound,
         neqpm= vpm.num_equations,
         sphere_radius = SPHERE_RADIUS,

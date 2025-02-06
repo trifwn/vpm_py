@@ -149,6 +149,14 @@ class VPM(object):
     ):
         if self.visualizer is None:
             raise ValueError("No visualizer attached")
+        # Check if filename exists
+        if os.path.exists(filename):
+            # Then append a number to the filename
+            i = 1
+            while os.path.exists(f"{filename}_{i}.mp4"):
+                i += 1
+            filename = f"{filename}_{i}.mp4"
+            
         self.visualizer.setup_animation_writer(
             filename = filename, 
             fps = fps, 
@@ -158,7 +166,7 @@ class VPM(object):
         )
         self.has_animation_writer = True
 
-    def update_plot(self, title: str):
+    def update_plot(self, title: str, dt = None):
         if self.visualizer is None:
             return
         
@@ -176,6 +184,12 @@ class VPM(object):
                 pm_q_pressure= self.particle_mesh.q_pressure,
                 pm_u_pressure= self.particle_mesh.u_pressure,
             )
+        self.visualizer.set_problem_info(
+            num_particles = self.particles.NVR,
+            grid_size = self.particle_mesh.grid_size,
+            dpm= self.particle_mesh.grid_spacing,
+            dt = dt,
+        )
         if self.has_animation_writer:
             self.visualizer.grab_frame()
 
@@ -241,7 +255,10 @@ class VPM(object):
             velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
-        self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
+        self.particle_mesh.store_mesh_results(
+            rhs         = self.dereference_F_Array(RHS_pm_ptr),
+            velocity    = self.dereference_F_Array(Velocity_ptr),
+        )
         # Call garbage collector
         gc.collect()
 
@@ -278,7 +295,7 @@ class VPM(object):
             byref(c_int(num_equations)),
             byref(RHS_pm_ptr),
         )
-        self._store_mesh_results(RHS_pm_ptr)
+        self.particle_mesh.store_mesh_results(rhs = self.dereference_F_Array(RHS_pm_ptr))
         # Call garbage collector
         gc.collect()
 
@@ -357,7 +374,10 @@ class VPM(object):
             charges = pointer_to_dp_array(QP_ptr, (self.num_equations + 1, NVR)), 
             velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
         )
-        self._store_mesh_results(RHS_pm_ptr, Velocity_ptr)
+        self.particle_mesh.store_mesh_results(
+            rhs         = self.dereference_F_Array(RHS_pm_ptr),
+            velocity    = self.dereference_F_Array(Velocity_ptr),
+        )
         # Call garbage collector
         gc.collect()
 
@@ -403,7 +423,12 @@ class VPM(object):
             velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
-        self._store_mesh_results(RHS_pm_ptr, Velocity_ptr, Deform_ptr)
+        # self._store_mesh_results(RHS_pm_ptr, Velocity_ptr, Deform_ptr)
+        self.particle_mesh.store_mesh_results(
+            rhs         = self.dereference_F_Array(RHS_pm_ptr),
+            velocity    = self.dereference_F_Array(Velocity_ptr),
+            deformation = self.dereference_F_Array(Deform_ptr),
+        )
         # Call garbage collector
         gc.collect()
 
@@ -456,7 +481,7 @@ class VPM(object):
             velocities = pointer_to_dp_array(UP_ptr, (3, NVR)), 
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
-        self._store_mesh_results(RHS_pm_ptr)
+        self.particle_mesh.store_mesh_results(rhs = self.dereference_F_Array(RHS_pm_ptr))
         # Call garbage collector
         gc.collect()
 
@@ -494,7 +519,7 @@ class VPM(object):
         self.particles.store_particles(
             deformations = pointer_to_dp_array(GP_ptr, (3, NVR)), 
         )
-        self._store_mesh_results(RHS_pm_ptr)
+        self.particle_mesh.store_mesh_results(rhs = self.dereference_F_Array(RHS_pm_ptr))
         # Call garbage collector
         gc.collect()
 
@@ -561,19 +586,13 @@ class VPM(object):
 
         Velocity_ptr  = velocity.to_ctype()
         Vorticity_ptr = vorticity.to_ctype()
-        Pressure_ptr = F_Array_Struct.null(ndims=4, total_size=1)
+        Pressures_ptr = F_Array_Struct.null(ndims=4, total_size=1)
 
         self._lib.vpm_solve_pressure(
-            Vorticity_ptr, Velocity_ptr, Pressure_ptr, byref(c_double(density))
+            Vorticity_ptr, Velocity_ptr, Pressures_ptr, byref(c_double(density))
         )
 
-        if Pressure_ptr and not Pressure_ptr.is_null() and Pressure_ptr.total_size > 0:
-            pressure = F_Array.from_ctype(Pressure_ptr)
-            self.particle_mesh.q_pressure = np.copy(pressure[0, :, :, :])
-            self.particle_mesh.u_pressure = np.copy(pressure[1, :, :, :])
-            self.particle_mesh.pressure = np.copy(pressure[2, :, :, :])
-            pressure.free()
-            del pressure
+        self.particle_mesh.store_mesh_results(pressures= self.dereference_F_Array(Pressures_ptr))
         # Call garbage collector
         gc.collect()
 
@@ -647,17 +666,8 @@ class VPM(object):
         os.remove(self.vpm_lib._lib_vpm_path)
 
     ### Helper functions ###
-    def _store_mesh_results(
-            self, 
-            rhs_ptr: F_Array_Struct | None = None, 
-            velocity_ptr: F_Array_Struct | None =None, 
-            deform_ptr: F_Array_Struct | None = None
-        ):
-        """Store mesh results if pointers are not null."""
-        if rhs_ptr and not rhs_ptr.is_null():
-            self.particle_mesh.RHS = F_Array.from_ctype(rhs_ptr).transfer_data_ownership()
-        if velocity_ptr and not velocity_ptr.is_null():
-            self.particle_mesh.velocity = F_Array.from_ctype(velocity_ptr).transfer_data_ownership()
-        if deform_ptr and not deform_ptr.is_null():
-            self.particle_mesh.deformation = F_Array.from_ctype(deform_ptr).transfer_data_ownership()
-
+    def dereference_F_Array(self, F_Array_ptr: F_Array_Struct) -> F_Array | None:
+        """Dereference F_Array_Struct to F_Array."""
+        if not F_Array_ptr.is_null() and F_Array_ptr.total_size > 1:
+            return F_Array.from_ctype(F_Array_ptr)
+        return None

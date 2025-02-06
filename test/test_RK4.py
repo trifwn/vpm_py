@@ -63,8 +63,8 @@ if rank == 0:
 print_IMPORTANT("Hill vortex initialization", rank)
 _, RHS_pm_hill = hill_assign_parallel(
     Dpm=vpm.dpm,
-    NN=vpm.particle_mesh.nn,
-    NN_bl=vpm.particle_mesh.nn_bl,
+    NN=vpm.particle_mesh.grid_size,
+    NN_bl=vpm.particle_mesh.grid_limits,
     Xbound=vpm.particle_mesh.xbound,
     neqpm=vpm.num_equations,
     sphere_radius=1.5,

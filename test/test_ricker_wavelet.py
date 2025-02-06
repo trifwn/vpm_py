@@ -217,7 +217,7 @@ def initialize_ricker_wavelet(
     st = MPI.Wtime()
     print_IMPORTANT("Ricker Wavelet initialization", rank)
     _, RHS_pm_ricker = ricker_wavelet_3d_with_gradient(
-        NN= vpm.particle_mesh.nn,
+        NN= vpm.particle_mesh.grid_size,
         Xbound= vpm.particle_mesh.xbound,
         Dpm= vpm.dpm,
         radius = radius,
