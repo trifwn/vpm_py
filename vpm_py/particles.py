@@ -236,14 +236,22 @@ class Particles:
         #         mystring += f"\tmax: {np.max(charges[:]):.6f}, min: {np.min(charges[:]):.6f} size in MB: {charges.nbytes/1024/1024:.6f}"
         #     print(mystring)
 
-    def save_to_file(self, filename: str = "particles", folder: str = "results", filetype: str = "h5"):
+    def save_to_file(
+            self, 
+            filename: str = "particles", 
+            folder: str = "results", 
+            filetype: str = "h5",
+            metadata: dict[str, float] = {},
+        ) -> None:
         """
         Save the particles to a file named: folder/____filename where the ____ indicates the timestep
 
         Args:
+            case_folder (str): Folder where the case is saved
             folder (str, optional): Folder to save the file. Defaults to "results".
             filename (str, optional): Filename. Defaults to "particles".
             filetype (str, optional): Filetype. Defaults to hdf5 format "h5" .
+            metadata (dict[str, float], optional): Metadata to save in the file. Defaults to {}.
         """
         if not folder.endswith("/"):
             folder += "/"

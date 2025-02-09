@@ -12,7 +12,7 @@ from vpm_py.visualization import StandardVisualizer
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
-    REYNOLDS_NUMBER = 10. #np.inf 
+    REYNOLDS_NUMBER = 1. #np.inf 
     SPHERE_RADIUS = 1.0
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
@@ -155,8 +155,8 @@ def main():
     
         T += DT
         if rank == 0:
-            XPR = vpm.particles.XP
-            QPR = vpm.particles.QP
+            XPR = vpm.particles.particle_positions
+            QPR = vpm.particles.particle_charges
 
         if REYNOLDS_NUMBER != np.inf:
             print_IMPORTANT("Applying Diffusion", rank)
@@ -166,8 +166,8 @@ def main():
                 particle_charges= QPR,
             )
             if rank == 0:
-                QPR = vpm.particles.QP
-                GPR = vpm.particles.GP
+                QPR = vpm.particles.particle_charges
+                GPR = vpm.particles.particle_deformations
                 print('Old max(QPR) = ', np.max(np.abs(QPR[:,:])))
                 print('Old min(QPR) = ', np.min(np.abs(QPR[:,:])))
                 # Diffuse the particles
@@ -182,8 +182,8 @@ def main():
         if rank == 0:
             print('\n')
             print('-----------------------------------------')
-            XPR = vpm.particles.XP
-            QPR = vpm.particles.QP
+            XPR = vpm.particles.particle_positions
+            QPR = vpm.particles.particle_charges
         
     # Finalize
     end_time = MPI.Wtime()
@@ -230,7 +230,8 @@ def initialize_ricker_wavelet(
     if rank == 0:
         st = MPI.Wtime()
         print_red("Remeshing")
-    NVR, XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
+    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
+    NVR = vpm.particles.NVR
     if rank == 0:
         et = MPI.Wtime()
         print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")

@@ -6,7 +6,7 @@ import gc
 # Local imports
 from . import ParticleMesh, Particles
 from .arrays import F_Array, F_Array_Struct
-from .console_io import print_green
+from .console_io import print_green, print_IMPORTANT
 from .utils import divide_processors
 from .vpm_dtypes import pointer_to_dp_array
 from .vpm_lib import VPM_Lib
@@ -575,6 +575,12 @@ class VPM(object):
             else:
                 vorticity = self.particle_mesh.RHS
 
+        # Assert that the arrays are of the same shape
+        if velocity.shape != vorticity.shape:
+            print_IMPORTANT(f"Velocity shape: {velocity.shape}, Vorticity shape: {vorticity.shape}")
+            print_IMPORTANT("Velocity and vorticity arrays must be of the same shape")
+            return
+        
         # If numpy arrays are passed, convert them to F_Array
         if isinstance(velocity, np.ndarray) or velocity is None:
             velocity = F_Array.from_ndarray(velocity)
@@ -668,6 +674,6 @@ class VPM(object):
     ### Helper functions ###
     def dereference_F_Array(self, F_Array_ptr: F_Array_Struct) -> F_Array | None:
         """Dereference F_Array_Struct to F_Array."""
-        if not F_Array_ptr.is_null() and F_Array_ptr.total_size > 1:
+        if not F_Array_ptr.is_null() and F_Array_ptr.total_size > 0:
             return F_Array.from_ctype(F_Array_ptr)
         return None

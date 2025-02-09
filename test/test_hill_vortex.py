@@ -7,10 +7,6 @@ from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
                                print_red)
 from vpm_py.visualization import StandardVisualizer
 
-# import matplotlib
-# matplotlib.use('Agg')
-
-
 import psutil
 import os
 
@@ -19,18 +15,16 @@ def get_memory_usage():
     memory_info = process.memory_info()
     return memory_info.rss  # Resident Set Size (RSS) in bytes
 
-
-
 def main():
     # PROBLEM STATEMENT
     UINF = np.array([0.0, 0.0, 1.0])
     SPHERE_RADIUS = 1.0
-    REYNOLDS_NUMBER = 10. #np.inf 
+    REYNOLDS_NUMBER = 10.0 
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    dpm = np.array([0.1, 0.1, 0.1])
+    dpm = np.array([0.05, 0.05, 0.05])
     DT = 0.5 * (dpm[0]) / np.linalg.norm(UINF)
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
@@ -39,7 +33,7 @@ def main():
 
     # OPTIONS
     remesh = True
-    apply_vorticity_correction = False
+    apply_vorticity_correction = True
 
     # CASE FOLDER
     CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/hill_vortex"
@@ -60,7 +54,7 @@ def main():
     
     CASE_FOLDER += "/"
 
-    INITIALIZE_CASE = False 
+    INITIALIZE_CASE = True 
     # Initialize MPI
     comm = MPI.COMM_WORLD
     start_time = MPI.Wtime()
@@ -103,9 +97,7 @@ def main():
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
-    comm.Barrier()
     print_blue(f"Rank: {rank}")
-    comm.Barrier()
 
     # Print Problem parameters
     print_red(f"Reynolds number: {REYNOLDS_NUMBER}", rank)
@@ -249,7 +241,7 @@ def main():
 
             print_IMPORTANT("Saving the particles and particle mesh", rank)
             st = MPI.Wtime()
-            vpm.particles.save_to_file(filename= "particles", folder=CASE_FOLDER)
+            vpm.particles.save_to_file(filename= "particles", folder=CASE_FOLDER, metadata={"timestep": i, "time": T, "dt": DT})
             vpm.particle_mesh.save_to_file(filename= "particle_mesh", folder=CASE_FOLDER)
             vpm.particle_mesh.save_pressure_to_file(filename= f"{i:06d}_pressure", folder=f"{CASE_FOLDER}/results")
             

@@ -89,7 +89,7 @@ class ParticleMesh:
         return self._RHS
     
     @RHS.setter
-    def RHS(self, value: np.ndarray):
+    def RHS(self, value: np.ndarray) -> np.ndarray:
         self._RHS = self._convert_to_numpy(value)
     
     def load_lib(self):
@@ -271,27 +271,27 @@ class ParticleMesh:
             if isinstance(rhs, F_Array):
                 rhs = rhs.to_numpy()
             if not np.shares_memory(rhs, self._RHS):
-                # del self._RHS
-                self.RHS = rhs
+                del self._RHS
+            self.RHS = rhs
 
         if sol is not None:
             if isinstance(sol, F_Array):
                 sol = sol.to_numpy()
             if not np.shares_memory(sol, self._SOL):
-                # del self._SOL
-                self.SOL = sol
+                del self._SOL
+            self.SOL = sol
 
         if velocity is not None:
             if not np.shares_memory(velocity, self._velocity):
-                # del self._velocity
-                self.velocity = velocity
+                del self._velocity
+            self.velocity = velocity
 
         if deformation is not None:
             if isinstance(deformation, F_Array):
                 deformation = deformation.to_numpy()
             if not np.shares_memory(deformation, self._deformation):
-                # del self._deformation
-                self.deformation = deformation
+                del self._deformation
+            self.deformation = deformation
 
         if pressures is not None:
             if isinstance(pressures, F_Array):
@@ -302,15 +302,15 @@ class ParticleMesh:
 
             if not np.shares_memory(pressure, self._pressure):
                 del self._pressure
-                self.pressure = pressure
+            self.pressure = pressure
             
             if not np.shares_memory(u_pressure, self._u_pressure):
                 del self._u_pressure
-                self.u_pressure = u_pressure
+            self.u_pressure = u_pressure
             
             if not np.shares_memory(q_pressure, self._q_pressure):
                 del self._q_pressure
-                self.q_pressure = q_pressure
+            self.q_pressure = q_pressure
  
     def _convert_to_numpy(self, array: np.ndarray | F_Array) -> np.ndarray:
         """Convert F_Array to numpy array if needed."""

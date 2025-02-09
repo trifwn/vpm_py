@@ -84,13 +84,13 @@ class Visualizer:
         self.fig.subplots_adjust(top=0.9, hspace=0.3, wspace=0.3, bottom=0.1)
 
         # Set a box for the description on the bottom right corner 
-        # self.description = self.fig.text(
-        #     0.9, 0.1,
-        #     '', 
-        #     fontsize=10, 
-        #     color='black', 
-        #     bbox=dict(facecolor='navajowhite', alpha=0.5)
-        # )
+        self.description = self.fig.text(
+            0.9, 0.1,
+            '', 
+            fontsize=10, 
+            color='black', 
+            bbox=dict(facecolor='navajowhite', alpha=0.5)
+        )
 
 
         self.fig.show()
@@ -102,7 +102,6 @@ class Visualizer:
         dpm: tuple[float, float, float] = (0, 0, 0),
         dt: float | None = None,
     ):
-        return
         s = f"PM Gird size: {grid_size} = {np.prod(grid_size)} cells\n"
         s += f"Number of particles: {num_particles}\n"
         s += f"Dpm = {dpm}\n"

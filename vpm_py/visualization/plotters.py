@@ -443,14 +443,14 @@ class SlicePlotter(Plotter):
             prev_x_shape = self.plot.get_array().shape if hasattr(self.plot, 'get_array') else None
             # print(f"Previous shape: {prev_x_shape} vs Current shape: {x.shape}")
             if prev_x_shape is not None and (x.shape != prev_x_shape or y.shape != prev_x_shape or z.shape != prev_x_shape):
-                print('Grid Dimensions have changed, removing colormesh plot and creating a new one.')
+                # print('Grid Dimensions have changed, removing colormesh plot and creating a new one.')
                 # Dimensions have changed, remove the old plot and create a new one
                 self.plot.remove()
                 self.plot = None
 
         # If the plot hasn't been initialized or dimensions have changed, create a new plot
         if not hasattr(self, 'plot') or self.plot is None:
-            print(f"Creating new pcolormesh plot with dimensions: {x.shape} for {title}")
+            # print(f"Creating new pcolormesh plot with dimensions: {x.shape} for {title}")
             self.plot = self.ax.pcolormesh(x, y, z, cmap=self.cmap, norm=self.norm, shading='auto')
             self.ax.set_aspect('equal', 'box')
             self.update_colorbar()
