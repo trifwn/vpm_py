@@ -458,6 +458,7 @@ contains
         use file_io, only: write_field_h5, case_folder, field_output_file
         use vpm_size, only: fine_grid
         implicit none
+        character(len=MAX_STRING_LENGTH) :: field_name
         type(ND_Array), intent(in) :: pressure
         character(kind=c_char), intent(in), optional :: folder(*), filename(*)
         real(dp), pointer :: pressure_ptr(:,:,:,:)
@@ -469,7 +470,8 @@ contains
             call set_string_f_c(field_output_file, filename)
         end if
         call convert_to_4D_array(pressure, pressure_ptr)
-        call write_field_h5(2, fine_grid, pressure_ptr, "pressure")
+        field_name = 'pressure'
+        call write_field_h5(2, fine_grid, pressure_ptr, field_name)
     end subroutine write_pressure_field_hdf5 
 
 !! GETTERS
@@ -599,4 +601,4 @@ contains
             fstring(i:i) = new_string(i)
         end do
     end subroutine set_string_f_c
-end Module api
+end module api

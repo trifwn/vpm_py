@@ -1,4 +1,4 @@
-Module vpm_size
+module vpm_size
     use vpm_types, only: dp
     use vpm_types, only: cartesian_grid
 
@@ -58,6 +58,7 @@ contains
 
         if (my_rank .eq. 0) then
             if (redifine_pm .eq. 1) then
+                if (any(isnan(XP))) XP = 0.0_dp
                 call get_domain_bounds_from_particles
                 write (dummy_string, '(A)') 'The computational domain bounds are recalculated from the particle positions'
                 call vpm_print(dummy_string, red, 2)
@@ -78,7 +79,7 @@ contains
 
             write (dummy_string, '(A)') 'The computational domain bounds are:'
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, '(A, F10.5, A, F8.5, A, F10.5)') &
+            write (dummy_string, '(A, F10.5, A, F12.5, A, F10.5)') &
                 achar(9)//'XMIN=', XMIN_pm, &
                 achar(9)//'YMIN=', YMIN_pm, &
                 achar(9)//'ZMIN=', ZMIN_pm
@@ -170,7 +171,7 @@ contains
                 achar(9)//'YMIN='//achar(9), YMIN_pm, &
                 achar(9)//'ZMIN='//achar(9), ZMIN_pm
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, '(A, F10.5, A, F10.5, A, F8.5)') &
+            write (dummy_string, '(A, F10.5, A, F10.5, A, F12.5)') &
                 achar(9)//'XMAX='//achar(9), XMAX_pm, &
                 achar(9)//'YMAX='//achar(9), YMAX_pm, &
                 achar(9)//'ZMAX='//achar(9), ZMAX_pm
@@ -197,7 +198,7 @@ contains
                 achar(9)//'NYf_coarse=', NYf_fine_bl, &
                 achar(9)//'NZf_coarse=', NZf_fine_bl
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, '(A, F8.5)') achar(9)//'DV=', DVpm
+            write (dummy_string, '(A, F12.5)') achar(9)//'DV=', DVpm
             call vpm_print(dummy_string, nocolor, 2)
         end if
 
@@ -458,17 +459,17 @@ contains
         implicit none
         type(cartesian_grid) :: grid_in
         real(dp)    :: DV
-        write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
+        write (dummy_string, '(A, F12.5, A, F10.5, A, F10.5)') &
             achar(9)//'XMIN='//achar(9), grid_in%Xbound(1), &
             achar(9)//'YMIN='//achar(9), grid_in%Xbound(2), &
             achar(9)//'ZMIN='//achar(9), grid_in%Xbound(3)
         call vpm_print(dummy_string, nocolor, 2)
-        write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
+        write (dummy_string, '(A, F12.5, A, F10.5, A, F10.5)') &
             achar(9)//'XMAX='//achar(9), grid_in%Xbound(4), &
             achar(9)//'YMAX='//achar(9), grid_in%Xbound(5), &
             achar(9)//'ZMAX='//achar(9), grid_in%Xbound(6)
         call vpm_print(dummy_string, nocolor, 2)
-        write (dummy_string, '(A, F8.5, A, F10.5, A, F10.5)') &
+        write (dummy_string, '(A, F12.5, A, F10.5, A, F10.5)') &
             achar(9)//'DX='//achar(9), grid_in%Dpm(1), &
             achar(9)//'DY='//achar(9), grid_in%Dpm(2), &
             achar(9)//'DZ='//achar(9), grid_in%Dpm(3)
@@ -494,8 +495,8 @@ contains
         if (ND .eq. 3) then
             DV = DV*grid_in%Dpm(3)
         end if
-        write (dummy_string, '(A, F8.5)') achar(9)//'DV=', DV
+        write (dummy_string, '(A, F12.5)') achar(9)//'DV=', DV
         call vpm_print(dummy_string, nocolor, 2)
     end subroutine print_grid_info
 
-End Module vpm_size
+End module vpm_size

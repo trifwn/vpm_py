@@ -406,7 +406,6 @@ contains
         integer                             :: comp_level = 3
         integer                             :: NXs, NYs, NZs, NXf, NYf, NZf
         character(len=MAX_STRING_LENGTH)    :: filout
-        integer                             :: i, j, k
         type(hdf5_file)                     :: h5f
 
         write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &

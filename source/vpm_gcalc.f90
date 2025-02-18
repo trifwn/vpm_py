@@ -235,7 +235,7 @@ contains
         deallocate (div_w)
     end subroutine calc_vortex_stretching_conservative2
 
-    module subroutine diffuse_vort_3d(NI)
+    subroutine diffuse_vort_3d(NI)
         use MPI
         use vpm_vars, only: neqpm
         use vpm_size, only: fine_grid
@@ -262,7 +262,8 @@ contains
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
         ! laplace_vort = laplacian( RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm) 
-        allocate (laplace_vort(3, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl))
+        allocate (laplace_vort(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+        laplace_vort = 0.0d0
 
         DXpm2 = DXpm**2
         DYpm2 = DYpm**2
@@ -301,6 +302,7 @@ contains
         enddo
 
         ! Print the min, max and average of laplace_vort
+        print *, "Min laplace_vort: ",  DXpm * DYpm * DZpm, NXf_fine_bl, NYf_fine_bl, NZf_fine_bl
         print *, "Min laplace_vort: ", minval(abs(laplace_vort)) * DXpm * DYpm * DZpm
         print *, "Max laplace_vort: ", maxval(abs(laplace_vort)) * DXpm * DYpm * DZpm
 
@@ -333,7 +335,7 @@ contains
         deallocate (laplace_vort)
     end subroutine diffuse_vort_3d
 
-    module subroutine calc_antidiffusion
+    subroutine calc_antidiffusion
         use pmgrid, only: RHS_pm, deform_pm
         use vpm_size, only: fine_grid
         implicit none

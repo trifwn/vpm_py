@@ -1,4 +1,4 @@
-Module projlib
+module projlib
     use vpm_types, only: dp, cartesian_grid
 
     private
@@ -154,7 +154,6 @@ contains
                         ! For the last equation, we subtract the inflow value
                         ! Qproj(ieq(neq),i,j,k) = Qproj(neq,i,j,k) +&
                         !           f * (QPar(ieq(neq),nv)-QINF(neq))
-
                         fpriv(ieq(1:neq), i, j, k) = fpriv(ieq(1:neq), i, j, k) &
                                                      + f*(QP(ieq(1:neq), nv) - QINF(1:neq))
 

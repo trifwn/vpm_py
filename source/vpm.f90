@@ -38,6 +38,45 @@ contains
 #endif
     end subroutine set_num_threads
 
+    subroutine read_conf()
+        use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
+        use vpm_vars, only: IPMWRITE, IPMWSTART, IPMWSTEPS
+        integer     :: i, ncell_rem
+        logical     :: pmfile_exists
+
+        inquire (file='pm.input', exist=pmfile_exists)
+        if (pmfile_exists) then
+            open (1, file='pm.input')
+            read (1, *) DXpm, DYpm, DZpm     ! CELL SIZES
+            read (1, *) interf_iproj         ! INTERFACE PROJECTION FUNCTION 1 , 2, 3 , 4
+            read (1, *) ibctyp               ! 1 - PERIODIC, 2 - INFLOW, 3 - OUTFLOW, 4 - WALL
+            read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
+            read (1, *)
+            read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
+            read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
+            read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
+            read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
+            read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
+            read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
+            read (1, *) IPMWRITE             ! SAVING PARAMETER
+            if (IPMWRITE .gt. 10) stop       ! maximum value of writes equal to 10
+            if (IPMWRITE .GT. 0) then
+                do i = 1, IPMWRITE            !max value 10
+                    read (1, *) IPMWSTART(i), IPMWSTEPS(i) ! START AND FREQ OF WRITING
+                end do
+            end if
+            close (1)
+
+            if (my_rank .eq. 0) then
+                print *, 'Inputs read:'
+                print *, achar(9), 'DXpm=', DXpm
+                print *, achar(9), 'DYpm=', DYpm
+                print *, achar(9), 'DZpm=', DZpm
+                print *, achar(9), 'Processors=', NBI, NBJ, NBK
+            end if
+        endif
+    end subroutine read_conf
+
     subroutine vpm( &
         XP_in, QP_in, UP_in, GP_in, NVR_in, neqpm_in, WhatToDo, &
         RHS_pm_ptr, vel_ptr, NTIME_in, NI_in, NVR_size_in       &
@@ -60,6 +99,7 @@ contains
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
         call set_num_threads()
 
+        call read_conf()
         ! Print the input arguments
         if ((my_rank .eq. 0) .and. (VERBOCITY >= 1)) then
             if (WhatToDo .eq. 0) then
@@ -373,7 +413,7 @@ contains
 
             if (VERBOCITY .ge. 1) then
                 call print_timestep_information(timestep_info, solve_info)
-                call write_timestep_information(timestep_info, NTIME_in)
+                ! call write_timestep_information(timestep_info, NTIME_in)
             endif
         end if
 
@@ -688,7 +728,7 @@ contains
         timestep_info%solver    = SOLVER
 
         ! Calculate divergences and laplacian
-        div_wmega                = divergence(RHS_pm, DXpm, DYpm, DZpm)
+        div_wmega                = divergence(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm)
         timestep_info%mean_div_w = sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
         timestep_info%max_div_w  = maxval(div_wmega)
         timestep_info%min_div_w  = minval(div_wmega)
@@ -762,4 +802,4 @@ contains
         enddo
         deallocate (laplace_LHS_pm)
     end subroutine get_solve_info
-end Module vpm_lib
+end module vpm_lib

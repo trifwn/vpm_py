@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 message(NOTICE "Configuring VPM")
 
-find_package(Python COMPONENTS Interpreter Development.Module NumPy REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module NumPy)
+
 # Define options
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -9,6 +10,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Add option for static build
+set(CMAKE_POSITION_INDEPENDENT_CODE ON) # -fPIC
 option(BUILD_STATIC "Build static executable" ON)
 option(CMAKE_INSTALL_LOCAL_ONLY "Install only the local project" ON)
 set(CMAKE_INSTALL_LOCAL_ONLY ON)
@@ -20,10 +22,11 @@ if (CMAKE_INSTALL_PREFIX STREQUAL "" OR
     NOT DEFINED CMAKE_INSTALL_PREFIX OR 
     CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT
 )
-    SET(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "install prefix" FORCE)
+    SET(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/build" CACHE PATH "install prefix" FORCE)
     message(NOTICE "SETTING CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 endif()
-set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/vpm_py/shared_libs")
+message(NOTICE "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/../vpm_py/shared_libs")
 set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/")
 
 # Include custom modules

@@ -1,4 +1,4 @@
-Module vpm_vars
+module vpm_vars
     use vpm_types, only: dp, timestepInformation, solveInformation
 
     integer, save              :: ND = 3
@@ -58,4 +58,4 @@ contains
         print '(A,4I12)', achar(9)//"Sample values: ", IPMWSTEPS(1:min(size(IPMWSTEPS), 4))
         print '(A)', ""
     end subroutine print_vpm_vars_info
-End Module vpm_vars
+End module vpm_vars

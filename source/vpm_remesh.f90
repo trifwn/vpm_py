@@ -98,7 +98,7 @@ contains
 
         if (my_rank .eq. 0) then
             st = MPI_WTIME()
-            write (dummy_string, "(A, E8.3)") 'Remeshing with cutoff value: ', cutoff
+            write (dummy_string, "(A, E11.4)") 'Remeshing with cutoff value: ', cutoff
             call vpm_print(dummy_string, blue, 0)
             write (dummy_string, "(A, I5)") 'Number of particles before', NVRR
             call vpm_print(dummy_string, nocolor, 2)
@@ -321,7 +321,7 @@ contains
     !>@param [in]  F is the value at the global coordinates
     !>@param [out] FC is the value at global coordinates of the interpolated value
     !--------------------------------------------------------------------------------
-    module function cell3d_interp_euler(F, N, M) result(FC)
+    function cell3d_interp_euler(F, N, M) result(FC)
         use iso_fortran_env
         implicit none
 

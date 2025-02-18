@@ -1,5 +1,5 @@
 !This library solves the poisson problem using domain decomposition method
-Module yaps
+module yaps
     use vpm_types, only: dp
     use mpi_matrices!, only: mpimat4, MPIMAT5_OLD, mpimat2, mpimat5, mpimat2_pm_
     use MPI
@@ -53,4 +53,4 @@ Module yaps
             real(dp), intent(inout), target  :: DSOL_pm(:, :, :, :), DRHS_pm(:, :, :, :)
         end subroutine yaps3d
     end interface yaps3d
-End Module yaps
+End module yaps

@@ -9,7 +9,6 @@ contains
 
    !! OPERATORS SERIAL
     subroutine calc_derivative(f, dimensions, ds, order, direction, result) bind(C, name='derivative')
-        use serial_vector_field_operators, only: calculate_derivative
         implicit none
         type(ND_Array), intent(in), target :: f
         integer(c_int), intent(in) :: dimensions

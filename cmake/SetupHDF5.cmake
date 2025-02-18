@@ -3,7 +3,6 @@ function(setup_hdf5)
 
     project(H5fortran_example LANGUAGES C Fortran)
 
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON) # -fPIC
     enable_testing()
     # find_package(h5fortran)
 

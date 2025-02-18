@@ -106,7 +106,7 @@ contains
         write(dummy_string, "(A)") 'Divergence of the Ψ field'
         call vpm_print(dummy_string, yellow, 1)
         
-        write(dummy_string, "(A,E10.4,A,E10.4,A,E10.4)") achar(9)//"div(ω)"//achar(9)// &
+        write(dummy_string, "(A,E11.4,A,E11.4,A,E11.4)") achar(9)//"div(ω)"//achar(9)// &
             achar(9)//" min : ", timestep_info%min_div_w, &
             achar(9)//" max : ", timestep_info%max_div_w, &
             achar(9)//" mean: ", timestep_info%mean_div_w
@@ -114,7 +114,7 @@ contains
 
         write(dummy_string, "(A)") 'Divergence of the velocity field'
         call vpm_print(dummy_string, yellow, 1)
-        write(dummy_string, "(A,E10.4,A,E10.4,A,E10.4)") achar(9)//"div(u)"//achar(9)// &
+        write(dummy_string, "(A,E11.4,A,E11.4,A,E11.4)") achar(9)//"div(u)"//achar(9)// &
             achar(9)//" min : ", min_div_u, &
             achar(9)//" max : ", max_div_u, &
             achar(9)//" mean: ", mean_div_u
@@ -122,22 +122,22 @@ contains
 
         write(dummy_string, "(A)") 'Total Momentum in the domain'
         call vpm_print(dummy_string, yellow, 1)
-        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum x : ', total_momentum_x
+        write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum x : ', total_momentum_x
         call vpm_print(dummy_string, blue, 1)
-        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum y : ', total_momentum_y
+        write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum y : ', total_momentum_y
         call vpm_print(dummy_string, blue, 1)
-        write(dummy_string, "(A,E10.4)") achar(9)//'Total Momentum z : ', total_momentum_z
+        write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum z : ', total_momentum_z
         call vpm_print(dummy_string, blue, 1)
 
         write(dummy_string, "(A)") 'Total Vorticity in the domain'
         call vpm_print(dummy_string, yellow, 1)
-        write(dummy_string, "(A,E10.4)") achar(9)//'sum(Vorticity) : ', total_vorticity 
+        write(dummy_string, "(A,E11.4)") achar(9)//'sum(Vorticity) : ', total_vorticity 
         call vpm_print(dummy_string, blue, 1)
         
         write(dummy_string, "(A)") 'Total Enstrophy in the domain'
         call vpm_print(dummy_string, yellow, 1)
 
-        write(dummy_string, "(A,E10.4)") achar(9)//'sum(Enstrophy) : ', total_enstrophy
+        write(dummy_string, "(A,E11.4)") achar(9)//'sum(Enstrophy) : ', total_enstrophy
         call vpm_print(dummy_string, blue, 1)
 
         write (dummy_string, *) ""
@@ -149,17 +149,17 @@ contains
             ! For each equation write the laplacian - RHS_pm
             write (dummy_string, "(A, I3, A)") '   Equation =', i, ":   Δf = RHS"
             call vpm_print(dummy_string, blue, 1)
-            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Forcing (RHS)'// &
+            write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Forcing (RHS)'// &
                 achar(9)//'min : ', solve_info%f_min(i), & 
                 achar(9)//'max : ', solve_info%f_max(i), & 
                 achar(9)//'mean: ', solve_info%f_mean(i) 
             call vpm_print(dummy_string, nocolor, 1)
-            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//"Solution"// &
+            write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//"Solution"// &
                 achar(9)//'min : ', solve_info%sol_min(i), & 
                 achar(9)//'max : ', solve_info%sol_max(i), & 
                 achar(9)//'mean: ', solve_info%sol_mean(i) 
             call vpm_print(dummy_string, nocolor, 1)
-            write (dummy_string, "(A, E10.4, A, E10.4, A, E10.4)") achar(9)//'Res:=Δf-RHS'// &
+            write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Res:=Δf-RHS'// &
                 achar(9)//'min : ', solve_info%residual_min(i), & 
                 achar(9)//'max : ', solve_info%residual_max(i), & 
                 achar(9)//'mean: ', solve_info%residual_mean(i) 

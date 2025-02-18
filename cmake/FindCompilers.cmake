@@ -35,6 +35,14 @@ function(find_compilers)
             message("\tMKL not found")
             set(USE_MKL FALSE PARENT_SCOPE)
         endif()
+
+        # GET MKL_ROOT
+        if (DEFINED ENV{MKLROOT})
+            set(MKLROOT $ENV{MKLROOT})
+            message("\tMKLROOT: ${MKLROOT}")
+        else()
+            message("\tMKLROOT not found")
+        endif()
         
     else()
         message("\tIntel Fortran Compiler not found")

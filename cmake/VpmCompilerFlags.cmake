@@ -4,7 +4,7 @@ function(setup_vpm_compiler_flags)
         set(LINK_FLAGS "-qopenmp -fPIC")
 
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
-                    -O0 ${MKL_FLAG} -g -traceback -fpe0
+                    -O0 ${MKL_FLAG} -g -traceback -fpe0 -I${MKLROOT}/include
                     -check all,nouninit
                     -init=snan -init=arrays
                     -ftrapuv
@@ -15,7 +15,13 @@ function(setup_vpm_compiler_flags)
                     -warn all
                     PARENT_SCOPE
         )
-        set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} -O3 ${MKL_FLAG} -ffast-math -march=native)
+        set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} 
+                    -O3 ${MKL_FLAG} 
+                    -I${MKLROOT}/include 
+                    -ffast-math 
+                    -march=native
+                    PARENT_SCOPE
+        )
 
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${LINK_FLAGS} ${MKL_FLAG} -O0 -g -traceback -fpe0 -check all,nouninit" PARENT_SCOPE)        
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${LINK_FLAGS} ${MKL_FLAG} -O3 -march=native -flto" PARENT_SCOPE)        
