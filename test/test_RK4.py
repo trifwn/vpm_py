@@ -30,10 +30,6 @@ if rank == 0:
 
 # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
 print_blue(f"Number of processes: {np_procs}", rank)
-comm.Barrier()
-print_blue(f"Rank: {rank}")
-comm.Barrier()
-
 
 DT = 0.1
 NI = -0.1

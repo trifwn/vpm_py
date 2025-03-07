@@ -21,3 +21,4 @@ do_not_track/
 test/plot_deformation.py
 test/vpm_case
 .mypy_chache/*
+Thesis

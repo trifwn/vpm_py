@@ -24,56 +24,7 @@ module file_io
     public :: particle_output_file, mesh_output_file, case_folder
 
 contains
-    subroutine write_timestep_information(timestep_info, NTIME_pm)
-        use vpm_types, only: timestepInformation
-        implicit none
-        type(timestepInformation), intent(in) :: timestep_info
-        integer                               :: NTIME_pm
-        character(len=256) :: filename
-        logical :: file_exists
-        real(dp)           :: mean_div_w, max_div_w, min_div_w
-        real(dp)           :: mean_div_u, max_div_u, min_div_u
-        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
-        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
-
-        mean_div_w = timestep_info%mean_div_w
-        max_div_w  = timestep_info%max_div_w
-        min_div_w  = timestep_info%min_div_w
-        
-        mean_div_u = timestep_info%mean_div_u
-        max_div_u  = timestep_info%max_div_u
-        min_div_u  = timestep_info%min_div_u
-        
-        total_momentum_x = timestep_info%total_momentum_x 
-        total_momentum_y = timestep_info%total_momentum_y 
-        total_momentum_z = timestep_info%total_momentum_z 
-        total_kinetic_energy = timestep_info%total_kinetic_energy
-        total_vorticity = timestep_info%total_vorticity
-        total_enstrophy = timestep_info%total_enstrophy
-
-        ! Construct the filename
-        write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
-        ! Determine the file status and write mode
-        inquire(file=filename, exist=file_exists)
-
-        if (NTIME_pm == 1 .or. NTIME_pm == 0 .or. .not. file_exists) then
-            open (unit=10, file=filename, status='replace', action='write')
-            ! Write CSV header
-            write (10, '(A)') "Iteration, Total_Enstrophy, Total_Vorticity,"              &
-                            //"Total_Kinetic_Energy, Momentum_X, Momentum_Y, Momentum_Z," &
-                            //"MEAN_DIV_W,MAX_DIV_W, MEAN_DIV_VEL, MAX_DIV_VEL"
-        else
-            open (unit=10, file=filename, status='old', position='append', action='write')
-        end if
-
-        write (10, '(I0,16(",",ES14.7))') NTIME_pm,                                 &
-            total_enstrophy, total_vorticity, total_kinetic_energy,                 &                  
-            total_momentum_x, total_momentum_y, total_momentum_z,                   &
-            mean_div_w, max_div_w, mean_div_u, max_div_u
-        close (10)
-    end subroutine write_timestep_information
-
-    subroutine write_pm_solution(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
+    subroutine write_pm_solution_dat(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
         use vpm_types, only: cartesian_grid
 
         implicit none
@@ -184,9 +135,9 @@ contains
             end do
         end do
         close (1)
-    end subroutine write_pm_solution
+    end subroutine write_pm_solution_dat
 
-    subroutine write_particles(NTIME, XPR, UPR, QPR, GPR, neq, NVR, NVR_size)
+    subroutine write_particles_dat(NTIME, XPR, UPR, QPR, GPR, neq, NVR, NVR_size)
         implicit none
         integer, intent(in) :: NTIME, NVR, neq, NVR_size
         real(dp), intent(in):: XPR(3, NVR_size), QPR(neq + 1, NVR_size), UPR(3, NVR), GPR(3, NVR)
@@ -220,7 +171,7 @@ contains
         !    //filout1//' >/dev/null')
         ! call system('rm '//filout1)
         close (10)
-    end subroutine write_particles
+    end subroutine write_particles_dat
 
     !-----------------------------------------------------------------
     !> \brief Writes particle data to an HDF5 file.
@@ -433,7 +384,107 @@ contains
         call h5f%close()
     end subroutine write_pressure_hdf5
 
-    subroutine write_field_h5(neq, comp_grid, field, field_name, compression)
+    subroutine write_timestep_metadata_hdf5(NTIME, timestep_info)
+        use vpm_types, only: timestepInformation
+        implicit none
+        integer, intent(in)                   :: NTIME
+        type(timestepInformation), intent(in) :: timestep_info
+
+        type(hdf5_file)    :: h5f
+        character(len=256) :: filename
+        real(dp)           :: mean_div_w, max_div_w, min_div_w
+        real(dp)           :: mean_div_u, max_div_u, min_div_u
+        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
+        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
+
+        mean_div_w = timestep_info%mean_div_w
+        max_div_w  = timestep_info%max_div_w
+        min_div_w  = timestep_info%min_div_w
+        
+        mean_div_u = timestep_info%mean_div_u
+        max_div_u  = timestep_info%max_div_u
+        min_div_u  = timestep_info%min_div_u
+        
+        total_momentum_x = timestep_info%total_momentum_x 
+        total_momentum_y = timestep_info%total_momentum_y 
+        total_momentum_z = timestep_info%total_momentum_z 
+        total_kinetic_energy = timestep_info%total_kinetic_energy
+        total_vorticity = timestep_info%total_vorticity
+        total_enstrophy = timestep_info%total_enstrophy
+
+        ! Construct the filename
+        write (filename, '(A,I5.5,A)') trim(case_folder)//trim(particle_folder), &
+            NTIME, trim(particle_output_file)//".h5"
+
+        ! Determine the file status and write mode
+        call h5f%open(trim(filename), action='rw')
+
+        ! Write Attributes
+        call h5f%writeattr('/', 'NTIME', NTIME)
+        call h5f%writeattr('/', 'mean_div_w', mean_div_w)
+        call h5f%writeattr('/', 'max_div_w', max_div_w)
+        call h5f%writeattr('/', 'min_div_w', min_div_w)
+        call h5f%writeattr('/', 'mean_div_u', mean_div_u)
+        call h5f%writeattr('/', 'max_div_u', max_div_u)
+        call h5f%writeattr('/', 'min_div_u', min_div_u)
+        call h5f%writeattr('/', 'total_momentum_x', total_momentum_x)
+        call h5f%writeattr('/', 'total_momentum_y', total_momentum_y)
+        call h5f%writeattr('/', 'total_momentum_z', total_momentum_z)
+        call h5f%writeattr('/', 'total_kinetic_energy', total_kinetic_energy)
+        call h5f%writeattr('/', 'total_vorticity', total_vorticity)
+        call h5f%writeattr('/', 'total_enstrophy', total_enstrophy)
+    end subroutine write_timestep_metadata_hdf5
+
+    subroutine write_timestep_information_dat(timestep_info, NTIME_pm)
+        use vpm_types, only: timestepInformation
+        implicit none
+        type(timestepInformation), intent(in) :: timestep_info
+        integer                               :: NTIME_pm
+        character(len=256) :: filename
+        logical :: file_exists
+        real(dp)           :: mean_div_w, max_div_w, min_div_w
+        real(dp)           :: mean_div_u, max_div_u, min_div_u
+        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
+        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
+
+        mean_div_w = timestep_info%mean_div_w
+        max_div_w  = timestep_info%max_div_w
+        min_div_w  = timestep_info%min_div_w
+        
+        mean_div_u = timestep_info%mean_div_u
+        max_div_u  = timestep_info%max_div_u
+        min_div_u  = timestep_info%min_div_u
+        
+        total_momentum_x = timestep_info%total_momentum_x 
+        total_momentum_y = timestep_info%total_momentum_y 
+        total_momentum_z = timestep_info%total_momentum_z 
+        total_kinetic_energy = timestep_info%total_kinetic_energy
+        total_vorticity = timestep_info%total_vorticity
+        total_enstrophy = timestep_info%total_enstrophy
+
+        ! Construct the filename
+        write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
+        ! Determine the file status and write mode
+        inquire(file=filename, exist=file_exists)
+
+        if (NTIME_pm == 1 .or. NTIME_pm == 0 .or. .not. file_exists) then
+            open (unit=10, file=filename, status='replace', action='write')
+            ! Write CSV header
+            write (10, '(A)') "Iteration, Total_Enstrophy, Total_Vorticity,"              &
+                            //"Total_Kinetic_Energy, Momentum_X, Momentum_Y, Momentum_Z," &
+                            //"MEAN_DIV_W,MAX_DIV_W, MEAN_DIV_VEL, MAX_DIV_VEL"
+        else
+            open (unit=10, file=filename, status='old', position='append', action='write')
+        end if
+
+        write (10, '(I0,16(",",ES14.7))') NTIME_pm,                                 &
+            total_enstrophy, total_vorticity, total_kinetic_energy,                 &                  
+            total_momentum_x, total_momentum_y, total_momentum_z,                   &
+            mean_div_w, max_div_w, mean_div_u, max_div_u
+        close (10)
+    end subroutine write_timestep_information_dat
+
+    subroutine write_field_hdf5(neq, comp_grid, field, field_name, compression)
         use h5fortran
         use vpm_types, only: cartesian_grid
         implicit none
@@ -478,149 +529,6 @@ contains
         ! Close HDF5 file
         call h5f%close()
 
-    end subroutine write_field_h5
-
-    subroutine write_vector_field(neq, comp_grid, field, field_name)
-        use vpm_types, only: cartesian_grid
-        implicit none
-
-        integer, intent(in)              :: neq
-        type(cartesian_grid), intent(in) :: comp_grid
-        real(dp), intent(in)             :: field(neq, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        character(len=MAX_STRING_LENGTH) :: field_name
-        character(len=MAX_STRING_LENGTH) :: filout
-
-        integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
-        integer                          :: i, j, k
-        logical                          :: exist_flag
-        real(dp)                         :: cellx, celly, cellz, fieldx, fieldy, fieldz
-        real(dp)                         :: DXpm, DYpm, DZpm
-        real(dp)                         :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
-
-        write (filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder)//trim(field_name)//'.dat'
-
-        write (dummy_string, "(A)") achar(9)//'Writing PM solution to file: '//trim(filout)
-        call vpm_print(dummy_string, nocolor, 2)
-
-        NXs = comp_grid%NN_bl(1)
-        NYs = comp_grid%NN_bl(2)
-        NZs = comp_grid%NN_bl(3)
-        NXf = comp_grid%NN_bl(4)
-        NYf = comp_grid%NN_bl(5)
-        NZf = comp_grid%NN_bl(6)
-
-        XMIN_pm = comp_grid%Xbound(1)
-        YMIN_pm = comp_grid%Xbound(2)
-        ZMIN_pm = comp_grid%Xbound(3)
-        XMAX_pm = comp_grid%Xbound(4)
-        YMAX_pm = comp_grid%Xbound(5)
-        ZMAX_pm = comp_grid%Xbound(6)
-
-        DXpm = comp_grid%Dpm(1)
-        DYpm = comp_grid%Dpm(2)
-        DZpm = comp_grid%Dpm(3)
-
-        ! INQUIRE if file exists
-        inquire (file=trim(filout), exist=exist_flag)
-        ! if file exists open it with overwrite mode
-        if (exist_flag) then
-            open (1, file=trim(filout), status='replace')
-        else
-            open (1, file=trim(filout))
-        end if
-
-        write (1, "(a)") 'VARIABLES = "X" "Y" "Z" "FX" "FY" "FZ" '
-        write (1, "(a,I5.5,a,I5.5,a,I5.5)") 'ZONE I=', NXf - NXs + 1, &
-            ' J=', NYf - NYs + 1, &
-            ' K=', NZf - NZs + 1, ' F=POINT'
-
-        do k = NZs, NZf
-            do j = NYs, NYf
-                do i = NXs, NXf
-                    ! Structured grid coordinates
-                    cellx = XMIN_pm + (I - 1)*DXpm
-                    celly = YMIN_pm + (J - 1)*DYpm
-                    cellz = ZMIN_pm + (K - 1)*DZpm
-
-                    ! Field
-                    fieldx = field(1, I, J, K)
-                    fieldy = field(2, I, J, K)
-                    fieldz = field(3, I, J, K)
-                    write (1, '(6(E14.7,1x))') cellx, celly, cellz, fieldx, fieldy, fieldz
-                end do
-            end do
-        end do
-        close (1)
-    end subroutine write_vector_field
-
-    subroutine write_scalar_field(comp_grid, field, field_name)
-        use vpm_types, only: cartesian_grid
-        implicit none
-
-        type(cartesian_grid), intent(in) :: comp_grid
-        real(dp), intent(in)             :: field(comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        character(len=MAX_STRING_LENGTH) :: field_name
-        character(len=MAX_STRING_LENGTH) :: filout
-
-        integer                          :: NXs, NYs, NZs, NXf, NYf, NZf
-        integer                          :: i, j, k
-        logical                          :: exist_flag
-        real(dp)                         :: cellx, celly, cellz, field_val
-        real(dp)                         :: DXpm, DYpm, DZpm
-        real(dp)                         :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
-
-        write (filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder)//trim(field_name)//'.dat'
-
-        write (dummy_string, "(A)") achar(9)//'Writing PM solution to file: '//trim(filout)
-        call vpm_print(dummy_string, nocolor, 2)
-
-        NXs = comp_grid%NN_bl(1)
-        NYs = comp_grid%NN_bl(2)
-        NZs = comp_grid%NN_bl(3)
-        NXf = comp_grid%NN_bl(4)
-        NYf = comp_grid%NN_bl(5)
-        NZf = comp_grid%NN_bl(6)
-
-        XMIN_pm = comp_grid%Xbound(1)
-        YMIN_pm = comp_grid%Xbound(2)
-        ZMIN_pm = comp_grid%Xbound(3)
-        XMAX_pm = comp_grid%Xbound(4)
-        YMAX_pm = comp_grid%Xbound(5)
-        ZMAX_pm = comp_grid%Xbound(6)
-
-        DXpm = comp_grid%Dpm(1)
-        DYpm = comp_grid%Dpm(2)
-        DZpm = comp_grid%Dpm(3)
-
-        ! INQUIRE if file exists
-        inquire (file=trim(filout), exist=exist_flag)
-        ! if file exists open it with overwrite mode
-        if (exist_flag) then
-            open (1, file=trim(filout), status='replace')
-        else
-            open (1, file=trim(filout))
-        end if
-
-        write (1, "(a)") 'VARIABLES = "X" "Y" "Z" "FX" '
-        write (1, "(a,I5.5,a,I5.5,a,I5.5)") 'ZONE I=', NXf - NXs + 1, &
-            ' J=', NYf - NYs + 1, &
-            ' K=', NZf - NZs + 1, ' F=POINT'
-
-        do k = NZs, NZf
-            do j = NYs, NYf
-                do i = NXs, NXf
-                    ! Structured grid coordinates
-                    cellx = XMIN_pm + (I - 1)*DXpm
-                    celly = YMIN_pm + (J - 1)*DYpm
-                    cellz = ZMIN_pm + (K - 1)*DZpm
-
-                    ! Field
-                    field_val = field(I, J, K)
-                    write (1, '(4(E14.7,1x))') cellx, celly, cellz, field_val
-                end do
-            end do
-        end do
-        close (1)
-    end subroutine write_scalar_field
+    end subroutine write_field_hdf5
 
 end module file_io

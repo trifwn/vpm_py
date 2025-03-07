@@ -374,7 +374,7 @@ contains
         use MPI
         use pmgrid, only: velocity_pm, deform_pm
         use console_io, only: tab_level, print_timestep_information
-        use file_io, only: write_timestep_information
+        use file_io, only: write_timestep_information_dat
         implicit none
         integer, intent(in)                        :: NTIME_in
         real(dp), intent(inout), target            :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
@@ -413,7 +413,7 @@ contains
 
             if (VERBOCITY .ge. 1) then
                 call print_timestep_information(timestep_info, solve_info)
-                ! call write_timestep_information(timestep_info, NTIME_in)
+                call write_timestep_information_dat(timestep_info, NTIME_in)
             endif
         end if
 
@@ -706,56 +706,56 @@ contains
         end if
     end subroutine project_calc_div
 
-    subroutine get_timestep_information(timestep_info)
+    subroutine get_timestep_information(timestep_information)
         use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm, velocity_pm
         use vpm_size, only: fine_grid 
         use vpm_types, only: timestepInformation, solveInformation, dp
         use parvar, only: NVR, NVR_size
         use serial_vector_field_operators, only: divergence, laplacian
         implicit none
-        type(timestepInformation), intent(inout) :: timestep_info
+        type(timestepInformation), intent(inout) :: timestep_information
         real(dp), allocatable :: div_wmega(:,:,:), div_velocity(:,:,:)
         
-        timestep_info%n          = NTIME_pm
+        timestep_information%n          = NTIME_pm
 
-        timestep_info%NVR        = NVR
-        timestep_info%NVR_size   = NVR_size
+        timestep_information%NVR        = NVR
+        timestep_information%NVR_size   = NVR_size
 
-        timestep_info%NN        = fine_grid%NN
-        timestep_info%Xbound    = fine_grid%Xbound
-        timestep_info%Dpm       = fine_grid%Dpm
+        timestep_information%NN        = fine_grid%NN
+        timestep_information%Xbound    = fine_grid%Xbound
+        timestep_information%Dpm       = fine_grid%Dpm
         
-        timestep_info%solver    = SOLVER
+        timestep_information%solver    = SOLVER
 
         ! Calculate divergences and laplacian
         div_wmega                = divergence(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm)
-        timestep_info%mean_div_w = sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
-        timestep_info%max_div_w  = maxval(div_wmega)
-        timestep_info%min_div_w  = minval(div_wmega)
+        timestep_information%mean_div_w = sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+        timestep_information%max_div_w  = maxval(div_wmega)
+        timestep_information%min_div_w  = minval(div_wmega)
         deallocate (div_wmega)
 
         div_velocity             = divergence(velocity_pm, DXpm, DYpm, DZpm) 
-        timestep_info%mean_div_u = sum(div_velocity)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
-        timestep_info%max_div_u  = maxval(div_velocity)
-        timestep_info%min_div_u  = minval(div_velocity)
+        timestep_information%mean_div_u = sum(div_velocity)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+        timestep_information%max_div_u  = maxval(div_velocity)
+        timestep_information%min_div_u  = minval(div_velocity)
         deallocate (div_velocity)
 
-        timestep_info%total_enstrophy       = sum(RHS_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
-        timestep_info%total_vorticity       = sum(RHS_pm(1:3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_info%total_momentum_x      = sum(velocity_pm(1,:,:,:))*DXpm*DYpm*DZpm
-        timestep_info%total_momentum_y      = sum(velocity_pm(2,:,:,:))*DXpm*DYpm*DZpm 
-        timestep_info%total_momentum_z      = sum(velocity_pm(3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_info%total_kinetic_energy  = sum(velocity_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+        timestep_information%total_enstrophy       = sum(RHS_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+        timestep_information%total_vorticity       = sum(RHS_pm(1:3,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_momentum_x      = sum(velocity_pm(1,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_momentum_y      = sum(velocity_pm(2,:,:,:))*DXpm*DYpm*DZpm 
+        timestep_information%total_momentum_z      = sum(velocity_pm(3,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_kinetic_energy  = sum(velocity_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
     end subroutine get_timestep_information
     
-    subroutine get_solve_info(solve_info)
+    subroutine get_solve_info(solve_information)
         use pmgrid, only: RHS_pm, SOL_pm, DXpm, DYpm, DZpm
         use vpm_size, only: fine_grid
         use vpm_types, only: solveInformation, dp
         use serial_vector_field_operators, only: laplacian
         use vpm_vars, only: neqpm
         implicit none
-        type(solveInformation), intent(inout) :: solve_info
+        type(solveInformation), intent(inout) :: solve_information
         real(dp), allocatable                 :: laplace_LHS_pm(:,:,:,:)
         real(dp)                              :: sumV
         integer                               :: i
@@ -763,42 +763,42 @@ contains
         laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
         sumV = (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
 
-        if (allocated(solve_info%f_min)) deallocate (solve_info%f_min)
-        if (allocated(solve_info%f_max)) deallocate (solve_info%f_max)
-        if (allocated(solve_info%f_mean)) deallocate (solve_info%f_mean)
+        if (allocated(solve_information%f_min)) deallocate (solve_information%f_min)
+        if (allocated(solve_information%f_max)) deallocate (solve_information%f_max)
+        if (allocated(solve_information%f_mean)) deallocate (solve_information%f_mean)
         
-        if (allocated(solve_info%sol_min)) deallocate (solve_info%sol_min)
-        if (allocated(solve_info%sol_max)) deallocate (solve_info%sol_max)
-        if (allocated(solve_info%sol_mean)) deallocate (solve_info%sol_mean)
+        if (allocated(solve_information%sol_min)) deallocate (solve_information%sol_min)
+        if (allocated(solve_information%sol_max)) deallocate (solve_information%sol_max)
+        if (allocated(solve_information%sol_mean)) deallocate (solve_information%sol_mean)
         
-        if (allocated(solve_info%residual_min)) deallocate (solve_info%residual_min)
-        if (allocated(solve_info%residual_max)) deallocate (solve_info%residual_max)
-        if (allocated(solve_info%residual_mean)) deallocate (solve_info%residual_mean)
+        if (allocated(solve_information%residual_min)) deallocate (solve_information%residual_min)
+        if (allocated(solve_information%residual_max)) deallocate (solve_information%residual_max)
+        if (allocated(solve_information%residual_mean)) deallocate (solve_information%residual_mean)
 
-        allocate (solve_info%f_min(neqpm))
-        allocate (solve_info%f_max(neqpm))
-        allocate (solve_info%f_mean(neqpm))
+        allocate (solve_information%f_min(neqpm))
+        allocate (solve_information%f_max(neqpm))
+        allocate (solve_information%f_mean(neqpm))
 
-        allocate (solve_info%sol_min(neqpm))
-        allocate (solve_info%sol_max(neqpm))
-        allocate (solve_info%sol_mean(neqpm))
+        allocate (solve_information%sol_min(neqpm))
+        allocate (solve_information%sol_max(neqpm))
+        allocate (solve_information%sol_mean(neqpm))
 
-        allocate (solve_info%residual_min(neqpm))
-        allocate (solve_info%residual_max(neqpm))
-        allocate (solve_info%residual_mean(neqpm))
+        allocate (solve_information%residual_min(neqpm))
+        allocate (solve_information%residual_max(neqpm))
+        allocate (solve_information%residual_mean(neqpm))
         
         do i = 1,neqpm
-            solve_info%f_min(i)    = minval(RHS_pm(i, :, :, :))
-            solve_info%f_max(i)    = maxval(RHS_pm(i, :, :, :))
-            solve_info%f_mean(i)   = sum(RHS_pm(i, :, :, :))/(sumV)
+            solve_information%f_min(i)    = minval(RHS_pm(i, :, :, :))
+            solve_information%f_max(i)    = maxval(RHS_pm(i, :, :, :))
+            solve_information%f_mean(i)   = sum(RHS_pm(i, :, :, :))/(sumV)
 
-            solve_info%sol_min(i)  = minval(SOL_pm(i, :, :, :))
-            solve_info%sol_max(i)  = maxval(SOL_pm(i, :, :, :))
-            solve_info%sol_mean(i) = sum(SOL_pm(i, :, :, :))/(sumV)
+            solve_information%sol_min(i)  = minval(SOL_pm(i, :, :, :))
+            solve_information%sol_max(i)  = maxval(SOL_pm(i, :, :, :))
+            solve_information%sol_mean(i) = sum(SOL_pm(i, :, :, :))/(sumV)
 
-            solve_info%residual_min(i)  = minval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
-            solve_info%residual_max(i)  = maxval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
-            solve_info%residual_mean(i) = sum(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))/(sumV)
+            solve_information%residual_min(i)  = minval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
+            solve_information%residual_max(i)  = maxval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
+            solve_information%residual_mean(i) = sum(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))/(sumV)
         enddo
         deallocate (laplace_LHS_pm)
     end subroutine get_solve_info

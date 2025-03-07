@@ -7,12 +7,11 @@ def read_csv_file(file_path):
     return pd.read_csv(file_path)
 
 def main():
-    folders = [
-        # 'results_deform_Cr=0.05',
-        # 'results_defrom_Cr=0.1',
-        #'results_deform_CFL_variable'
-        'vpm_case'
-    ]
+
+    parent_folder = "/mnt/c/Users/tryfonas/Data/"
+    folders = os.listdir(parent_folder)
+    folders = [os.path.join(parent_folder, folder) for folder in folders if folder.startswith('hill_vortex')]
+    print(folders)
 
     file_name = 'solve_information.csv'
     all_dfs = {}

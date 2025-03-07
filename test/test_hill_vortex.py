@@ -24,16 +24,16 @@ def main():
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    dpm = np.array([0.05, 0.05, 0.05])
+    dpm = np.array([0.1, 0.1, 0.1])
     DT = 0.5 * (dpm[0]) / np.linalg.norm(UINF)
     TIMESTEPS = 1000
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.5
-    REMESH_FREQUENCY = 40
 
     # OPTIONS
-    remesh = True
-    apply_vorticity_correction = True
+    INITIALIZE_CASE = True 
+    REMESH_FREQUENCY = 40
+    apply_vorticity_correction = False 
 
     # CASE FOLDER
     CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/hill_vortex"
@@ -47,14 +47,13 @@ def main():
     else:
         CASE_FOLDER += "_nocorrect"
     
-    if not remesh:
+    if not REMESH_FREQUENCY:
         CASE_FOLDER += "_no_remesh"
     else:
         CASE_FOLDER += f"_remesh_{REMESH_FREQUENCY}"
     
     CASE_FOLDER += "/"
 
-    INITIALIZE_CASE = True 
     # Initialize MPI
     comm = MPI.COMM_WORLD
     start_time = MPI.Wtime()
@@ -97,8 +96,6 @@ def main():
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
-    print_blue(f"Rank: {rank}")
-
     # Print Problem parameters
     print_red(f"Reynolds number: {REYNOLDS_NUMBER}", rank)
     print_red(f"Viscosity: {VISCOSITY}", rank)
@@ -153,7 +150,7 @@ def main():
         with open(f"{CASE_FOLDER}memory_usage.txt", "w") as f:
             f.write("".join([f"Process {i}, " for i in range(1, np_procs)]) + "\n")  
 
-    for i in range(start_iter, start_iter +  TIMESTEPS+1):
+    for i in range(start_iter, TIMESTEPS+1):
         memory_usage = get_memory_usage()
         if rank == 0:
             memory_usages = np.zeros(np_procs)
@@ -201,12 +198,12 @@ def main():
             for name, x in zip(["X", "Y", "Z"], XPR):
                 print_green(f"{name} Statistics:")
                 print(f"  Mean: {np.mean(x):.6e}  Max:  {np.max(x):.6e} Min:  {np.min(x):.6e}")
-                print()
 
             # Velocity statistics
-            for name, u in zip(["Ux", "Uy", "Uz"], U_PM):
+            for name, u_pm, u in zip(["Ux", "Uy", "Uz"], U_PM, UPR):
                 print_green(f"{name} Statistics:")
-                print(f"  Mean: {np.mean(u):.6e}  Max:  {np.max(u):.6e} Min:  {np.min(u):.6e}")
+                print(f"  Mean: {np.mean(u_pm):.6e}  Max:  {np.max(u_pm):.6e} Min:  {np.min(u_pm):.6e}")
+                print_blue(f"  Mean: {np.mean(u):.6e}  Max:  {np.max(u):.6e} Min:  {np.min(u):.6e}")
                 print()  
 
             # Pressure statistics
@@ -229,10 +226,13 @@ def main():
 
             print_IMPORTANT("Updating the plot", rank)
             st = MPI.Wtime()
-            remesh_str = 'remesh = True' if remesh else 'remesh = False'
-            correct_str = 'correction = True' if apply_vorticity_correction else 'correction = False'
+            if REMESH_FREQUENCY:
+                remesh_str = f'| Remeshing Frequency: {REMESH_FREQUENCY}'
+            else:
+                remesh_str = '| No remeshing'
+            correct_str = '| correction = True' if apply_vorticity_correction else ''
             vpm.update_plot(
-                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | Iteration: {i}/{TIMESTEPS} | {remesh_str} | {correct_str}",
+                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | Iteration: {i}/{TIMESTEPS} {remesh_str} {correct_str}",
                 dt = DT
             )
             
@@ -241,10 +241,26 @@ def main():
 
             print_IMPORTANT("Saving the particles and particle mesh", rank)
             st = MPI.Wtime()
-            vpm.particles.save_to_file(filename= "particles", folder=CASE_FOLDER, metadata={"timestep": i, "time": T, "dt": DT})
-            vpm.particle_mesh.save_to_file(filename= "particle_mesh", folder=CASE_FOLDER)
-            vpm.particle_mesh.save_pressure_to_file(filename= f"{i:06d}_pressure", folder=f"{CASE_FOLDER}/results")
+
+            if i % 4 == 0:
+                vpm.particles.save_to_file(filename= "particles", folder=CASE_FOLDER, metadata={"timestep": i, "time": T, "dt": DT})
+                vpm.particle_mesh.save_to_file(filename= "particle_mesh", folder=CASE_FOLDER)
+                vpm.particle_mesh.save_pressure_to_file(filename= f"{i:05d}particle_mesh.h5", folder=f"{CASE_FOLDER}/results")
+                vpm.particle_mesh.add_metadata_to_file(
+                    filename= f"{i:05d}particle_mesh.h5", 
+                    folder=f"{CASE_FOLDER}/results", 
+                    metadata= {
+                        "timestep": i, 
+                        "time": T, 
+                        "dt": DT,
+                    }
+                    )
             
+            # Save the time to the file
+            with open(f"{CASE_FOLDER}time.txt", "a") as f:
+                CFL = np.max(np.abs(U_PM[0, :, :, :])) * DT / dpm[0] + np.max(np.abs(U_PM[1, :, :, :])) * DT / dpm[1] + np.max(np.abs(U_PM[2, :, :, :])) * DT / dpm[2]
+                f.write(f"{i}, {T}, {DT}, {NVR}, {CFL}, {np.prod(grid_dimensions)}\n")
+
             et = MPI.Wtime()
             print(f"\tSaving the particles and particle mesh finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
@@ -258,9 +274,9 @@ def main():
             timestep=i,
         )
 
-        if remesh and i % REMESH_FREQUENCY == 0:
+        if REMESH_FREQUENCY and i % REMESH_FREQUENCY == 0:
             print_IMPORTANT("Remeshing", rank)
-            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
+            XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-6)
     
         if apply_vorticity_correction:
             NVR = vpm.particles.NVR

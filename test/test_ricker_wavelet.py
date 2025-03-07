@@ -17,7 +17,7 @@ def main():
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
     VISCOSITY = 100 #np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
-    dpm = np.array([0.1, 0.1, 0.1])
+    dpm = np.array([0.2, 0.2, 0.2])
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
     DT =  1 / (6 * VISCOSITY) / (1 / dpm[0]**2 + 1 / dpm[1]**2 + 1 / dpm[2]**2)
 
@@ -25,7 +25,7 @@ def main():
 
     # OPTIONS
     remesh = True
-
+    REMESH_FREQUENCY = 40
     # CASE FOLDER
     CASE_FOLDER = f"/mnt/c/Users/tryfonas/Data/ricker_wavelet_nu={VISCOSITY}"
 
@@ -60,14 +60,10 @@ def main():
         plotter = StandardVisualizer(
             plot_particles= ("charge","magnitude"), 
             plot_slices   = [
-                #  ('velocity', 'magnitude'),
                  ('charge', 'magnitude'),
                  ('charge', 'x'),
                  ('charge', 'y'),
                  ('charge', 'z'),
-                #  ("q_pressure","Q"), 
-                #  ("u_pressure","U"), 
-                #  ("pressure","P"), 
             ],
             # Figure size should be 1920x1080
             figure_size= (18.2, 10.0),
@@ -81,11 +77,6 @@ def main():
 
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
-    comm.Barrier()
-    print_blue(f"Rank: {rank}")
-    comm.Barrier()
-
-    # Print Problem parameters
     print_red(f"Reynolds number: {REYNOLDS_NUMBER}", rank)
     print_red(f"Viscosity: {VISCOSITY}", rank)
     print_red(f"Sphere radius: {SPHERE_RADIUS}", rank)
@@ -140,16 +131,17 @@ def main():
             particle_positions    =  XPR,
             particle_charges      =  QPR,
         )
-        vpm.vpm_solve_pressure()
-
 
         if rank == 0:
             st = MPI.Wtime()
             vpm.update_plot(f"Nu = {VISCOSITY} |  Time: {T + DT:.2f}s | Iteration: {i}/{TIMESTEPS}")
             et = MPI.Wtime()
             print(f"\tUpdating the plot finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
+            vpm.particles.save_to_file(filename= "particles", folder=CASE_FOLDER, metadata={"timestep": i, "time": T, "dt": DT})
+            vpm.particle_mesh.save_to_file(filename= "particle_mesh", folder=CASE_FOLDER)
 
-        if remesh and i % 20 == 0 and i != 0:
+
+        if remesh and i % REMESH_FREQUENCY == 0 and i != 0:
             print_IMPORTANT("Remeshing", rank)
             XPR, QPR = vpm.remesh_particles(project_particles=True, cut_off=1e-9)
     
@@ -216,15 +208,18 @@ def initialize_ricker_wavelet(
     # Initialize Hill Vortex
     st = MPI.Wtime()
     print_IMPORTANT("Ricker Wavelet initialization", rank)
-    _, RHS_pm_ricker = ricker_wavelet_3d_with_gradient(
+    wavelet_field, gradient_field = ricker_wavelet_3d_with_gradient(
         NN= vpm.particle_mesh.grid_size,
         Xbound= vpm.particle_mesh.xbound,
         Dpm= vpm.dpm,
-        radius = radius,
+        t = 0.0,
+        nu = 0.0,
+        sigma= radius 
     )
+
     et = MPI.Wtime()
     print(f"\tRicker Wavelet initialized in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
-    vpm.particle_mesh.set_rhs_pm(RHS_pm_ricker)
+    vpm.particle_mesh.set_rhs_pm(gradient_field)
     print_red("Setting RHS_pm as computed from the hill vortex", rank)
     
     if rank == 0:

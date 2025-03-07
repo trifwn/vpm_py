@@ -325,7 +325,12 @@ class ParticleMesh:
             array = np.asfortranarray(array, dtype=np.float64)
         return array 
     
-    def save_to_file(self,  filename: str = "particle_mesh", folder: str = "results", filetype: str = "h5"):
+    def save_to_file(
+        self,  
+        filename: str = "particle_mesh", 
+        folder: str = "results", 
+        filetype: str = "h5",
+    ):
         """
             Write the particle mesh solution
 
@@ -354,7 +359,7 @@ class ParticleMesh:
         else:
             raise ValueError(f"Filetype {filetype} not recognized")
 
-    def save_pressure_to_file(self, filename: str = "pressure", folder: str = "results", filetype: str = "h5"):
+    def save_pressure_to_file(self, filename: str = "pressure", folder: str = "results"):
         """
             Write the pressure solution
 
@@ -371,5 +376,30 @@ class ParticleMesh:
         if not folder.endswith("/"):
             folder += "/"
         filename = os.path.join(folder, filename)
-        with h5.File(filename, 'w') as f:
+
+        # Open in append Mode
+        with h5.File(filename, 'a') as f:
             f.create_dataset(filename, data=self.pressure)
+
+    def add_metadata_to_file(self, filename: str, folder: str, metadata: dict):
+        """
+            Add metadata to a file
+
+            Parameters
+            ----------
+            filename : str
+                The filename to write to
+            folder : str
+                The folder to write to
+            metadata : dict
+                The metadata to write
+        """
+        import h5py as h5
+        if not folder.endswith("/"):
+            folder += "/"
+        filename = os.path.join(folder, filename)
+
+        # Open in append Mode
+        with h5.File(filename, 'a') as f:
+            for key, value in metadata.items():
+                f.attrs[key] = value

@@ -163,6 +163,66 @@ class ValueFilter(Filter):
         
         return masked_data, {'value': self.value, 'tolerance': self.tolerance}
 
+class PositionFilter(Filter):
+    """
+    A filter that selects data based on a specified position and tolerance for a given quantity of interest.
+
+    Attributes:
+        quantity_of_interest (QuantityOfInterest): The quantity of interest to filter on.
+        tolerance (float): The tolerance within which the position should fall.
+        position (np.ndarray): The target position for the quantity of interest.
+
+    Methods:
+        apply(data: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+            Applies the filter to the provided data and returns the masked data.
+    """
+    def __init__(
+        self,
+        type: Literal['greater', 'less', 'equal', 'within'],
+        axis: int,
+        position: np.ndarray,
+        tolerance: float = 0,
+    ):
+        self.position = position
+        if type == 'greater':
+            self.tolerance = np.inf
+        elif type == 'less':
+            self.tolerance = -np.inf
+        elif type == 'equal':
+            self.tolerance = 0
+        elif type == 'within':
+            self.tolerance = tolerance
+
+        self.axis = axis
+
+    def apply(
+        self, 
+        quantity_of_interest: QuantityOfInterest,
+        data: dict[str, np.ndarray],
+    ):
+        positions = data['position']
+        positions = np.array([positions['x'], positions['y'], positions['z']])
+        positions = positions[self.axis, :]
+        if self.tolerance == np.inf:
+            mask = positions > self.position
+        elif self.tolerance == -np.inf:
+            mask = positions < self.position
+        elif self.tolerance == 0:
+            mask = positions == self.position
+        else:
+            mask = np.abs(positions - self.position) < self.tolerance
+
+        masked_data = {}
+        for key, value in data.items():
+            if isinstance(value, np.ndarray):
+                masked_data[key] = value[mask]
+            elif isinstance(value, dict):
+                masked_data[key] = {k: v[mask] for k, v in value.items()}
+            else:
+                raise TypeError(f"Unsupported data type: {type(value)}")
+        
+        return masked_data, {'position': self.position, 'tolerance': self.tolerance}
+
 class ValueSelector(Filter):
     """
     A filter that selects data based on a specified value and tolerance for a given quantity of interest.

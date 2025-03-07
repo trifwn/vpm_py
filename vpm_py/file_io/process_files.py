@@ -47,5 +47,10 @@ def get_latest_particle_file(
 
         return None
     latest_file = files[-1]
+
+    # Get only the numbers from the latest file
+    iteration = latest_file.split('.')[0]
+    iteration = int(re.sub(r'\D', '', iteration)) 
+
     print(f"Latest file: {latest_file}")
-    return *process_particle_file(filename= latest_file, folder= folder), len(files)
+    return *process_particle_file(filename= latest_file, folder= folder), iteration 

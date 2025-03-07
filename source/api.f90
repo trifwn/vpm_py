@@ -376,7 +376,7 @@ contains
 
 !! FILE IO
     subroutine write_particle_mesh_solution(folder, filename) bind(C, name='write_particle_mesh_solution')
-        use file_io, only: write_pm_solution, case_folder, mesh_output_file
+        use file_io, only: write_pm_solution_dat, case_folder, mesh_output_file
         use pmgrid, only: velocity_pm, deform_pm, RHS_pm, SOL_pm
         use vpm_vars, only: NTIME_pm, neqpm
         use vpm_size, only: fine_grid
@@ -392,14 +392,14 @@ contains
         end if
 
         if (allocated(deform_pm)) then
-            call write_pm_solution(NTIME_pm,fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm, deform_pm)
+            call write_pm_solution_dat(NTIME_pm,fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm, deform_pm)
         else
-            call write_pm_solution(NTIME_pm, fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm)
+            call write_pm_solution_dat(NTIME_pm, fine_grid, neqpm, RHS_pm, SOL_pm, velocity_pm)
         end if
     end subroutine write_particle_mesh_solution
 
     subroutine write_particles_stored(folder, filename) bind(C, name='write_particles')
-        use file_io, only: write_particles, case_folder, particle_output_file
+        use file_io, only: write_particles_dat, case_folder, particle_output_file
         use parvar, only: XP, QP, UP, GP, NVR, NVR_size
         use vpm_vars, only: neqpm, NTIME_pm
         implicit none
@@ -412,7 +412,7 @@ contains
             call set_string_f_c(particle_output_file, filename)
         end if
 
-        call write_particles(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
+        call write_particles_dat(NTIME_pm, XP, UP, QP, GP, neqpm, NVR, NVR_size)
     end subroutine write_particles_stored
 
     subroutine write_particles_stored_hdf5(folder, filename) bind(C, name='write_particles_hdf5')
@@ -455,7 +455,7 @@ contains
     end subroutine write_particle_mesh_solution_hdf5
 
     subroutine write_pressure_field_hdf5(folder, filename, pressure) bind(C, name='write_pressure_hdf5')
-        use file_io, only: write_field_h5, case_folder, field_output_file
+        use file_io, only: write_field_hdf5, case_folder, field_output_file
         use vpm_size, only: fine_grid
         implicit none
         character(len=MAX_STRING_LENGTH) :: field_name
@@ -471,7 +471,7 @@ contains
         end if
         call convert_to_4D_array(pressure, pressure_ptr)
         field_name = 'pressure'
-        call write_field_h5(2, fine_grid, pressure_ptr, field_name)
+        call write_field_hdf5(2, fine_grid, pressure_ptr, field_name)
     end subroutine write_pressure_field_hdf5 
 
 !! GETTERS

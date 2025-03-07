@@ -405,9 +405,9 @@ class SlicePlotter(Plotter):
             
             if self.slice_plane_surf:
                 self.slice_plane_surf.remove()
-                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color=color)
+                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.1, rstride=1, cstride=1, color=color)
             else:
-                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.3, rstride=1, cstride=1, color=color)
+                self.slice_plane_surf = ax.plot_surface(X,Y,Z, alpha=0.1, rstride=1, cstride=1, color=color)
             self.set_title(self.ax.get_title() + title)
         else:
             if self.slice_plane_plot:
@@ -451,7 +451,7 @@ class SlicePlotter(Plotter):
         # If the plot hasn't been initialized or dimensions have changed, create a new plot
         if not hasattr(self, 'plot') or self.plot is None:
             # print(f"Creating new pcolormesh plot with dimensions: {x.shape} for {title}")
-            self.plot = self.ax.pcolormesh(x, y, z, cmap=self.cmap, norm=self.norm, shading='auto')
+            self.plot = self.ax.pcolormesh(x, y, z, cmap=self.cmap, norm=self.norm, shading='gouraud')
             self.ax.set_aspect('equal', 'box')
             self.update_colorbar()
         else:

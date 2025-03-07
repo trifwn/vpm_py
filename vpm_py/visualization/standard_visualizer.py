@@ -1,4 +1,4 @@
-from . import Visualizer, ResultPlot, SliceFilter_3D, SliceStrategy, ValueSelector, MeshQuantityOfInterest
+from . import Visualizer, ResultPlot, SliceFilter_3D, SliceStrategy, ValueSelector, MeshQuantityOfInterest, PositionFilter
 
 class StandardVisualizer(Visualizer):
     def __new__(
@@ -17,7 +17,8 @@ class StandardVisualizer(Visualizer):
                 quantity= plot_particles[0],
                 component= plot_particles[1],
                 filters=[
-                    ValueSelector('top_num',  20000)
+                    ValueSelector('top_num',  20000),
+                    PositionFilter('greater', axis= 1, position = 0.0),
                 ],
                 options={
                     "s": "auto",
