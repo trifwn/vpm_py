@@ -93,12 +93,12 @@ contains
         max_div_u  = timestep_info%max_div_u
         min_div_u  = timestep_info%min_div_u
         
-        total_momentum_x = timestep_info%total_momentum_x 
-        total_momentum_y = timestep_info%total_momentum_y 
-        total_momentum_z = timestep_info%total_momentum_z 
-        total_kinetic_energy = timestep_info%total_kinetic_energy
-        total_vorticity = timestep_info%total_vorticity
-        total_enstrophy = timestep_info%total_enstrophy
+        total_momentum_x = timestep_info%total_momentum_x_pm 
+        total_momentum_y = timestep_info%total_momentum_y_pm 
+        total_momentum_z = timestep_info%total_momentum_z_pm 
+        total_kinetic_energy = timestep_info%total_kinetic_energy_pm
+        total_vorticity = timestep_info%total_vorticity_pm
+        total_enstrophy = timestep_info%total_enstrophy_pm
 
         write(dummy_string, *) ""
         call vpm_print(dummy_string, nocolor, 1)

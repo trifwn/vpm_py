@@ -85,6 +85,9 @@ contains
         integer                          :: NVR_old
         integer                          :: my_rank, ierr, np, NN(3), NN_bl(6)
         real(dp)                         :: Xbound(6), Dpm(3), wmag, cutoff, XMIN_pm, YMIN_pm, ZMIN_pm, DVpm
+        real(dp)                         :: total_enstrophy, cumsum_enstrophy, enstrophy_threshold
+        real(dp), allocatable            :: par_enstrophy(:) 
+        integer, allocatable             :: sorted_idx(:)
         real(dp)                         :: st, et
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -93,12 +96,16 @@ contains
         if (present(cutoff_value)) then
             cutoff = cutoff_value
         else
-            cutoff = 1e-7_dp
+            cutoff = -1.
         end if
 
         if (my_rank .eq. 0) then
             st = MPI_WTIME()
-            write (dummy_string, "(A, E11.4)") 'Remeshing with cutoff value: ', cutoff
+            if (cutoff .gt. 0.) then
+                write (dummy_string, "(A, E11.4)") 'Remeshing with cutoff value: ', cutoff
+            else
+                write (dummy_string, "(A)") 'Applying Remeshing with Energy Cutoff Value of 99.99%'
+            end if
             call vpm_print(dummy_string, blue, 0)
             write (dummy_string, "(A, I5)") 'Number of particles before', NVRR
             call vpm_print(dummy_string, nocolor, 2)
@@ -239,6 +246,43 @@ contains
             !!$omp endparallel
 
             NVR = npar
+            if (cutoff.lt.0.) then
+                ! Apply Energy Cutoff Value. We need to get 99.99% of the enstrophy. ALL other particles are removed
+                ! Find the total enstrophy
+                allocate (par_enstrophy(NVR))
+                allocate (sorted_idx(NVR))
+                par_enstrophy = 0
+                total_enstrophy = 0
+                                
+                do k = 1, NVR
+                    par_enstrophy(k) = (QP_tmp(1, k)**2 + QP_tmp(2, k)**2 + QP_tmp(3, k)**2)
+                    total_enstrophy = total_enstrophy + par_enstrophy(k)
+                end do
+
+                sorted_idx = [(k, k=1, NVR)] ! Initialize sorted_idx
+                call quickSortIndices(par_enstrophy, sorted_idx, 1, NVR)
+
+                ! Reverse the sorted_idx array so that we have the highest enstrophy first
+                sorted_idx = sorted_idx(NVR:1:-1)
+
+                ! Find the index where we have 99.99% of the enstrophy
+                cumsum_enstrophy = 0
+                enstrophy_threshold = (99.99/ 100.0) * total_enstrophy
+                do k = 1, NVR
+                    cumsum_enstrophy = cumsum_enstrophy + par_enstrophy(sorted_idx(k))
+                    if (cumsum_enstrophy .ge. enstrophy_threshold) exit
+                end do
+
+                ! Remove all particles that are not in the top 99.9% of the enstrophy
+                NVR = k
+                XP_tmp = XP_tmp(:, sorted_idx(1:NVR))
+                QP_tmp = QP_tmp(:, sorted_idx(1:NVR))
+                deallocate (par_enstrophy, sorted_idx)
+
+                write (dummy_string, "(A, I9)") 'Number of particles that contain 99.99% of the enstrophy:', NVR
+                call vpm_print(dummy_string, nocolor, 2)
+            end if
+
         end if
 
         ! BCAST NEW NVR
@@ -286,14 +330,6 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
             write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of XPR ', shape(XPR), minval(XPR)
             call vpm_print(dummy_string, nocolor, 2)
-            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of QP ', shape(QP), maxval(QP)
-            ! call vpm_print(dummy_string, nocolor, 2)
-            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of QP ', shape(QP), minval(QP)
-            ! call vpm_print(dummy_string, nocolor, 2)
-            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Maximal value of XP ', shape(XP), maxval(XP)
-            ! call vpm_print(dummy_string, nocolor, 2)
-            ! write (dummy_string, '(A, "(", I0, "x", I0, ") ", ES12.5)') achar(9) // 'Minimal value of XP ', shape(XP), minval(XP)
-            ! call vpm_print(dummy_string, nocolor, 2)
         end if
 
         if (my_rank .eq. 0) then
@@ -324,9 +360,6 @@ contains
     function cell3d_interp_euler(F, N, M) result(FC)
         use iso_fortran_env
         implicit none
-
-        integer, parameter :: dp = real64
-
         real(dp), dimension(8), intent(in) :: F
         integer, intent(in) :: N, M
         real(dp), dimension(N) :: FC
@@ -411,4 +444,54 @@ contains
         end do
 
     end subroutine get_ksi_ita_pos_3d
+
+    recursive subroutine quickSortIndices(arr, idx, left, right)
+        !-----------------------------------------------------------------------------
+        ! Sorts the indices (idx) so that arr is in ascending order (via idx).
+        ! - arr   : the data values (not moved; read-only)
+        ! - idx   : integer array containing indices; this gets rearranged
+        ! - left  : left  bound in idx array to sort
+        ! - right : right bound in idx array to sort
+        !-----------------------------------------------------------------------------
+        real(dp),    dimension(:), intent(in)    :: arr
+        integer, dimension(:), intent(inout) :: idx
+        integer,               intent(in)    :: left, right
+
+        integer :: i, j, tempIdx
+        real(dp)    :: pivotVal
+
+        i = left
+        j = right
+        pivotVal = arr(idx((left + right) / 2))  ! Use the value at the midpoint as pivot
+
+        do
+        ! Move 'i' until we find a value >= pivotVal
+        do while (arr(idx(i)) < pivotVal)
+            i = i + 1
+        end do
+
+        ! Move 'j' until we find a value <= pivotVal
+        do while (arr(idx(j)) > pivotVal)
+            j = j - 1
+        end do
+
+        if (i <= j) then
+            ! Swap idx(i) and idx(j)
+            tempIdx = idx(i)
+            idx(i)  = idx(j)
+            idx(j)  = tempIdx
+
+            i = i + 1
+            j = j - 1
+        end if
+
+        if (i > j) exit
+        end do
+
+        ! Recursive calls for the two partitions
+        if (left < j)  call quickSortIndices(arr, idx, left, j)
+        if (i < right) call quickSortIndices(arr, idx, i, right)
+
+    end subroutine quickSortIndices
+
 end module vpm_remesh

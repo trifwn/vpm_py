@@ -67,7 +67,7 @@ contains
         NXf = NXpm
         NYs = 1
         NYf = NYpm
-        if (my_rank .eq. 0) st = MPI_WTIME()
+        ! if (my_rank .eq. 0) st = MPI_WTIME()
         if (itree .eq. 1) then
             call Bounds2d_lev(ibctyp, NXs, NXf, NYs, NYf, neqs, neqf)
             deallocate (source_bound_lev, ds_lev, xs_lev, ys_lev, nbound_lev, ilev_t)
@@ -76,10 +76,13 @@ contains
             call Bounds2D(ibctyp, NXs, NXf, NYs, NYf, neqs, neqf)
             deallocate (source_bound, d_s, x_s, y_s)
         end if
-        if (my_rank .eq. 0) then
-            et = MPI_WTIME()
-            if (VERBOCITY .gt. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
-        end if
+        ! if (my_rank .eq. 0) then
+        !     et = MPI_WTIME()
+        !     if (VERBOCITY .gt. 0) then 
+        !         open (199, file=yaps_file, access='append', action='write', form='formatted')
+        !         write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+        !     endif
+        ! end if
     end subroutine infdomain
 
     !------------------------------------------------------------------------!
@@ -171,7 +174,7 @@ contains
             call vpm_print(dummy_string, nocolor, 2)
          write (dummy_string, "(A,I3,A,F8.3,A)") achar(9)//"Bounds finished in:", int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
             call vpm_print(dummy_string, yellow, 2)
-            if (VERBOCITY .gt. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
+            ! if (VERBOCITY .gt. 0) write (199, *) 'Bounds', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'
         end if
 
     end subroutine infdomain_3d

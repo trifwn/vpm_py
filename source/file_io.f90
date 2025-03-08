@@ -259,6 +259,7 @@ contains
         deformation, compression                 &
     )
         use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
+        use vpm_vars, only: timestep_info
         use h5fortran
 
         integer, intent(in)              :: NTIME
@@ -341,8 +342,12 @@ contains
             call h5f%create('/VORTEXSTRETCH', H5T_NATIVE_DOUBLE, dset_dims=[3, NXf - NXs + 1, NYf - NYs + 1, NZf - NZs + 1])
             call h5f%write('/VORTEXSTRETCH', deformation(1:3, NXs:NXf, NYs:NYf, NZs:NZf)) 
         end if
+        
         ! Close HDF5 file
         call h5f%close()
+
+        ! Add timestep metadata to the HDF5 file
+        call write_timestep_metadata_hdf5(filout, timestep_info) 
         
     end subroutine write_pm_solution_hdf5
 
@@ -384,55 +389,54 @@ contains
         call h5f%close()
     end subroutine write_pressure_hdf5
 
-    subroutine write_timestep_metadata_hdf5(NTIME, timestep_info)
+    subroutine write_timestep_metadata_hdf5(filename , timestep)
         use vpm_types, only: timestepInformation
         implicit none
-        integer, intent(in)                   :: NTIME
-        type(timestepInformation), intent(in) :: timestep_info
-
+        type(timestepInformation), intent(in) :: timestep
+        character(len=256), intent(in)        :: filename
         type(hdf5_file)    :: h5f
-        character(len=256) :: filename
-        real(dp)           :: mean_div_w, max_div_w, min_div_w
-        real(dp)           :: mean_div_u, max_div_u, min_div_u
-        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
-        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
 
-        mean_div_w = timestep_info%mean_div_w
-        max_div_w  = timestep_info%max_div_w
-        min_div_w  = timestep_info%min_div_w
-        
-        mean_div_u = timestep_info%mean_div_u
-        max_div_u  = timestep_info%max_div_u
-        min_div_u  = timestep_info%min_div_u
-        
-        total_momentum_x = timestep_info%total_momentum_x 
-        total_momentum_y = timestep_info%total_momentum_y 
-        total_momentum_z = timestep_info%total_momentum_z 
-        total_kinetic_energy = timestep_info%total_kinetic_energy
-        total_vorticity = timestep_info%total_vorticity
-        total_enstrophy = timestep_info%total_enstrophy
-
-        ! Construct the filename
-        write (filename, '(A,I5.5,A)') trim(case_folder)//trim(particle_folder), &
-            NTIME, trim(particle_output_file)//".h5"
-
+        print *, "Writing timestep metadata to HDF5 file: ", trim(filename)
         ! Determine the file status and write mode
         call h5f%open(trim(filename), action='rw')
 
         ! Write Attributes
-        call h5f%writeattr('/', 'NTIME', NTIME)
-        call h5f%writeattr('/', 'mean_div_w', mean_div_w)
-        call h5f%writeattr('/', 'max_div_w', max_div_w)
-        call h5f%writeattr('/', 'min_div_w', min_div_w)
-        call h5f%writeattr('/', 'mean_div_u', mean_div_u)
-        call h5f%writeattr('/', 'max_div_u', max_div_u)
-        call h5f%writeattr('/', 'min_div_u', min_div_u)
-        call h5f%writeattr('/', 'total_momentum_x', total_momentum_x)
-        call h5f%writeattr('/', 'total_momentum_y', total_momentum_y)
-        call h5f%writeattr('/', 'total_momentum_z', total_momentum_z)
-        call h5f%writeattr('/', 'total_kinetic_energy', total_kinetic_energy)
-        call h5f%writeattr('/', 'total_vorticity', total_vorticity)
-        call h5f%writeattr('/', 'total_enstrophy', total_enstrophy)
+        ! call h5f%writeattr('/', 'NTIME', timestep%n)
+        ! call h5f%writeattr('/', 'dt', timestep_info%dt)
+        ! call h5f%writeattr('/', 't', timestep_info%t)
+        call h5f%writeattr('/', 'NVR', timestep%NVR)
+        call h5f%writeattr('/', 'NVR_size', timestep%NVR_size)
+        call h5f%writeattr('/', 'NN', timestep%NN)
+        call h5f%writeattr('/', 'Xbound', timestep%Xbound)
+        call h5f%writeattr('/', 'Dpm', timestep%Dpm)
+        call h5f%writeattr('/', 'solver', timestep%solver)
+
+        call h5f%writeattr('/', 'mean_div_w', timestep%mean_div_w)
+        call h5f%writeattr('/', 'max_div_w', timestep%max_div_w)
+        call h5f%writeattr('/', 'min_div_w', timestep%min_div_w)
+        call h5f%writeattr('/', 'mean_div_u', timestep%mean_div_u)
+        call h5f%writeattr('/', 'max_div_u', timestep%max_div_u)
+        call h5f%writeattr('/', 'min_div_u', timestep%min_div_u)
+
+        ! Particle Mesh Attributes
+        call h5f%writeattr('/', 'total_pm_momentum_x', timestep%total_momentum_x_pm)
+        call h5f%writeattr('/', 'total_pm_momentum_y', timestep%total_momentum_y_pm)
+        call h5f%writeattr('/', 'total_pm_momentum_z', timestep%total_momentum_z_pm)
+        call h5f%writeattr('/', 'total_pm_kinetic_energy', timestep%total_kinetic_energy_pm)
+        call h5f%writeattr('/', 'total_pm_vorticity', timestep%total_vorticity_pm)
+        call h5f%writeattr('/', 'total_pm_enstrophy', timestep%total_enstrophy_pm)
+
+        ! Particle Attributes
+        call h5f%writeattr('/', 'total_particle_momentum_x', timestep%total_momentum_x_particles)
+        call h5f%writeattr('/', 'total_particle_momentum_y', timestep%total_momentum_y_particles)
+        call h5f%writeattr('/', 'total_particle_momentum_z', timestep%total_momentum_z_particles)
+        call h5f%writeattr('/', 'total_particle_kinetic_energy', timestep%total_kinetic_energy_particles)
+        call h5f%writeattr('/', 'total_particle_vorticity', timestep%total_vorticity_particles)
+        call h5f%writeattr('/', 'total_particle_enstrophy', timestep%total_enstrophy_particles)
+
+        ! Close HDF5 file
+        call h5f%close()
+        print *, "Timestep metadata written to HDF5 file: ", trim(filename)
     end subroutine write_timestep_metadata_hdf5
 
     subroutine write_timestep_information_dat(timestep_info, NTIME_pm)
@@ -455,12 +459,12 @@ contains
         max_div_u  = timestep_info%max_div_u
         min_div_u  = timestep_info%min_div_u
         
-        total_momentum_x = timestep_info%total_momentum_x 
-        total_momentum_y = timestep_info%total_momentum_y 
-        total_momentum_z = timestep_info%total_momentum_z 
-        total_kinetic_energy = timestep_info%total_kinetic_energy
-        total_vorticity = timestep_info%total_vorticity
-        total_enstrophy = timestep_info%total_enstrophy
+        total_momentum_x = timestep_info%total_momentum_x_pm 
+        total_momentum_y = timestep_info%total_momentum_y_pm 
+        total_momentum_z = timestep_info%total_momentum_z_pm 
+        total_kinetic_energy = timestep_info%total_kinetic_energy_pm
+        total_vorticity = timestep_info%total_vorticity_pm
+        total_enstrophy = timestep_info%total_enstrophy_pm
 
         ! Construct the filename
         write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)

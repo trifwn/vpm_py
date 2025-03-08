@@ -404,6 +404,8 @@ contains
             call calc_vortex_stretching_conservative(velocity_pm, deform_pm) ! VELOCITY AND DEFORMATION STO PM
         end if
 
+        call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
+
         if (my_rank .eq. 0) then
             call print_velocity_stats
             call print_vortex_stretching_stats
@@ -417,7 +419,6 @@ contains
             endif
         end if
 
-        call interpolate_particles_parallel(1) ! INTERPOLATION FROM PM TO PARTICLES
     end subroutine vpm_solve_velocity_deformation
 
     subroutine vpm_correct_vorticity(           &
@@ -707,14 +708,15 @@ contains
     end subroutine project_calc_div
 
     subroutine get_timestep_information(timestep_information)
-        use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm, velocity_pm
+        use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm, velocity_pm, DVpm
+        use parvar, only: XP, QP, UP, NVR, NVR_size
         use vpm_size, only: fine_grid 
         use vpm_types, only: timestepInformation, solveInformation, dp
-        use parvar, only: NVR, NVR_size
         use serial_vector_field_operators, only: divergence, laplacian
         implicit none
         type(timestepInformation), intent(inout) :: timestep_information
-        real(dp), allocatable :: div_wmega(:,:,:), div_velocity(:,:,:)
+        real(dp), allocatable :: div_wmega(:,:,:), div_velocity(:,:,:), particle_q
+        integer :: i
         
         timestep_information%n          = NTIME_pm
 
@@ -740,12 +742,36 @@ contains
         timestep_information%min_div_u  = minval(div_velocity)
         deallocate (div_velocity)
 
-        timestep_information%total_enstrophy       = sum(RHS_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
-        timestep_information%total_vorticity       = sum(RHS_pm(1:3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_momentum_x      = sum(velocity_pm(1,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_momentum_y      = sum(velocity_pm(2,:,:,:))*DXpm*DYpm*DZpm 
-        timestep_information%total_momentum_z      = sum(velocity_pm(3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_kinetic_energy  = sum(velocity_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+        timestep_information%total_enstrophy_pm       = sum(RHS_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+        timestep_information%total_vorticity_pm       = sum(RHS_pm(1:3,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_momentum_x_pm      = sum(velocity_pm(1,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_momentum_y_pm      = sum(velocity_pm(2,:,:,:))*DXpm*DYpm*DZpm 
+        timestep_information%total_momentum_z_pm      = sum(velocity_pm(3,:,:,:))*DXpm*DYpm*DZpm
+        timestep_information%total_kinetic_energy_pm  = sum(velocity_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+
+        timestep_information%total_vorticity_particles = sum(QP(1, :) * QP(4, :) + QP(2, :) * QP(4, :) + QP(3, :) * QP(4, :)) 
+        timestep_information%total_momentum_x_particles = sum(UP(1,:) * QP(4, :))
+        timestep_information%total_momentum_y_particles = sum(UP(2,:) * QP(4, :))
+        timestep_information%total_momentum_z_particles = sum(UP(3,:) * QP(4, :))
+
+        particle_q = 0
+        do i = 1, NVR
+            particle_q = particle_q + sum(UP(1:3,i)**2) * QP(4, i)
+        end do
+        timestep_information%total_kinetic_energy_particles = particle_q
+
+        particle_q = 0
+        do i = 1, NVR
+            particle_q = particle_q + sum(QP(1:3,i)**2) * QP(4, i)
+        end do
+        timestep_information%total_enstrophy_particles = particle_q
+        
+
+        print *, 'Total enstrophy particles', timestep_information%total_enstrophy_particles
+        print *, 'Total vorticity particles', timestep_information%total_vorticity_particles
+        print *, 'Total momentum x particles', timestep_information%total_momentum_x_particles
+        print *, 'Total momentum y particles', timestep_information%total_momentum_y_particles
+        print *, 'Total momentum z particles', timestep_information%total_momentum_z_particles
     end subroutine get_timestep_information
     
     subroutine get_solve_info(solve_information)
