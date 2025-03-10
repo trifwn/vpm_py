@@ -5,8 +5,7 @@ class StandardVisualizer(Visualizer):
         self,
         plot_particles: tuple[str, str] | None = None,
         plot_mesh: tuple[str, str] | None = None,
-        plot_slices: tuple[str, str] | None = None,
-        plot_slices2: tuple[str, str] | None = None,
+        plot_slices: list[tuple[str, str]] | None = None,
         figure_size=(12, 10),
     ):
         
@@ -17,8 +16,8 @@ class StandardVisualizer(Visualizer):
                 quantity= plot_particles[0],
                 component= plot_particles[1],
                 filters=[
-                    ValueSelector('top_num',  20000),
-                    PositionFilter('greater', axis= 1, position = 0.0),
+                    # ValueSelector('top_num',  50000),
+                    # PositionFilter('greater', axis= 1, position = 0.0),
                 ],
                 options={
                     "s": "auto",
@@ -40,10 +39,10 @@ class StandardVisualizer(Visualizer):
 
         if plot_slices:
             for plot_slice in plot_slices:
-                qoi = MeshQuantityOfInterest.create_quantity_of_interest("velocity", 3, "magnitude")
+                qoi = MeshQuantityOfInterest.create_quantity_of_interest("charge", 3, "magnitude")
 
                 z_slice = SliceFilter_3D(plane="Z",strategy=SliceStrategy.MAX_INTEGRAL, filter_quantity= qoi )
-                y_slice = SliceFilter_3D(plane="Y",strategy=SliceStrategy.MAX_INTEGRAL, filter_quantity= qoi )
+                y_slice = SliceFilter_3D(plane="Y",strategy=SliceStrategy.POSITION, filter_quantity= qoi, value= 0.0)
                 if plot_particles:
                     options = {
                         "add_slice_plane": particle_option,

@@ -267,7 +267,7 @@ contains
 
                 ! Find the index where we have 99.99% of the enstrophy
                 cumsum_enstrophy = 0
-                enstrophy_threshold = (99.99/ 100.0) * total_enstrophy
+                enstrophy_threshold = (99.999/ 100.0) * total_enstrophy
                 do k = 1, NVR
                     cumsum_enstrophy = cumsum_enstrophy + par_enstrophy(sorted_idx(k))
                     if (cumsum_enstrophy .ge. enstrophy_threshold) exit

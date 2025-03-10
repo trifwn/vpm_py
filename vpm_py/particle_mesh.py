@@ -130,24 +130,11 @@ class ParticleMesh:
         NY_pm = self.NY_pm
         NZ_pm = self.NZ_pm
 
-        Xmin = c_double()
-        Xmax = c_double()
-        self._lib.get_Xbounds(byref(Xmin), byref(Xmax))
-        Xmin = Xmin.value
-        Xmax = Xmax.value
+        (
+            Xmin, Ymin, Zmin,
+            Xmax, Ymax, Zmax
+        )= self.xbound
 
-        Ymin = c_double()
-        Ymax = c_double()
-        self._lib.get_Ybounds(byref(Ymin), byref(Ymax))
-        Ymin = Ymin.value
-        Ymax = Ymax.value
-
-        Zmin = c_double()
-        Zmax = c_double()
-        self._lib.get_Zbounds(byref(Zmin), byref(Zmax))
-        Zmin = Zmin.value
-        Zmax = Zmax.value
-        
         X = np.linspace(Xmin, Xmax, NX_pm)
         Y = np.linspace(Ymin, Ymax, NY_pm)
         Z = np.linspace(Zmin, Zmax, NZ_pm)

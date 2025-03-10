@@ -48,8 +48,8 @@ class VPM(object):
         self.NBJ = NBJ
         self.NBK = NBK
         self.num_equations = number_of_equations
+        self.verbosity = verbocity
 
-        self.set_verbosity(verbocity)
         if case_folder is not None:
             self.set_case_folder(case_folder)
         # Initialize the VPM
@@ -60,6 +60,15 @@ class VPM(object):
         # Visualization
         self.visualizer: Visualizer | None = None
         self.has_animation_writer = False
+
+    @property
+    def verbosity(self):
+        return self._verbosity
+
+    @verbosity.setter
+    def verbosity(self, value: int):
+        self._verbosity = value
+        self.set_verbosity(value)
 
     def initialize(
         self, 
@@ -112,7 +121,7 @@ class VPM(object):
             byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_domain_fixed)),
             byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
         )
-        if(self.rank == 0):
+        if(self.rank == 0) and (self.verbosity > 1):
             print_green(f"Finished initializing VPM {self.rank}:")
             # Print the arguments passed
             print(f"\tDXpm= {DXpm}")
@@ -561,7 +570,7 @@ class VPM(object):
         self,
         velocity: F_Array | np.ndarray | None = None,
         vorticity: F_Array | np.ndarray | None = None,
-        density: float = 998,
+        density: float = 1.225,
     ):
         """Solve pressure field."""
         if velocity is None:
