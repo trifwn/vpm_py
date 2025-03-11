@@ -550,20 +550,22 @@ contains
     !>    equation is (\nabla ^2 q / rho ) = - \nabla (u x \omega) - \nabla (\sigma ) / rho
     !>    where sigma is the stress tensor which we ignore for now
     subroutine vpm_solve_pressure(                                            &
-       vorticity, velocity, pressure, density, dphi_dt, p_reference           &
+       vorticity, velocity, pressure, density, viscocity, dphi_dt, p_reference           &
     )
-        use serial_vector_field_operators, only: divergence, curl
+        use serial_vector_field_operators, only: divergence, curl, laplacian, gradient
         use vpm_interpolate, only: interpolate_particle_Q
         real(dp), pointer, intent(in)           :: vorticity(:,:,:,:)
         real(dp), pointer, intent(in)           :: velocity(:,:,:,:)
         real(dp), allocatable, intent(out)      :: pressure(:,:,:,:)
-        real(dp), intent(in)                    :: density
+        real(dp), intent(in)                    :: density, viscocity
         real(dp), pointer, intent(in), optional :: dphi_dt(:,:,:,:)
         real(dp), value, optional               :: p_reference
         ! LOCAL VARIABLES
         real(dp), allocatable             :: SOL2_pm(:,:,:,:), RHS2_pm(:,:,:,:)
         real(dp), allocatable             :: SOL2_pm_bl(:,:,:,:), RHS2_pm_bl(:,:,:,:)
         real(dp), allocatable             :: cross_product(:,:,:,:), div_cross(:,:,:)
+        real(dp), allocatable             :: div_stress_tensor(:,:,:,:), div_div_stress_tensor(:,:,:)
+        ! real(dp), allocatable             :: lapl
         real(dp)                          :: DXpm, DYpm, DZpm
         real(dp)                          :: velocity_squared
         integer                           :: ierr, my_rank, np, nb
@@ -577,7 +579,7 @@ contains
         if (my_rank .eq. 0) then
             write (*, *) ""
             tab_level = tab_level - 1
-            write (dummy_string, "(A, F8.2)") 'Solving Poisson for the Pressure field. ρ = ', density
+            write (dummy_string, "(A, F8.2, A, F8.2)") 'Solving Poisson for the Pressure field. ρ = ', density, ' ν = ', viscocity
             call vpm_print(dummy_string, blue, 0)
             tab_level = tab_level + 1
             st = MPI_WTIME()
@@ -604,7 +606,26 @@ contains
             allocate (cross_product, mold = vorticity)
             call compute_cross_product(velocity, vorticity, cross_product)
             div_cross = divergence(cross_product, DXpm, DYpm, DZpm)
-            RHS2_pm(1, :, :, :) = div_cross(:, :, :) 
+
+            !  Compute the laplacian of the deviatoric stress tensor
+            div_stress_tensor = laplacian(velocity, DXpm, DYpm, DZpm)
+            div_div_stress_tensor = divergence(div_stress_tensor, DXpm, DYpm, DZpm)
+            
+            ! Print the min and max values of the divergence of the stress tensor
+            print *, 'The divergence of the stress tensor'
+            print *, achar(9)//'Max divergence of the stress tensor', maxval(div_div_stress_tensor)
+            print *, achar(9)//'Min divergence of the stress tensor', minval(div_div_stress_tensor)
+            print *, achar(9)//'Total divergence of the stress tensor', sum(div_div_stress_tensor)
+
+            ! Print the min and max values of the divergence of the cross product
+            print *, 'The divergence of the cross product'
+            print *, achar(9)//'Max divergence of the cross product', maxval(div_cross)
+            print *, achar(9)//'Min divergence of the cross product', minval(div_cross)
+            print *, achar(9)//'Total divergence of the cross product', sum(div_cross)
+
+            
+            RHS2_pm(1, :, :, :) =  div_cross(:, :, :) + viscocity * div_div_stress_tensor(:, :, :) 
+        
             deallocate (cross_product)
             deallocate (div_cross)
         end if
@@ -629,7 +650,7 @@ contains
                                            (velocity(2,i,j,k)**2) + &
                                            (velocity(3,i,j,k)**2) 
                         pressure(2,i,j,k) = (density * velocity_squared / 2.d0)
-                        pressure(3,i,j,k) = p_reference - pressure(1,i,j,k) -  (density * velocity_squared / 2.d0)
+                        pressure(3,i,j,k) = p_reference - pressure(1,i,j,k) - pressure(2,i,j,k) 
                     end do
                 end do
             end do

@@ -147,6 +147,8 @@ class VPM_Lib:
             POINTER(F_Array_Struct),
             POINTER(F_Array_Struct),
             POINTER(F_Array_Struct),
+            POINTER(c_double),
+            POINTER(c_double),
         ]
 
         # API.finalize

@@ -266,7 +266,7 @@ contains
     end subroutine call_vpm_correct_vorticity
 
     subroutine call_vpm_solve_pressure(                                                         &
-        vorticity_ptr, velocity_ptr, pressure_ptr, density                                      &
+        vorticity_ptr, velocity_ptr, pressure_ptr, density, viscocity                           &
     ) bind(C, name='vpm_solve_pressure')
         use vpm_lib, only: vpm_solve_pressure
         use ND_Arrays
@@ -274,7 +274,7 @@ contains
         ! Interface for the arguments (ND_Arrays)
         type(ND_Array), intent(in)             :: vorticity_ptr, velocity_ptr
         type(ND_Array), intent(out)            :: pressure_ptr
-        real(c_double), intent(in)             :: density
+        real(c_double), intent(in)             :: density, viscocity
         ! Local variables
         real(c_double), pointer                :: vorticity(:,:,:,:), velocity(:,:,:,:)
         real(c_double), allocatable, save      :: pressure(:,:,:,:)
@@ -287,7 +287,7 @@ contains
         if (velocity_ptr%total_size .ne. 0 ) then
             call convert_to_4D_array(velocity_ptr, velocity)
         end if
-        call vpm_solve_pressure(vorticity, velocity, pressure, density)
+        call vpm_solve_pressure(vorticity, velocity, pressure, density, viscocity)
         if (allocated(pressure)) then
             pressure_ptr = from_intrinsic(pressure, shape(pressure))
         end if

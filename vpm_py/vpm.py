@@ -571,6 +571,7 @@ class VPM(object):
         velocity: F_Array | np.ndarray | None = None,
         vorticity: F_Array | np.ndarray | None = None,
         density: float = 1.225,
+        viscosity: int = 1,
     ):
         """Solve pressure field."""
         if velocity is None:
@@ -604,7 +605,7 @@ class VPM(object):
         Pressures_ptr = F_Array_Struct.null(ndims=4, total_size=1)
 
         self._lib.vpm_solve_pressure(
-            Vorticity_ptr, Velocity_ptr, Pressures_ptr, byref(c_double(density))
+            Vorticity_ptr, Velocity_ptr, Pressures_ptr, byref(c_double(density)), byref(c_double(viscosity))
         )
 
         self.particle_mesh.store_mesh_results(pressures= self.dereference_F_Array(Pressures_ptr))

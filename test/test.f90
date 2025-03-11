@@ -32,7 +32,7 @@ Program test_pm
    use MPI
 
    implicit none
-   real(dp)             :: NI_in, DT_in, FACDEF, T, XMIN, XMAX, UINF(3), density
+   real(dp)             :: viscocity, dt, FACDEF, T, XMIN, XMAX, UINF(3), density
    integer              :: NVR_size
    integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
    logical              :: pmfile_exists
@@ -116,8 +116,8 @@ Program test_pm
    
    !--- Problem settings
    REYNOLDS = 10.0_dp                                        ! Reynolds number
-   NI_in    = u_free_stream * sphere_radius / REYNOLDS     ! Viscosity
-   DT_in    = 0.5 * DXpm / u_free_stream                    ! =dx/U
+   viscocity    = u_free_stream * sphere_radius / REYNOLDS     ! Viscosity
+   dt    = 0.5 * DXpm / u_free_stream                    ! =dx/U
    neq      = 3                                             ! NUMBER OF EQUATIONS
    UINF     = 0                                             ! INFLOW VELOCITY
    density  = 1e3_dp                                        ! DENSITY                 
@@ -210,11 +210,11 @@ Program test_pm
          write (*, *) "-----------------------------------------------------------------------------"
          write (*, *) achar(27)//'[1;92mITERATION= ', i, ' of', max_iter, achar(27)//'[0m'
          write (*, *) achar(27)//'[1;92mT=', T, achar(27)//'[0m'
-         write (*, *) achar(27)//'[1;92mDT=', DT_in, achar(27)//'[0m'
+         write (*, *) achar(27)//'[1;92mDT=', dt, achar(27)//'[0m'
          write (*, *) "-----------------------------------------------------------------------------"
       end if
       !get velocities and deformations
-      T = T +  DT_in
+      T = T +  dt
 
       !--- ALLOCATIONS FOR ALL PARTICLES and sources
       if (my_rank .eq. 0) then
@@ -230,7 +230,7 @@ Program test_pm
       !---
 
       !--- VPM PRESSURE SOLVER
-      call vpm_solve_pressure(RHS_ptr, velocity_pm, pressure, density)
+      call vpm_solve_pressure(RHS_ptr, velocity_pm, pressure, density, viscocity)
       
       tab_level = 0
       if (my_rank .eq. 0) then
@@ -252,39 +252,39 @@ Program test_pm
          write (*, "(A, F8.3)") achar(9)//'max', maxval(vel_ptr(3, :, :, :))
          write (*, "(A, F8.3)") achar(9)//'mean', sum(vel_ptr(3, :, :, :))/size(vel_ptr(3, :, :, :))
          write (*, "(A)") '---------------------------------'
-         CFL_x = maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm
-         CFL_y = maxval(abs(vel_ptr(2, :, :, :)))*DT_in/DYpm
-         CFL_z = maxval(abs(vel_ptr(3, :, :, :)))*DT_in/DZpm
+         CFL_x = maxval(abs(vel_ptr(1, :, :, :)))*dt/DXpm
+         CFL_y = maxval(abs(vel_ptr(2, :, :, :)))*dt/DYpm
+         CFL_z = maxval(abs(vel_ptr(3, :, :, :)))*dt/DZpm
          CFL = CFL_x + CFL_y + CFL_z
          write (*, "(A, F8.3,A ,F8.3, A)")  achar(27)//'[1;33mCFL Criterion = ', CFL, &
-                                            achar(9)//'with DT=', DT_IN, achar(27)//'[0m'
+                                            achar(9)//'with DT=', dt, achar(27)//'[0m'
          write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
                            achar(9)//'X-axis min', CFL_x,                                       &
-                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
-                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*dt/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*dt/DXpm/size(vel_ptr(1, :, :, :))
          write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
                            achar(9)//'Y-axis min', CFL_y,                                       &
-                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
-                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*dt/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*dt/DXpm/size(vel_ptr(1, :, :, :))
          write (*, "(A,F8.3, A, F8.3, A , F8.3)") &
                            achar(9)//'Z-axis min', CFL_z,                                       &
-                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm, &
-                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*DT_in/DXpm/size(vel_ptr(1, :, :, :))
+                           achar(9)//'max', maxval(abs(vel_ptr(1, :, :, :)))*dt/DXpm, &
+                           achar(9)//'mean', sum(abs(vel_ptr(1, :, :, :)))*dt/DXpm/size(vel_ptr(1, :, :, :))
          
          ! IF CFL > 0.9 adjust the time step so that the CFL is 0.9
          if (CFL .gt. CFL_treshold_up) then
             write (*, "(A)") achar(27)//'[1;31mCFL CRITERION EXCEEDED', achar(27)//'[0m'
-            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
-            DT_in = (CFL_target/CFL) * DT_in
-            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
+            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', dt
+            dt = (CFL_target/CFL) * dt
+            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', dt
             write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
          end if
          ! IF CFL < 0.5 adjust the time step so that the CFL is 0.5
          if (CFL .lt. CFL_treshold_down) then
-            DT_in = (CFL_target/CFL) * DT_in
+            dt = (CFL_target/CFL) * dt
             write (*, "(A)") achar(27)//'[1;91mCFL CRITERION EXCEEDED', achar(27)//'[0m'
-            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', DT_in
-            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', DT_in
+            write (*, "(A,F8.3)") achar(9)//'New Time Step = ', dt
+            write (*, "(A,F8.3)") achar(9)//'Old Time Step = ', dt
             write (*, "(A,F8.3)") achar(9)//'New CFL = ', CFL_target
          end if
          write (*, "(A)") ''
@@ -293,15 +293,15 @@ Program test_pm
          write (*, "(A)") 'Stability criterion for diffusion:'
          write (*, "(A)") '---------------------------------'
          write (*, "(A)") 'DT < 1 / (2 * VISCOSITY) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)'
-         if (DT_in .gt. 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)) then
+         if (dt .gt. 1 / (2 * viscocity) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)) then
             write (*, "(A)") achar(27)//'[1;31mNot Satisfied', achar(27)//'[0m'
-            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', DT_in, ' > ', 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
-            DT_in = 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', dt, ' > ', 1 / (2 * viscocity) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+            dt = 1 / (2 * viscocity) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
          else
             write (*, "(A)") achar(27)//'[1;92mSatisfied', achar(27)//'[0m'
-            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', DT_in, ' < ', 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
+            write (*, "(A,F8.3,A,F8.3)") achar(9)//'DT: ', dt, ' < ', 1 / (2 * viscocity) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2)
          end if
-         DT_in = min(DT_in, 1 / (2 * NI_in) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2))
+         dt = min(dt, 1 / (2 * viscocity) / (1 / DXpm**2 + 1 / DYpm**2 + 1 / DZpm**2))
 
          !WRITE TO INFOFILE
          if (i.eq.1) then
@@ -311,7 +311,7 @@ Program test_pm
          else 
             open(unit=10, file=cfl_file, status='old', position='append', action='write')
          end if
-         write (10, '(I0, 8(",",ES14.7))') i, DT_in, DXpm, DYpm, DZpm, CFL, CFL_x, CFL_y, CFL_z
+         write (10, '(I0, 8(",",ES14.7))') i, dt, DXpm, DYpm, DZpm, CFL, CFL_x, CFL_y, CFL_z
          close (10)
       end if
       !--- END VPM GETS VELOCITIES AND DEFORMATIONS FROM THE PM SOLUTION
@@ -326,10 +326,10 @@ Program test_pm
          !!$omp do
          do j = 1, NVR
             ! Move particles
-            XPR(1:3, j) = XPR(1:3, j) + (UPR(1:3, j) + UINF(1:3))*DT_in
+            XPR(1:3, j) = XPR(1:3, j) + (UPR(1:3, j) + UINF(1:3))*dt
 
             ! Vortex Stretching 
-            QPR(1:3, j) = QPR(1:3, j) - GPR(1:3, j)*DT_in
+            QPR(1:3, j) = QPR(1:3, j) - GPR(1:3, j)*dt
          end do
          !!$omp enddo
          !!$omp end parallel
@@ -369,11 +369,11 @@ Program test_pm
       !--- END VPM DEFINE
 
       ! --- VPM DIFFUSION
-      call vpm_diffuse(NI_in, XPR, QPR, UPR, GPR, NVR_ext, NVR_size, RHS_ptr)
+      call vpm_diffuse(viscocity, XPR, QPR, UPR, GPR, NVR_ext, NVR_size, RHS_ptr)
       ! Apply the diffusion 
       if (my_rank .eq. 0) then
          do j = 1, NVR
-            QPR(1:3, j) = QPR(1:3, j) - GPR(1:3, j)*DT_in
+            QPR(1:3, j) = QPR(1:3, j) - GPR(1:3, j)*dt
          end do
       end if
       ! --- END VPM DIFFUSION

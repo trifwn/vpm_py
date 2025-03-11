@@ -134,14 +134,17 @@ contains
             do k = knode - ips, knode + ipf
                 do j = jnode - ips, jnode + ipf
                     do i = inode - ips, inode + ipf
-                        x = (XP(1, nv) - XMIN_pm - (i - 1)*DXpm)/DXpm
+                        x = XP(1, nv) - XMIN_pm - (i - 1)*DXpm
+                        x = x/DXpm
                         fx = projection_fun(itype, x)
 
-                        y = (XP(2, nv) - YMIN_pm - (j - 1)*DYpm)/DYpm
+                        y = XP(2, nv) - YMIN_pm - (j - 1)*DYpm
+                        y = y/DYpm
                         fy = projection_fun(itype, y)
 
                         if (ND .eq. 3) then
-                            z = (XP(3, nv) - ZMIN_pm - (k - 1)*DZpm)/DZpm
+                            z = XP(3, nv) - ZMIN_pm - (k - 1)*DZpm
+                            z = z/DZpm
                             fz = projection_fun(itype, z)
                             f = fx*fy*fz
                         else
