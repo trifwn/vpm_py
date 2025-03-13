@@ -122,7 +122,7 @@ class VPM(object):
             byref(c_int(OMPTHREADS)), 
             byref(c_int(is_domain_fixed)),
         )
-        if(self.rank == 0): #and (self.verbosity > 1):
+        if(self.rank == 0) and (self.verbosity > 1):
             print_green(f"Finished initializing VPM {self.rank}:")
             # Print the arguments passed
             print(f"\tDXpm= {DXpm}")
