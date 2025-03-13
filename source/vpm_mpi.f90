@@ -226,7 +226,7 @@ contains
             NVR_pr = NVR_p
             NVR_r = NVR/np
 
-            write (dummy_string, "(A,I5,A,I5, A, I5, A, I5)") &
+            write (dummy_string, "(A,I5,A,I9, A, I9, A, I9)") &
                 "Processor ", my_rank, " got : NVR_p = ", NVR_p, " and NVR_r = ", NVR_r, "  NVR message size = ", NVR_size
             call vpm_print(dummy_string, nocolor, 2)
             if (NVR_r .gt. 0) then
@@ -255,22 +255,22 @@ contains
                 call MPI_RECV(QP_scatt, 1, mat2, 0, 1, MPI_COMM_WORLD, status, ierr)
                 call MPI_TYPE_FREE(mat2, ierr)
 
-                write (dummy_string, "(A,I5,A,I5)") "Processor ", my_rank, " got : NVR_p = ", NVR_p
+                write (dummy_string, "(A,I5,A,I9)") "Processor ", my_rank, " got : NVR_p = ", NVR_p
                 call vpm_print(dummy_string, nocolor, 2)
             else
-                write (dummy_string, "(A,I5)") "Got 0 particles on processor ", my_rank
+                write (dummy_string, "(A,I9)") "Got 0 particles on processor ", my_rank
                 call vpm_print(dummy_string, nocolor, 2)
             end if
         end if
 
         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
         if (my_rank .eq. 0) then
-            write (dummy_string, "(A,I5)") "Total number of particles distributed = ", NVR_pr
+            write (dummy_string, "(A,I9)") "Total number of particles distributed = ", NVR_pr
             call vpm_print(dummy_string, nocolor, 2)
-            write (dummy_string, "(A,I5)") "Total number of particles = ", NVR
+            write (dummy_string, "(A,I9)") "Total number of particles = ", NVR
             call vpm_print(dummy_string, nocolor, 2)
             et = MPI_WTIME()
-            write (dummy_string, "(A,I5,A,F8.2,A)") &
+            write (dummy_string, "(A,I9,A,F8.2,A)") &
                 'finished in:', int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
             call vpm_print(dummy_string, yellow, 1)
         end if

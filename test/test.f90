@@ -12,19 +12,16 @@ end module test_mod
 
 Program test_pm
    use vpm_types, only: dp
-   use pmgrid, only:     XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm, ncoarse, IDVPM, &
-                         SOL_pm, velocity_pm, deform_pm
-   use vpm_vars, only:   interf_iproj,   &
-                         IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, nremesh, iyntree,&
-                         ilevmax, ibctyp, NBI, NBJ, NBK
-   use vpm_size, only:   st, et, fine_grid
-   use test_mod, only:   XPR, QPR, UPR, GPR, NVR_ext, &
-                         QPO, XPO, Qflag, &
-                         QP_in, XP_in, &
-                         RHS_ptr, vel_ptr, SOL_ptr
-   use test_app, only:   hill_assign
-   use parvar, only:     NVR
-   use vpm_lib, only:    vpm, vpm_solve_pressure, vpm_correct_vorticity, vpm_diffuse, vpm_define_problem, vpm_solve_velocity_deformation
+   use pmgrid, only:    XMIN_pm, NXs_fine_bl, DXpm, DYpm, DZpm, set_RHS_pm, ncoarse, IDVPM, &
+                        SOL_pm, velocity_pm, deform_pm
+   use vpm_vars, only:  interf_iproj, idefine, OMPTHREADS, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
+   use vpm_size, only:  st, et, fine_grid
+   use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, QPO, XPO, Qflag, &
+                        QP_in, XP_in, RHS_ptr, vel_ptr, SOL_ptr
+   use test_app, only:  hill_assign
+   use parvar, only:    NVR
+   use vpm_lib, only:   vpm, vpm_solve_pressure, vpm_correct_vorticity, vpm_diffuse, &
+                        vpm_define_problem, vpm_solve_velocity_deformation
    ! use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
    use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, write_pressure_hdf5, case_folder 
    use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
@@ -34,7 +31,7 @@ Program test_pm
    implicit none
    real(dp)             :: viscocity, dt, FACDEF, T, XMIN, XMAX, UINF(3), density
    integer              :: NVR_size
-   integer              :: my_rank, np, ierr, i, neq, j, max_iter, ncell_rem
+   integer              :: my_rank, np, ierr, i, neq, j, max_iter
    logical              :: pmfile_exists
    real(dp)             :: REYNOLDS
    real(dp)             :: sphere_radius = 1.0_dp
@@ -51,7 +48,12 @@ Program test_pm
    ! PARAMTERS
    logical, parameter   :: CORRECT_VORTICITY = .true.
    integer, parameter   :: REMESH_FREQ = 1
-   ! integer, parameter   :: 
+   integer, parameter   :: ncell_rem = 1
+
+   ! WRITE PARAMS
+   integer  :: IPMWRITE = 1
+   integer  :: IPMWSTART(10) = 0
+   integer  :: IPMWSTEPS(10) = -1 
 
    call MPI_INIT(ierr)
    call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
@@ -71,7 +73,6 @@ Program test_pm
       read (1, *) IDVPM                ! Variable/Constant Volume(0,1)
       read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
       read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
-      read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
       read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
       read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
       read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
@@ -102,14 +103,12 @@ Program test_pm
       ibctyp = 2
       IDVPM = 1
       ncoarse = 8
-      ncell_rem = 1
       iyntree = 1
       ilevmax = 1
       OMPTHREADS = 2
-      nremesh = 1
       idefine = 0
 
-      IPMWRITE = 1; IPMWSTART(1) = 0; IPMWSTEPS(1) = 6000
+      IPMWRITE = 1; IPMWSTART(1) = 0; IPMWSTEPS(1) = -1
    endif
    VERBOCITY = 1
    !--- END READ SETTINGS

@@ -404,6 +404,15 @@ contains
         deallocate (laplace_vort)
     end subroutine calc_antidiffusion
 
+    FUNCTION cross(a, b)
+        real(dp), DIMENSION(3) :: cross
+        real(dp), DIMENSION(3), INTENT(IN) :: a, b
+
+        cross(1) = a(2) * b(3) - a(3) * b(2)
+        cross(2) = a(3) * b(1) - a(1) * b(3)
+        cross(3) = a(1) * b(2) - a(2) * b(1)
+    END FUNCTION cross
+
     subroutine compute_cross_product(vec1, vec2, cross_product)
         real(dp), intent(in)  :: vec1(:, :, :, :)  
         real(dp), intent(in)  :: vec2(:, :, :, :) 
@@ -420,20 +429,15 @@ contains
         !     return
         ! end if
         cross_product = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(i,j,k) SHARED(cross_product, vec1, vec2)
+        !!$OMP PARALLEL DO PRIVATE(i,j,k) SHARED(cross_product, vec1, vec2)
         do i = 1, size(vec1,2)
             do j = 1, size(vec1,3)
                 do k = 1, size(vec1,4)
-                    cross_product(1, i, j, k) = vec1(2, i, j, k)*vec2(3, i, j, k) - &
-                                                vec1(3, i, j, k)*vec2(2, i, j, k)
-                    cross_product(2, i, j, k) = vec1(3, i, j, k)*vec2(1, i, j, k) - &
-                                                vec1(1, i, j, k)*vec2(3, i, j, k)
-                    cross_product(3, i, j, k) = vec1(1, i, j, k)*vec2(2, i, j, k) - &
-                                                vec1(2, i, j, k)*vec2(1, i, j, k)
+                    cross_product(:, i, j, k) = cross(vec1(:, i, j, k), vec2(:, i, j, k)) 
                 end do
             end do
         end do
-        !$OMP END PARALLEL DO
+        !!$OMP END PARALLEL DO
     end subroutine compute_cross_product
 
     !> \brief Computes the divergence of a vector field on a grid using the Gauss divergence theorem.

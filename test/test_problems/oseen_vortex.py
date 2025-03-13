@@ -12,7 +12,6 @@ def oseen_vortex(
     print(f"Calculating Oseen vortex with gamma: {gamma}, viscosity: {viscosity}, density: {density}, t: {t}")
     x = control_points[:, :, :, 0]
     y = control_points[:, :, :, 1]
-    z = control_points[:, :, :, 2]
     
     # Initialize velocity and vorticity arrays
     velocity = np.zeros_like(control_points)

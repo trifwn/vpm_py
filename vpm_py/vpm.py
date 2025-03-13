@@ -79,17 +79,13 @@ class VPM(object):
         NBJ: int, 
         NBK: int, 
         ncoarse = 8, 
-        projection_type: int = 4, 
-        boundary_condition: int =2, 
-        constant_particle_volume: bool = True, 
-        remesh: bool = True, 
-        use_tree: bool = True, 
-        ilevmax: int = 4,
+        projection_type: int = 4,               # CHECK
+        boundary_condition: int =1,     
+        constant_particle_volume: bool = True,  # CHECK
+        use_tree: bool = True,                  # CHECK 
+        ilevmax: int = 4,                       # CHECK
         OMPTHREADS: int = 1,
-        is_domain_fixed: bool = False, 
-        IPMWRITE: int = 0, 
-        IPMWSTART: int = -1, 
-        IPMWSTEPS: int = -1,
+        is_domain_fixed: bool = False,          # CHECK 
     ):
         """Wrapper function for calling Fortran subroutine `init`.
 
@@ -104,24 +100,29 @@ class VPM(object):
             projection_type (int, optional): Projection type. Defaults to 4.
             boundary_condition (int, optional): Boundary condition. Defaults to 2.
             constant_particle_volume (bool, optional): Constant particle volume. Defaults to True.
-            remesh (bool, optional): Remesh. Defaults to True.
             use_tree (bool, optional): Use tree. Defaults to True.
             ilevmax (int, optional): Maximum level. Defaults to 4.
             OMPTHREADS (int, optional): Number of threads. Defaults to 1.
             is_domain_fixed (bool, optional): Is box fixed. Defaults to True.
-            IPMWRITE (int, optional): Write IPM. Defaults to 1.
-            IPMWSTART (int, optional): Write IPM start. Defaults to 1.
-            IPMWSTEPS (int, optional): Write IPM steps. Defaults to 1.
         """
         self.dpm = np.array([DXpm, DYpm, DZpm])
         self._lib.init(
-            byref(c_double(DXpm)), byref(c_double(DYpm)), byref(c_double(DZpm)), byref(c_int(projection_type)),
-            byref(c_int(boundary_condition)), byref(c_int(constant_particle_volume)), byref(c_int(ncoarse)),
-            byref(c_int(NBI)), byref(c_int(NBJ)), byref(c_int(NBK)), byref(c_int(remesh)), 
-            byref(c_int(use_tree)), byref(c_int(ilevmax)), byref(c_int(OMPTHREADS)), byref(c_int(is_domain_fixed)),
-            byref(c_int(IPMWRITE)), byref(c_int(IPMWSTART)), byref(c_int(IPMWSTEPS)),
+            byref(c_double(DXpm)), 
+            byref(c_double(DYpm)), 
+            byref(c_double(DZpm)), 
+            byref(c_int(projection_type)),
+            byref(c_int(boundary_condition)), 
+            byref(c_int(constant_particle_volume)), 
+            byref(c_int(ncoarse)),
+            byref(c_int(NBI)), 
+            byref(c_int(NBJ)), 
+            byref(c_int(NBK)), 
+            byref(c_int(use_tree)), 
+            byref(c_int(ilevmax)), 
+            byref(c_int(OMPTHREADS)), 
+            byref(c_int(is_domain_fixed)),
         )
-        if(self.rank == 0) and (self.verbosity > 1):
+        if(self.rank == 0): #and (self.verbosity > 1):
             print_green(f"Finished initializing VPM {self.rank}:")
             # Print the arguments passed
             print(f"\tDXpm= {DXpm}")
@@ -134,14 +135,10 @@ class VPM(object):
             print(f"\tNBI= {NBI}")
             print(f"\tNBJ= {NBJ}")
             print(f"\tNBK= {NBK}")
-            print(f"\tNREMESH= {remesh}")
             print(f"\tiyntree= {use_tree}")
             print(f"\tilevmax= {ilevmax}")
             print(f"\tOMPTHREADS= {OMPTHREADS}")
             print(f"\tidefine= {is_domain_fixed}")
-            print(f"\tIPMWRITE= {IPMWRITE}")
-            print(f"\tIPMWSTART= {IPMWSTART}")
-            print(f"\tIPMWSTEPS= {IPMWSTEPS}")
 
     def attach_visualizer(self, plotter: Visualizer):
         if not isinstance(plotter, Visualizer):
@@ -571,7 +568,7 @@ class VPM(object):
         velocity: F_Array | np.ndarray | None = None,
         vorticity: F_Array | np.ndarray | None = None,
         density: float = 1.225,
-        viscosity: int = 1,
+        viscosity: float = 1.81e-5,
     ):
         """Solve pressure field."""
         if velocity is None:

@@ -1,7 +1,13 @@
 import numpy as np
 from vpm_py import VPM
 
-def hill_vortex(control_points, sphere_radius, U, z_0 = 0):    
+def hill_vortex(
+    control_points, 
+    sphere_radius, 
+    U, 
+    density = 1.225,
+    z_0 = 0
+):    
     """
     Args:
         CP (_type_): Control Point
@@ -84,7 +90,8 @@ def hill_assign(
     vpm: VPM, 
     sphere_radius: float =1.0, 
     u_freestream: float =-1.0, 
-    sphere_z_center: float =0.0
+    sphere_z_center: float =0.0,
+    density: float = 1.225
 ):
 
     print("Getting analytical solution")
@@ -101,7 +108,8 @@ def hill_assign(
         control_points= CP, 
         sphere_radius= sphere_radius,
         U= u_freestream,
-        z_0= sphere_z_center
+        z_0= sphere_z_center,
+        density= density
     )
     # PRINT VOLOCITY
     print(f"Analytical vorticity: {analytical_vorticity.shape}")

@@ -1,5 +1,5 @@
 module console_io
-    use vpm_types, only: dp
+    use vpm_types, only: dp, cartesian_grid
     integer, save :: VERBOCITY = 2
     ! Verbose level
     ! 0: No output
@@ -73,6 +73,56 @@ contains
         VERBOCITY = level
     end subroutine set_verbose_level
     
+    !! FIELD INFORMATION !!
+    subroutine print_stats_rank4(grid, field, field_name)
+        implicit none
+        type(cartesian_grid), intent(in) :: grid
+        real(dp) :: field(3, grid%NN(1), grid%NN(2), grid%NN(3))
+        character(len=*), intent(in)  :: field_name
+        real(dp)                      :: min_val(3), max_val(3), mean_val(3)
+        integer                       :: i, N
+
+        N = grid%NN(1)*grid%NN(2)*grid%NN(3)
+        ! Calculate the min, max and mean values for each component
+        do i = 1, 3
+            min_val(i) = minval(field(i, :, :, :))
+            max_val(i) = maxval(field(i, :, :, :))
+            mean_val(i) = sum(field(i, :, :, :)) / N
+        end do
+
+        print *, achar(27)//'[1;33m'//field_name//achar(27)//'[0m'
+        print *, '------------------------------------------------'
+        print *, 'Component  |   Min Value   |   Max Value   |   Mean Value'
+        print *, '------------------------------------------------'
+        print '(A10,3F15.8)', 'X', min_val(1), max_val(1), mean_val(1)
+        print '(A10,3F15.8)', 'Y', min_val(2), max_val(2), mean_val(2)
+        print '(A10,3F15.8)', 'Z', min_val(3), max_val(3), mean_val(3)
+        print *, '------------------------------------------------'
+    end subroutine print_stats_rank4 
+
+    subroutine print_stats_rank3(grid, field, field_name)
+        implicit none
+        type(cartesian_grid), intent(in) :: grid
+        real(dp), intent(in), target :: field(grid%NN(1), grid%NN(2), grid%NN(3))
+        character(len=*), intent(in)  :: field_name
+        real(dp)                      :: min_val, max_val, mean_val 
+        integer                       :: N
+        ! Calculate the min, max and mean values for each component
+        N = grid%NN(1)*grid%NN(2)*grid%NN(3)
+
+        min_val = minval(field)
+        max_val = maxval(field)
+        mean_val = sum(field)/ N
+
+        print *, achar(27)//'[1;33m'//field_name//achar(27)//'[0m' 
+        print *, '------------------------------------------------'
+        print *, 'Min Value   |   Max Value   |   Mean Value'
+        print *, '------------------------------------------------'
+        print '(3E15.6)', min_val, max_val, mean_val
+        print *, '------------------------------------------------'
+    end subroutine print_stats_rank3
+
+
     !! TIMESTEP INFORMATION !!
     subroutine print_timestep_information(timestep_info, solve_info)
         use vpm_types, only: timestepInformation, solveInformation
@@ -83,7 +133,7 @@ contains
         real(dp)           :: mean_div_u, max_div_u, min_div_u
         real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
         real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
-        integer            :: i
+        integer            :: i, VERBOCITY_PRINT
         
         mean_div_w = timestep_info%mean_div_w
         max_div_w  = timestep_info%max_div_w
@@ -100,70 +150,72 @@ contains
         total_vorticity = timestep_info%total_vorticity_pm
         total_enstrophy = timestep_info%total_enstrophy_pm
 
+        VERBOCITY_PRINT = 0
+
         write(dummy_string, *) ""
-        call vpm_print(dummy_string, nocolor, 1)
+        call vpm_print(dummy_string, nocolor, VERBOCITY_PRINT)
 
         write(dummy_string, "(A)") 'Divergence of the Ψ field'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
         
         write(dummy_string, "(A,E11.4,A,E11.4,A,E11.4)") achar(9)//"div(ω)"//achar(9)// &
             achar(9)//" min : ", timestep_info%min_div_w, &
             achar(9)//" max : ", timestep_info%max_div_w, &
             achar(9)//" mean: ", timestep_info%mean_div_w
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
 
         write(dummy_string, "(A)") 'Divergence of the velocity field'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
         write(dummy_string, "(A,E11.4,A,E11.4,A,E11.4)") achar(9)//"div(u)"//achar(9)// &
             achar(9)//" min : ", min_div_u, &
             achar(9)//" max : ", max_div_u, &
             achar(9)//" mean: ", mean_div_u
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
 
         write(dummy_string, "(A)") 'Total Momentum in the domain'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
         write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum x : ', total_momentum_x
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
         write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum y : ', total_momentum_y
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
         write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum z : ', total_momentum_z
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
 
         write(dummy_string, "(A)") 'Total Vorticity in the domain'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
         write(dummy_string, "(A,E11.4)") achar(9)//'sum(Vorticity) : ', total_vorticity 
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
         
         write(dummy_string, "(A)") 'Total Enstrophy in the domain'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY)
 
         write(dummy_string, "(A,E11.4)") achar(9)//'sum(Enstrophy) : ', total_enstrophy
-        call vpm_print(dummy_string, blue, 1)
+        call vpm_print(dummy_string, blue, VERBOCITY)
 
         write (dummy_string, *) ""
-        call vpm_print(dummy_string, nocolor, 1)
+        call vpm_print(dummy_string, nocolor, VERBOCITY)
 
         write (dummy_string, "(A)") 'Residuals of the solution'
-        call vpm_print(dummy_string, yellow, 1)
+        call vpm_print(dummy_string, yellow, VERBOCITY)
         do i = 1, size(solve_info%f_min)
             ! For each equation write the laplacian - RHS_pm
             write (dummy_string, "(A, I3, A)") '   Equation =', i, ":   Δf = RHS"
-            call vpm_print(dummy_string, blue, 1)
+            call vpm_print(dummy_string, blue, VERBOCITY)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Forcing (RHS)'// &
                 achar(9)//'min : ', solve_info%f_min(i), & 
                 achar(9)//'max : ', solve_info%f_max(i), & 
                 achar(9)//'mean: ', solve_info%f_mean(i) 
-            call vpm_print(dummy_string, nocolor, 1)
+            call vpm_print(dummy_string, nocolor, VERBOCITY)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//"Solution"// &
                 achar(9)//'min : ', solve_info%sol_min(i), & 
                 achar(9)//'max : ', solve_info%sol_max(i), & 
                 achar(9)//'mean: ', solve_info%sol_mean(i) 
-            call vpm_print(dummy_string, nocolor, 1)
+            call vpm_print(dummy_string, nocolor, VERBOCITY)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Res:=Δf-RHS'// &
                 achar(9)//'min : ', solve_info%residual_min(i), & 
                 achar(9)//'max : ', solve_info%residual_max(i), & 
                 achar(9)//'mean: ', solve_info%residual_mean(i) 
-            call vpm_print(dummy_string, nocolor, 1)
+            call vpm_print(dummy_string, nocolor, VERBOCITY)
         end do
     end subroutine print_timestep_information
 

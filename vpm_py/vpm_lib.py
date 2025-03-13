@@ -33,11 +33,20 @@ class VPM_Lib:
     def _setup_function_signatures(cls):
         # API.init
         cls._lib_vpm.init.argtypes = [
-            POINTER(c_double), POINTER(c_double), POINTER(c_double), POINTER(c_int),
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
-            POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), 
-            POINTER(c_int), POINTER(c_int)
+            POINTER(c_double), # DXpm
+            POINTER(c_double), # DYpm
+            POINTER(c_double), # DZpm
+            POINTER(c_int),    # NBI
+            POINTER(c_int),    # NBJ
+            POINTER(c_int),    # NBK
+            POINTER(c_int),    # NCOARSE
+            POINTER(c_int),    # PROJECTION_FUNCTION
+            POINTER(c_int),    # BOUNDARY_CONDITION
+            POINTER(c_int),    # CONSTANT PARTICLE VOLUME
+            POINTER(c_int),    # USE TREE
+            POINTER(c_int),    # NUMBER OF LEVELS
+            POINTER(c_int),    # OMP_NUM_THREADS
+            POINTER(c_int),    # IS_DOMAIN_FIXED
         ]
         cls._lib_vpm.init.restype = None
 

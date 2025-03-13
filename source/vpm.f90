@@ -13,12 +13,14 @@ module vpm_lib
     use constants, only: pi, pi2, pi4
     use vpm_types, only: dp
     ! Printing
-    use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
+    use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, &
+                        VERBOCITY, print_stats_rank3, print_stats_rank4 
     use parvar, only: print_particle_info, print_particle_positions, associate_particles
     ! Setting Vars
     use pmgrid, only: print_velocity_stats, print_vortex_stretching_stats, &
                       set_pm_velocities_zero, set_pm_deformations_zero, &
                       associate_velocities, associate_deformations
+    use serial_vector_field_operators, only: divergence, curl, laplacian, gradient
 
     !  WhatToDo flags
     integer, parameter :: DEFINE_PROBLEM = 0,               &
@@ -40,7 +42,6 @@ contains
 
     subroutine read_conf()
         use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
-        use vpm_vars, only: IPMWRITE, IPMWSTART, IPMWSTEPS
         integer     :: i, ncell_rem
         logical     :: pmfile_exists
 
@@ -54,18 +55,11 @@ contains
             read (1, *)
             read (1, *) ncoarse              ! NUMBER OF FINE CELLS PER COARSE CELL per dir
             read (1, *) NBI, NBJ, NBK        !  NBI x NBJ x NBK = NUM OF PROCESSORS (NP)
-            read (1, *) nremesh, ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
+            read (1, *) ncell_rem   ! 0: NO REMESHING, 1: REMESHING, ncell_rem: PARTICLE PER CELL
             read (1, *) iyntree, ilevmax     ! 1: TREE 0: NO TREE, 3: NUMB OF SUBDIVISION (2^3)
             read (1, *) OMPTHREADS           ! 1 - OPENMP THREADS
             read (1, *) idefine              ! 0: FREE GRID, 1: FIXED GRID
-            read (1, *) IPMWRITE             ! SAVING PARAMETER
-            if (IPMWRITE .gt. 10) stop       ! maximum value of writes equal to 10
-            if (IPMWRITE .GT. 0) then
-                do i = 1, IPMWRITE            !max value 10
-                    read (1, *) IPMWSTART(i), IPMWSTEPS(i) ! START AND FREQ OF WRITING
-                end do
-            end if
-            close (1)
+            close(1)
 
             if (my_rank .eq. 0) then
                 print *, 'Inputs read:'
@@ -372,7 +366,7 @@ contains
         RHS_pm_ptr, vel_ptr, deform_ptr &
     )
         use MPI
-        use pmgrid, only: velocity_pm, deform_pm
+        use pmgrid, only: velocity_pm, deform_pm, RHS_pm
         use console_io, only: tab_level, print_timestep_information
         use file_io, only: write_timestep_information_dat
         implicit none
@@ -386,6 +380,9 @@ contains
 
         ! LOCAL VARIABLES
         integer                 :: ierr, my_rank
+
+        real(dp)                :: DXpm, DYpm, DZpm
+        real(dp), allocatable   :: vorticity(:,:,:,:), vorticity2(:,:,:,:), error_vorticity(:,:,:,:)
 
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
@@ -412,6 +409,22 @@ contains
             tab_level = tab_level - 1
             call get_timestep_information(timestep_info)
             call get_solve_info(solve_info)
+            call print_timestep_information(timestep_info, solve_info)
+
+                DXpm = fine_grid%Dpm(1)
+                DYpm = fine_grid%Dpm(2)
+                DZpm = fine_grid%Dpm(3)
+                allocate (vorticity, mold = RHS_pm)
+                vorticity(:,:,:,:) = - RHS_pm(:,:,:,:)
+                ! Calculate the difference between the vorticity and the velocity
+                vorticity2 = curl(velocity_pm, DXpm, DYpm, DZpm) 
+                print *, 'The difference between the vorticity and the velocity curl'
+                allocate (error_vorticity, mold = vorticity)
+
+                error_vorticity(:,:,:,:) = vorticity2(:,:,:,:) - vorticity(:,:,:,:)
+                call print_stats_rank4(fine_grid, vorticity2, 'curl(u)')
+                call print_stats_rank4(fine_grid, vorticity, 'ω')
+                call print_stats_rank4(fine_grid, error_vorticity, 'curl(u) - ω')
 
             if (VERBOCITY .ge. 1) then
                 call print_timestep_information(timestep_info, solve_info)
@@ -552,7 +565,6 @@ contains
     subroutine vpm_solve_pressure(                                            &
        vorticity, velocity, pressure, density, viscocity, dphi_dt, p_reference           &
     )
-        use serial_vector_field_operators, only: divergence, curl, laplacian, gradient
         use vpm_interpolate, only: interpolate_particle_Q
         real(dp), pointer, intent(in)           :: vorticity(:,:,:,:)
         real(dp), pointer, intent(in)           :: velocity(:,:,:,:)
@@ -563,8 +575,17 @@ contains
         ! LOCAL VARIABLES
         real(dp), allocatable             :: SOL2_pm(:,:,:,:), RHS2_pm(:,:,:,:)
         real(dp), allocatable             :: SOL2_pm_bl(:,:,:,:), RHS2_pm_bl(:,:,:,:)
+
+        ! Variation 1
         real(dp), allocatable             :: cross_product(:,:,:,:), div_cross(:,:,:)
         real(dp), allocatable             :: div_stress_tensor(:,:,:,:), div_div_stress_tensor(:,:,:)
+
+        ! Variation 2
+        real(dp), allocatable             :: curl_vorticity(:,:,:,:)
+        real(dp), allocatable             :: curl_w_x_u(:,:,:)
+        real(dp), allocatable             :: omega_squared(:,:,:)
+        real(dp), allocatable             :: vorticity2(:,:,:,:), error_vorticity(:,:,:,:)
+
         ! real(dp), allocatable             :: lapl
         real(dp)                          :: DXpm, DYpm, DZpm
         real(dp)                          :: velocity_squared
@@ -587,7 +608,7 @@ contains
 
         ! Allocate the solution and the RHS
         ND = 3
-        neqpm = 1
+        neqpm = 2
 
         DXpm = fine_grid%Dpm(1)
         DYpm = fine_grid%Dpm(2)
@@ -603,32 +624,72 @@ contains
         RHS2_pm = 0.d0
 
         if (my_rank .eq. 0) then
+            vorticity(:,:,:,:) = - vorticity(:,:,:,:)
+            ! Calculate the difference between the vorticity and the velocity
+            vorticity2 = curl(velocity, DXpm, DYpm, DZpm) 
+
+            print *, 'The difference between the vorticity and the velocity curl'
+            allocate (error_vorticity, mold = vorticity)
+            error_vorticity(:,:,:,:) = vorticity2(:,:,:,:) - vorticity(:,:,:,:)
+            call print_stats_rank4(fine_grid, vorticity2, 'curl(u)')
+            call print_stats_rank4(fine_grid, vorticity, 'ω')
+            call print_stats_rank4(fine_grid, error_vorticity, 'curl(u) - ω')
+
+            ! Variation 1
             allocate (cross_product, mold = vorticity)
             call compute_cross_product(velocity, vorticity, cross_product)
-            div_cross = divergence(cross_product, DXpm, DYpm, DZpm)
+            div_cross = divergence(cross_product, DXpm, DYpm, DZpm) 
 
-            !  Compute the laplacian of the deviatoric stress tensor
-            div_stress_tensor = laplacian(velocity, DXpm, DYpm, DZpm)
-            div_div_stress_tensor = divergence(div_stress_tensor, DXpm, DYpm, DZpm)
-            
             ! Print the min and max values of the divergence of the stress tensor
-            print *, 'The divergence of the stress tensor'
-            print *, achar(9)//'Max divergence of the stress tensor', maxval(div_div_stress_tensor)
-            print *, achar(9)//'Min divergence of the stress tensor', minval(div_div_stress_tensor)
-            print *, achar(9)//'Total divergence of the stress tensor', sum(div_div_stress_tensor)
+            call print_stats_rank3(fine_grid, div_cross, 'div(u x ω)')
 
-            ! Print the min and max values of the divergence of the cross product
-            print *, 'The divergence of the cross product'
-            print *, achar(9)//'Max divergence of the cross product', maxval(div_cross)
-            print *, achar(9)//'Min divergence of the cross product', minval(div_cross)
-            print *, achar(9)//'Total divergence of the cross product', sum(div_cross)
-
+            if (viscocity .lt. 1.d-14) then
+                print *, 'The viscocity is 0, the stress tensor is ignored. Calculating Eulerian pressure'
+                RHS2_pm(1, :, :, :) =  (div_cross(:, :, :)) * density
+            else
+                print *, 'The viscocity is not 0, the stress tensor is considered. Calculating NS pressure'
+                !  Compute the laplacian of the deviatoric stress tensor
+                div_stress_tensor = laplacian(velocity, DXpm, DYpm, DZpm)
+                div_div_stress_tensor = divergence(div_stress_tensor, DXpm, DYpm, DZpm) * viscocity
+                call print_stats_rank3(fine_grid, div_div_stress_tensor, '\nabla \cdot \nabla \cdot \sigma')
+                
+                RHS2_pm(1, :, :, :) = (div_cross(:, :, :) - div_div_stress_tensor(:, :, :)) * density
+            endif
+            call print_stats_rank3(fine_grid, RHS2_pm(1, :, :, :), 'Pressure Poisson RHS = div(u x ω) + div(div(σ))') 
             
-            RHS2_pm(1, :, :, :) =  div_cross(:, :, :) + viscocity * div_div_stress_tensor(:, :, :) 
-        
+            ! Variation 2
+            curl_vorticity = - curl(vorticity, DXpm, DYpm, DZpm)
+            allocate (curl_w_x_u(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+            allocate (omega_squared(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+            ! Compute the dot product of the curl of the vorticity and the velocity
+            do i = 1, fine_grid%NN(1)
+                do j = 1, fine_grid%NN(2)
+                    do k = 1, fine_grid%NN(3)
+                        omega_squared(i, j, k) = sum(vorticity(:, i, j, k)**2)
+                        curl_w_x_u(i, j, k) = dot_product(curl_vorticity(:, i, j, k), velocity(:, i, j, k))
+                    end do
+                end do
+            end do
+            RHS2_pm(2, :, :, :) = (- omega_squared(:,:,:) + curl_w_x_u(:,:,:)) * density
+
+            call print_stats_rank3(fine_grid, - omega_squared(:,:,:), '- ω^2')
+            call print_stats_rank3(fine_grid, curl_w_x_u(:,:,:), 'curl(w) * u')
+
+            call print_stats_rank3(fine_grid, RHS2_pm(2, :, :, :), 'Pressure Poisson RHS = - ω^2 - curl(w) * u')
+
+            print *
+            print *
+            print *
+            print *
+
             deallocate (cross_product)
             deallocate (div_cross)
-        end if
+            ! deallocate (div_stress_tensor)
+            ! deallocate (div_div_stress_tensor)
+            deallocate (curl_vorticity)
+            deallocate (curl_w_x_u)
+            deallocate (omega_squared)
+        endif 
 
         ! Solve the problem
         call solve_problem(RHS2_pm, SOL2_pm, RHS2_pm_bl, SOL2_pm_bl)
@@ -639,6 +700,9 @@ contains
             pressure = 0.d0
             ! THIS IS THE Q PART OF THE PRESSURE
             pressure(1,:,:,:) = SOL2_pm(1,:,:,:)
+            call print_stats_rank3(fine_grid, pressure(1, :, :, :), 'Pressure Q - 1')
+            pressure(1,:,:,:) = SOL2_pm(2,:,:,:)
+            call print_stats_rank3(fine_grid, pressure(1, :, :, :), 'Pressure Q - 2')
             
             ! Calculate the pressure field based on the bernoulli equation
             IF(.NOT. PRESENT(p_reference)) p_reference = 0 
@@ -646,9 +710,7 @@ contains
             do i = 1, fine_grid%NN(1)
                 do j = 1, fine_grid%NN(2)
                     do k = 1, fine_grid%NN(3)
-                        velocity_squared = (velocity(1,i,j,k)**2) + &
-                                           (velocity(2,i,j,k)**2) + &
-                                           (velocity(3,i,j,k)**2) 
+                        velocity_squared = sum(velocity(:,i,j,k)**2)
                         pressure(2,i,j,k) = (density * velocity_squared / 2.d0)
                         pressure(3,i,j,k) = p_reference - pressure(1,i,j,k) - pressure(2,i,j,k) 
                     end do
@@ -657,8 +719,14 @@ contains
 
             if (present(dphi_dt)) then
                 ! Calculate the pressure gradient
-                pressure(2, :, :, :) = pressure(2, :, :, :) - dphi_dt(1, :, :, :) * density
+                pressure(3, :, :, :) = pressure(3, :, :, :) - dphi_dt(1, :, :, :) * density
             end if
+
+            call print_stats_rank3(fine_grid, pressure(2, :, :, :), 'Pressure U')
+            call print_stats_rank3(fine_grid, pressure(3, :, :, :), 'Pressure Bernoulli Solution')
+
+            ! Get the residuals
+            call calculate_momentum_residuals(velocity, vorticity, pressure(3, :, :, :), density, viscocity)
         end if 
 
         if (my_rank .eq. 0) then
@@ -676,6 +744,89 @@ contains
         if (allocated(SOL2_pm_bl)) deallocate (SOL2_pm_bl)
         if (allocated(RHS2_pm_bl)) deallocate (RHS2_pm_bl)
     end subroutine vpm_solve_pressure
+
+    subroutine calculate_momentum_residuals(velocity, vorticity, pressure, density, viscocity)
+        implicit none
+        real(dp), target, intent(in)           :: velocity(:,:,:,:)
+        real(dp), target, intent(in)           :: vorticity(:,:,:,:)
+        real(dp), target, intent(in)           :: pressure(:,:,:)
+        real(dp), intent(in)                   :: density, viscocity
+
+        ! LOCAL VARIABLES
+        real(dp)                :: DXpm, DYpm, DZpm
+        real(dp), allocatable   :: residuals(:,:,:,:)
+        real(dp), allocatable   :: cross_product(:,:,:,:)
+        real(dp), allocatable   :: grad_p(:,:,:,:)
+        real(dp), allocatable   :: div_stress_tensor(:,:,:,:)
+        real(dp), allocatable   :: velocity_squared(:,:,:)
+        real(dp), allocatable   :: grad_velocity_sq(:,:,:, :)
+        integer                 :: i, j, k
+
+        DXpm = fine_grid%Dpm(1)
+        DYpm = fine_grid%Dpm(2)
+        DZpm = fine_grid%Dpm(3)
+
+        ! The momentum equation is given by:
+        !  \frac {\partial u }{\partial t} + \nabla \frac{u^2}{2}- u \times \omega 
+        !                   = \frac{1}{\rho}\nabla \cdot ( -pI + \sigma )
+        ! For the Steady state, the equation becomes:
+        !  \nabla \frac{u^2}{2} - u \times \omega = \frac{1}{\rho}\nabla \cdot ( -pI + \sigma )
+        !  The Residuals are calculated as follows:
+        ! R = \nabla \frac{u^2}{2} - u \times \omega - \frac{1}{\rho}\nabla \cdot ( -pI + \sigma )
+        ! R = \nabla \frac{u^2}{2} - u \times \omega - \frac{1}{\rho} (- grad(P) + nabla^2 u)
+
+        ! 0) Allocate the residuals
+        allocate (residuals(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+
+        ! 1) u \times \omega
+        allocate (cross_product, mold = vorticity)
+        call compute_cross_product(velocity, vorticity, cross_product)
+        cross_product = cross_product * (-1.d0)
+        residuals(:, :, :, :) = cross_product(:,:,:,:)
+        
+        ! Print the min and max values of the cross product
+        call print_stats_rank4(fine_grid, cross_product, 'Cross Product')
+        deallocate (cross_product)
+
+        ! 2) \grad p
+        grad_p = gradient(pressure(:, :, :), DXpm, DYpm, DZpm) * (-1.d0/density)
+        residuals(:, :, :, :) = residuals(:, :, :, :) - grad_p(:,:,:,:)
+
+        ! Print the min and max values of the pressure gradient
+        call print_stats_rank4(fine_grid, grad_p, 'Pressure Gradient')
+        deallocate (grad_p)
+
+        ! 3) \nabla \cdot \sigma = \nabla^2 u
+        if (viscocity .gt. 1.d-14) then
+            div_stress_tensor = laplacian(velocity, DXpm, DYpm, DZpm) * viscocity
+            residuals(:, :, :, :) = residuals(:, :, :, :) - div_stress_tensor(:,:,:,:)
+
+            ! Print the min and max values of the divergence of the stress tensor
+            call print_stats_rank4(fine_grid, div_stress_tensor, 'Divergence of the Stress Tensor')
+        endif
+
+        ! 4) \nabla (u^2/2)
+        allocate (velocity_squared(fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+        do i = 1, fine_grid%NN(1)
+            do j = 1, fine_grid%NN(2)
+                do k = 1, fine_grid%NN(3)
+                    velocity_squared(i, j, k) = sum(velocity(:, i, j, k)**2)
+                end do
+            end do
+        end do
+        grad_velocity_sq = gradient(velocity_squared, DXpm, DYpm, DZpm)
+        deallocate (velocity_squared)
+        residuals(:, :, :, :) = residuals(:, :, :, :) - grad_velocity_sq(:,:,:,:)
+
+        ! Print the min and max values of the gradient of the velocity squared
+        call print_stats_rank4(fine_grid, grad_velocity_sq, 'Gradient of the Velocity Squared')
+        deallocate (grad_velocity_sq)
+
+        ! Print the min and max values of the residuals
+        call print_stats_rank4(fine_grid, residuals, 'Residuals')
+        deallocate (residuals)
+
+    end subroutine calculate_momentum_residuals
 
     subroutine project_calc_div
         use MPI

@@ -1,4 +1,5 @@
 module api
+    use MPI
     use ND_Arrays
     ! use vpm_lib
     ! use vpm_vars
@@ -9,25 +10,21 @@ module api
     integer, parameter :: MAX_STRING_LENGTH = 256
 contains
     subroutine initialize(dx_pm, dy_pm, dz_pm, proj_type, bc_type, vol_type,                        &
-                          num_coarse, num_nbi, num_nbj, num_nbk, remesh_type, tree_type,            &
-                          max_level, omp_threads, grid_define, write_type, write_start,             &    
-                          write_steps                                                               &
+                          num_coarse, num_nbi, num_nbj, num_nbk, tree_type,                         &
+                          max_level, omp_threads, grid_define                                       &
     ) bind(C, name='init')
 
         use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
-        use vpm_vars, only: interf_iproj, IPMWRITE, idefine, IPMWSTART, IPMWSTEPS, OMPTHREADS, &
-                            nremesh, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
+        use vpm_vars, only: interf_iproj, idefine, OMPTHREADS, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
         use parvar, only: set_neq
-        use MPI
 
         ! Declare the parameters to be passed in
         implicit none
         real(c_double), intent(in) :: dx_pm, dy_pm, dz_pm
         integer(c_int), intent(in) :: proj_type, bc_type, vol_type, num_coarse
         integer(c_int), intent(in) :: num_nbi, num_nbj, num_nbk
-        integer(c_int), intent(in) :: remesh_type, tree_type, max_level
-        integer(c_int), intent(in) :: omp_threads, grid_define, write_type
-        integer(c_int), intent(in) :: write_start(10), write_steps(10)
+        integer(c_int), intent(in) :: tree_type, max_level
+        integer(c_int), intent(in) :: omp_threads, grid_define 
 
         integer :: ierr, my_rank, i
 
@@ -48,18 +45,8 @@ contains
         ! VPM_VARS
         interf_iproj = proj_type
         idefine = grid_define
-        IPMWRITE = write_type
-        ! Check the IPMWRITE parameter and process accordingly
-        if (IPMWRITE .GT. 0) then
-            do i = 1, IPMWRITE ! maximum value 10
-                IPMWSTART(i) = write_start(i)
-                IPMWSTEPS(i) = write_steps(i)
-                if (IPMWRITE .gt. 10) stop  ! maximum value of writes equal to 10
-            end do
-        end if
 
         ! VPM_SIZE
-        nremesh = remesh_type
         iyntree = tree_type
         ilevmax = max_level
         ibctyp = bc_type
@@ -301,8 +288,6 @@ contains
         use vpm_size, only: fine_grid
         use vpm_vars, only: neqpm
         use pmgrid, only: RHS_pm
-        use ND_Arrays
-        use MPI
 
         implicit none
         integer(c_int), intent(in) :: iflag, npar_per_cell
@@ -476,7 +461,6 @@ contains
 
 !! GETTERS
     subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')
-        use ND_Arrays
         use parvar, only: XP
         implicit none
         type(ND_Array), intent(out) :: XP_out
@@ -485,7 +469,6 @@ contains
 
     subroutine get_particle_strengths(QP_out) bind(C, name='get_particle_strengths')
         use iso_c_binding
-        use ND_Arrays
         use parvar, only: QP
         implicit none
         type(ND_Array), intent(out) :: QP_out
@@ -494,7 +477,6 @@ contains
 
     subroutine get_particle_deformation(GP_out) bind(C, name='get_particle_deformation')
         use iso_c_binding
-        use ND_Arrays
         use parvar, only: GP
         implicit none
         type(ND_Array), intent(out) :: GP_out
@@ -503,7 +485,6 @@ contains
 
     subroutine get_particle_velocities(UP_out) bind(C, name='get_particle_velocities')
         use iso_c_binding
-        use ND_Arrays
         use parvar, only: UP
         implicit none
         type(ND_Array), intent(out) :: UP_out
