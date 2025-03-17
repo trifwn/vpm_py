@@ -122,7 +122,6 @@ contains
         print *, '------------------------------------------------'
     end subroutine print_stats_rank3
 
-
     !! TIMESTEP INFORMATION !!
     subroutine print_timestep_information(timestep_info, solve_info)
         use vpm_types, only: timestepInformation, solveInformation

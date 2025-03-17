@@ -9,7 +9,6 @@ def oseen_vortex(
     density: float,
     t: float
 ):  
-    print(f"Calculating Oseen vortex with gamma: {gamma}, viscosity: {viscosity}, density: {density}, t: {t}")
     x = control_points[:, :, :, 0]
     y = control_points[:, :, :, 1]
     
@@ -51,7 +50,6 @@ def oseen_assign(
     gamma: float, 
 ):
 
-    print("Getting analytical solution")
     XYZ = vpm.particle_mesh.grid_positions
     X = XYZ[0, :, :, :]
     Y = XYZ[1, :, :, :]
@@ -59,7 +57,6 @@ def oseen_assign(
  
     CP = np.stack([X, Y, Z], axis=-1)
     shape_CP = CP.shape
-    print(f"CP shape: {shape_CP}")
 
     analytical_velocity, analytical_vorticity, analytical_pressure = oseen_vortex(
         control_points= CP, 
@@ -68,9 +65,6 @@ def oseen_assign(
         density= density,
         t= t
     )
-    # PRINT VOLOCITY
-    print(f"Analytical vorticity: {analytical_vorticity.shape}")
-
     # Expand the arrays to the original shape
     analytical_velocity = analytical_velocity.reshape(shape_CP)
     analytical_vorticity = analytical_vorticity.reshape(shape_CP)

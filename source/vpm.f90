@@ -44,6 +44,9 @@ contains
         use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
         integer     :: i, ncell_rem
         logical     :: pmfile_exists
+        integer     :: my_rank, ierr
+
+        call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
 
         inquire (file='pm.input', exist=pmfile_exists)
         if (pmfile_exists) then

@@ -265,7 +265,7 @@ contains
             ! Reverse the sorted_idx array so that we have the highest enstrophy first
             sorted_idx = sorted_idx(NVR:1:-1)
 
-            ! Find the index where we have 99.99% of the enstrophy
+            ! Find the index where we have 99.999% of the enstrophy $ 0.0001
             cumsum_enstrophy = 0
             enstrophy_threshold = (99.999/100.0)*total_enstrophy
             do k = 1, NVR

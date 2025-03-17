@@ -30,7 +30,8 @@ function(setup_vpm_compiler_flags)
         set(LINK_FLAGS "-fopenmp -fPIC")
         
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
-                    -O0 -g -fbacktrace -finit-real=nan 
+                    -O0 -g -fbacktrace 
+                    -finit-real=nan 
                     -finit-integer=nan -fcheck=all 
                     -ffpe-trap=invalid,overflow,underflow
                     -fimplicit-none 

@@ -167,7 +167,11 @@ contains
       call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
       !Yaps or Serial Pmesh
-      IF ((SOLVER .eq. 0) .or. (np .eq. 1)) THEN
+      IF ((SOLVER .eq. 0) ) then!.or. (np .eq. 1)) THEN
+         ! ---------------------------------------------------------
+         ! Serial Pmesh solver
+         ! ---------------------------------------------------------
+
          if (my_rank .eq. 0) then
             st = MPI_WTIME()
             write (dummy_string, "(A)") 'Solving PM with Serial Pmesh (One Processor)'
@@ -175,17 +179,21 @@ contains
          end if
 
          IF (my_rank .eq. 0) then
-            SOL_pm(1:neqpm, :, :, :) = 0.0
-            itree = iyntree
+            SOL_pm(:, :, :, :) = 0.0
+            ! itree = iyntree
             iynbc = 1   !for infinite domain bc
             call pmesh(SOL_pm, RHS_pm, QP, XP, &
                        fine_grid%Xbound, fine_grid%DPm, fine_grid%NN, fine_grid%NN_bl, &
-                       ND, ibctyp, 1, neqpm, iynbc, NVR, itree, ilevmax)
+                       ND, ibctyp, 1, neqpm, iynbc, NVR, iyntree, ilevmax)
             ! call calc_velocity_serial_3d(1)
          end if
          !--------------------------------------------
          ! call velbcast_3d
-      else
+      elseif (SOLVER .eq. 1) then
+         ! ---------------------------------------------------------
+         ! YAPS parallel solver
+         ! ---------------------------------------------------------
+
          if (my_rank .eq. 0) then
             write (dummy_string, "(A)") 'Solving PM with YAPS'
             call vpm_print(dummy_string, blue, 1)
@@ -219,9 +227,250 @@ contains
          my_block_idx = my_rank + 1
          my_block_grid = block_grids(my_block_idx)
          call solget(NBlocks, NBI, NBJ, NBK, my_block_grid, block_grids, fine_grid, SOL_pm, SOL_pm_bl)
+      elseif (SOLVER .eq. 2) then
+         ! ---------------------------------------------------------
+         ! Mudpack serial solver 
+         ! ---------------------------------------------------------
+         if (my_rank .eq. 0) then
+            write (dummy_string, "(A)") 'Solving PM with Mudpack'
+            call vpm_print(dummy_string, blue, 1)
+            st = MPI_WTIME()
+
+            call solve_mudpack
+
+            et = MPI_WTIME()
+            write (dummy_string, "(A,I5,A,F8.2,A)") &
+               'Total time for solving the Particle Mesh', &
+               int((et - st)/60), ' m', mod(et - st, 60.d0), ' s'
+            call vpm_print(dummy_string, blue, 1)
+         end if
       end if
+
       call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
+      contains 
+
+         subroutine solve_mudpack
+            use console_io, only: print_stats_rank3_sp, print_stats_rank4, print_stats_rank3
+            use mudpack
+            implicit none
+            !--------------------------------------------------------------------
+            ! Arguments:
+            !   SOL_pm(3, nx, ny, nz)  : solution array (to be updated)
+            !   RHS_pm(3, nx, ny, nz)  : right-hand side array
+            !--------------------------------------------------------------------
+            
+            ! Get domain dimensions from fine_grid
+            integer :: nx, ny, nz
+            ! Local arrays for solution and RHS for one system
+            real(dp), allocatable   :: phi(:,:,:)
+            real(dp), allocatable   :: rhs(:,:,:)
+            real(dp), allocatable   :: work(:)
+            integer :: llwork
+            ! Parameter arrays for Mudpack
+            real(dp), dimension(8)  :: fprm
+            integer, dimension(22)  :: iprm
+            integer, dimension(4)   :: mgopt
+            ! Local variables
+            integer :: ierror, system
+            integer :: ii, jj, kk
+            integer :: ixp, jyq, kzr, iex, jey, kez
+            integer :: temp, e
+            
+            nx = fine_grid%NN(1)
+            ny = fine_grid%NN(2)
+            nz = fine_grid%NN(3)
+            
+            ! Compute required workspace size (based on tmud3sp.f example)
+            llwork = 3 * (7 * (nx+2) * (ny+2) * (nz+2)) / 2
+            
+            ! Initialize mgopt to zeros
+            mgopt(1) = 2
+            mgopt(2) = 2
+            mgopt(3) = 1
+            mgopt(4) = 3
+            
+            ! Set domain boundaries from fine_grid%Xbound
+            ! Assumed ordering: [xa, xb, yc, yd, ze, zf]
+            fprm(1)   = fine_grid%Xbound(1)
+            fprm(2)   = fine_grid%Xbound(4)
+
+            fprm(3)   = fine_grid%Xbound(2)
+            fprm(4)   = fine_grid%Xbound(5)
+            
+            fprm(5)   = fine_grid%Xbound(3)
+            fprm(6)   = fine_grid%Xbound(6)
+
+            ! Set up fprm parameters
+            fprm(7)   = 1e-8     ! Tolerance
+            fprm(8)   = 0.0      ! Output 
+            
+            ! Set up iprm parameters
+            ! iprm(1) is used to control the call (0: initialization, 1: solve)
+            iprm(2) = 1   ! Lower X boundary: Dirichlet
+            iprm(3) = 1   ! Upper X boundary: Dirichlet
+            iprm(4) = 1   ! Lower Y boundary: Dirichlet
+            iprm(5) = 1   ! Upper Y boundary: Dirichlet
+            iprm(6) = 1   ! Lower Z boundary: Dirichlet
+            iprm(7) = 1   ! Upper Z boundary: Dirichlet
+            
+            ! Set grid factors for a single grid level (trivial multigrid)
+               ! Decompose nx: find odd part (ixp) and exponent+1 (iex)
+               temp = nx - 1
+               e = 0
+               do while (temp /= 0 .and. mod(temp, 2) == 0)
+                  temp = temp / 2
+                  e = e + 1
+               end do
+               ixp = temp
+               iex = e + 1
+
+               ! Decompose ny: find odd part (jyq) and exponent+1 (jey)
+               temp = ny - 1
+               e = 0
+               do while (temp /= 0 .and. mod(temp, 2) == 0)
+                  temp = temp / 2
+                  e = e + 1
+               end do
+               jyq = temp
+               jey = e + 1
+
+               ! Decompose nz: find odd part (kzr) and exponent+1 (kez)
+               temp = nz - 1
+               e = 0
+               do while (temp /= 0 .and. mod(temp, 2) == 0)
+                  temp = temp / 2
+                  e = e + 1
+               end do
+               kzr = temp
+               kez = e + 1
+
+               ! Output the results
+               ! print*, "Decomposition results:"
+               ! print*, "nx = ", nx, " -> ixp = ", ixp, ", iex = ", iex
+               ! print*, "ny = ", ny, " -> jyq = ", jyq, ", jey = ", jey
+               ! print*, "nz = ", nz, " -> kzr = ", kzr, ", kez = ", kez
+
+               ! ! Verification: iprm(14:16) should match nx, ny, nz respectively
+               ! print*, "Verification:"
+               ! print*, "iprm(14) = ixp * 2^(iex-1) + 1 = ", ixp * 2**(iex-1) + 1
+               ! print*, "iprm(15) = jyq * 2^(jey-1) + 1 = ", jyq * 2**(jey-1) + 1
+               ! print*, "iprm(16) = kzr * 2^(kez-1) + 1 = ", kzr * 2**(kez-1) + 1
+
+            iprm(8)  = ixp
+            iprm(9)  = jyq
+            iprm(10) = kzr
+            iprm(11) = iex
+            iprm(12) = jey
+            iprm(13) = kez
+            iprm(14) = ixp*(2**(iex-1)) + 1
+            iprm(15) = jyq*(2**(jey-1)) + 1 
+            iprm(16) = kzr*(2**(kez-1)) + 1
+            iprm(17) = 1      ! Use the initial guess (phi initially zero)
+            iprm(18) = 1000   ! Maximum number of iterations/cycles
+            iprm(19) = 0      ! Relaxation method (e.g., Gauss-Seidel)
+            iprm(20) = llwork ! Length of the work array
+            iprm(21) = 0      ! (Output: minimum required workspace; set by mud3sp)
+            iprm(22) = 0      ! (Output: iteration count; set by mud3sp)
+                        
+            ! Allocate workspace and local solution arrays
+            allocate(phi(nx, ny, nz))
+            allocate(rhs(nx, ny, nz))
+            allocate(work(llwork))
+            
+            do system = 1, neqpm
+
+               do kk = 1, nz
+                  do ii = 1, nx
+                     do jj = 1, ny
+                        rhs(ii, jj, kk) = RHS_pm(system, ii, jj, kk)
+                        phi(ii, jj, kk) = 0.0_dp
+                     end do
+                  end do
+               end do
+
+               
+               !----------------------------------------------------------------
+               ! First call: initialization/discretization step
+
+               iprm(1) = 0
+               call mud3sp(iprm, fprm, work, cfx, cfy, cfz, bndc, rhs, phi, mgopt, ierror)
+               if (ierror /= 0) then
+                  write(*,*) 'Error during mud3sp initialization for system ', system, &
+                             ' ierror = ', ierror
+               endif
+               
+               !----------------------------------------------------------------
+               ! Second call: iterative solve
+               iprm(1) = 1
+               call mud3sp(iprm, fprm, work, cfx, cfy, cfz, bndc, rhs, phi, mgopt, ierror)
+               if (ierror /= 0) then
+                  write(*,*) 'Error during mud3sp solve for system ', system, ' ierror = ', ierror
+               endif
+
+               ! Store the computed solution back to SOL_pm
+               do kk = 1, nz
+                  do jj = 1, ny
+                     do ii = 1, nx
+                        SOL_pm(system, ii, jj, kk) = phi(ii, jj, kk)
+                     end do
+                  end do
+               end do
+
+               ! call print_stats_rank3_sp(fine_grid, phi, 'Solution for system ')
+               print * ,''
+            end do
+            deallocate(work, phi, rhs)
+
+            call print_stats_rank3(fine_grid, RHS_pm, 'RHS for system')
+            call print_stats_rank4(fine_grid, SOL_pm, 'Solution for system')
+            call MPI_Barrier(MPI_COMM_WORLD, ierr)
+         end subroutine solve_mudpack
+
+         !------------------------------------------------------------------
+         ! Subroutine cfx(x,cxx,cx,cex) which provides the
+         !     known real coefficients of the x derivative terms for the pde
+         !     at any grid point x.  the name chosen in the calling routine
+         !     may be different where the coefficient routine must be declared
+         !     external.
+         subroutine cfx(x, cxx, cx, cex)
+            real(dp), intent(in) :: x
+            real(dp), intent(out) :: cxx, cx, cex
+            ! For the laplacian operator, the coefficients are constant
+            cxx = 1.0
+            cx = 0.0
+            cex = 0.0
+         end subroutine cfx
+
+         subroutine cfy(y, cyy, cy, cey)
+            real(dp), intent(in) :: y
+            real(dp), intent(out) :: cyy, cy, cey
+            ! For the laplacian operator, the coefficients are constant
+            cyy = 1.0
+            cy = 0.0
+            cey = 0.0
+         end subroutine cfy
+
+         subroutine cfz(z, czz, cz, cez)
+            real(dp), intent(in) :: z
+            real(dp), intent(out) :: czz, cz, cez
+            ! For the laplacian operator, the coefficients are constant
+            czz = 1.0
+            cz = 0.0
+            cez = 0.0
+         end subroutine cfz
+
+         subroutine bndc(kbdy, xory, yorz, alfa, phi_val)
+            ! Subroutine bndyc(kbdy,xory,yorz,alfa,gbdy).
+            !       which are used to input mixed boundary conditions to mud3sp.
+            !       the boundaries are numbered one thru six and the form of
+            !       conditions are described below.
+            !                                          
+            integer, intent(in) :: kbdy, xory, yorz, alfa
+            real, intent(inout) :: phi_val
+            ! For Dirichlet boundary conditions with fixed value 0, nothing is required.
+            phi_val = 0.0_dp
+         end subroutine bndc
    end subroutine pmesh_solve
 
    subroutine convect_first_order(DT_convection)

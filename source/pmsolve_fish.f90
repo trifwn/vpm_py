@@ -131,12 +131,13 @@ contains
    module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
       use fishpack
       implicit none
-      integer, intent(in)            :: NXs, NXf, NYs, NYf, neq
-      Integer                       :: i, j, INFO, NX, NY
-      integer                       :: NN
-      double precision              :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
-      double precision, allocatable  :: SOL_pm2(:, :)
-      double precision, allocatable  :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
+      Integer               :: i, j, INFO, NX, NY
+      integer               :: NN
+      real(dp)              :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
+      real(dp), allocatable :: SOL_pm2(:, :)
+      real(dp), allocatable :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      real(dp)              :: lambda
 
       !--> Assignment of Boundary Values
       XminCalc = XMIN_pm + (NXs - 1)*DXpm
@@ -170,9 +171,10 @@ contains
       end do
 
       !--SOLVE PHI ON PMESH
+      lambda = 0.d0
       call hwscrt(XminCalc, XmaxCalc, NX - 1, 1, bd_ax, bd_bx, & ! Xmin,Xmax, Number of panels, Type of BC, BC at Xmin, BC at Xmax
                   YminCalc, YmaxCalc, NY - 1, 1, bd_ay, bd_by, & ! Same for Y
-                  0.d0, & ! The constant LAMBDA in the Helmholtz equation.
+                  lambda, & ! The constant LAMBDA in the Helmholtz equation.
                   SOL_pm2, & ! The right-hand side of the Helmholtz equation. F(I,J) = F(X(I),Y(J)).
                   NX, & ! The row (or first) dimension of the array F
                   pertrb, & ! PERTRB is a constant, calculated and subtracted from F, which ensures that a solution exists.
@@ -191,9 +193,10 @@ contains
       integer, intent(in)           :: NXs, NXf, NYs, NYf, neq
       Integer                       :: INFO, NX, NY
       integer                       :: NN
-      double precision              :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
-      double precision, allocatable :: SOL_pm2(:, :)
-      double precision, allocatable :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      real(dp)                      :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, pertrb
+      real(dp), allocatable         :: SOL_pm2(:, :)
+      real(dp), allocatable         :: bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:)
+      real(dp)                      :: lambda
 
       !--> Assignment of Boundary Values
       XminCalc = XMIN_pm + (NXs - 1)*DXpm
@@ -219,6 +222,7 @@ contains
       allocate (bd_ay(NN), bd_by(NN))
       bd_ay = 0.d0; bd_by = 0.d0! SOL_pm(i + NXs-1,NYf ,nb,neq)
 
+      lambda = 0.d0
       ! Boundary conditions types:
       !    = 0  If the solution is periodic in X, i.e., U(I,J) = U(M+I,J).
       !    = 1  If the solution is specified at X = A and X = B.
@@ -230,7 +234,7 @@ contains
       !         specified at X = A and the solution is specified at X = B.
       call hwscrt(XminCalc, XmaxCalc, NX - 1, 1, bd_ax, bd_bx, & ! Xmin,Xmax, Number of panels, Type of BC, BC at Xmin, BC at Xmax
                   YminCalc, YmaxCalc, NY - 1, 1, bd_ay, bd_by, & ! Same for Y
-                  0.d0, & ! The constant LAMBDA in the Helmholtz equation.
+                  lambda, & ! The constant LAMBDA in the Helmholtz equation.
                   SOL_pm2, & ! The right-hand side of the Helmholtz equation. F(I,J) = F(X(I),Y(J)).
                   NX, & ! The row (or first) dimension of the array F
                   pertrb, & ! PERTRB is a constant, calculated and subtracted from F, which ensures that a solution exists.

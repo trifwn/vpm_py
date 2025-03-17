@@ -1612,17 +1612,17 @@ contains
 
         implicit none
 
-        real(8), intent(in)  :: XCORN(3, 4)
+        real(dp), intent(in)  :: XCORN(3, 4)
 
         integer, intent(in)  :: IYNCP
 
-        real(8), intent(out) :: SK(4), TK(4), R(3), EX(3), EY(3), EZ(3), &
+        real(dp), intent(out) :: SK(4), TK(4), R(3), EX(3), EY(3), EZ(3), &
                                 DIAG, AREA, XCP(3), &
                                 D(4), CBA(4), SBA(4)
 
         integer, intent(out)::NCORN, IERR
 
-        real(8) :: XM(3), RR(4), RX(4), RY(4), DD(4), A(4), XCORN1(3, 4), &
+        real(dp) :: XM(3), RR(4), RX(4), RY(4), DD(4), A(4), XCORN1(3, 4), &
                    DEX, DEY, DN, DE1, SO, TO, &
                    SCP, TCP, U, V, Ux, Uy, Vx, Vy, EPS, DET, &
                    DETS, DETT, DSCP, DTCP, TINY, TINYs

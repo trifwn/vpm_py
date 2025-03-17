@@ -12,9 +12,9 @@ function(define_vpm_targets)
 
     set(PM_LIB_FILES_FISHPACK
         ${SRC_VPM}/pmlib.f90
+        ${SRC_VPM}/pmsolve_fish.f90
         ${SRC_VPM}/pmbound.f90
         ${SRC_VPM}/pinfdomain.f90
-        ${SRC_VPM}/pmsolve_fish.f90
     )
 
     set(YAPSLIB_FILES
@@ -148,8 +148,17 @@ function(define_vpm_targets)
     add_library(vpm_mpi OBJECT ${SRC_VPM}/vpm_mpi.f90)
     target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars pmgrid)
 
+    add_library(mudpack OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/source/mudpack/mudpack.f)
+    #  Add compiler flags for the mudpack library
+    set_compiler_flags(mudpack)
+    # Add extra flags for the mudpack library
+    target_compile_options(mudpack PRIVATE 
+        -fdefault-real-8
+    )
+
     add_library(vpm_functions OBJECT ${SRC_VPM}/vpm_functions.f90)
-    target_link_libraries(vpm_functions PRIVATE 
+    target_link_libraries(vpm_functions PRIVATE
+        mudpack 
         types constants console_io 
         vpm_vars vpm_size vpm_mpi vpm_interpolate  
         pmgrid pmproject parvar pmlib yaps operators_serial 
@@ -169,6 +178,7 @@ function(define_vpm_targets)
         vpm_mpi vpm_remesh vpm_functions
         mpi_matrices parvar pmgrid yaps pmlib pmproject 
     PRIVATE
+        mudpack
         $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
@@ -220,6 +230,7 @@ function(define_vpm_targets)
             console_io file_io types constants 
             mpi_matrices operators_serial 
         PRIVATE 
+            mudpack
             $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
             $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
             $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
@@ -236,6 +247,7 @@ function(define_vpm_targets)
     add_executable(vpm_exe ${TEST_EXE_SRC})
     target_link_libraries(vpm_exe PRIVATE 
         vpm
+        mudpack
         h5fortran::h5fortran
     )
     target_link_options(vpm_exe PRIVATE 
@@ -247,8 +259,8 @@ function(define_vpm_targets)
     #                                           Operator Test Executable
     # -------------------------------------------------------------------------------------------------
 
-    # add_executable(test_operators ${SRC_TEST}/test_operators.f90)
-    # target_link_libraries(test_operators PUBLIC operators_serial data_com)
+    add_executable(test_operators ${SRC_TEST}/test_operators.f90)
+    target_link_libraries(test_operators PUBLIC operators_serial data_com)
 
     # -------------------------------------------------------------------------------------------------
     #                                          Compiler Flags
@@ -282,5 +294,5 @@ function(define_vpm_targets)
     set_compiler_flags(vpm)
     set_compiler_flags(vpm_py_api)
     set_compiler_flags(vpm_exe)
-    # set_compiler_flags(test_operators)
+    set_compiler_flags(test_operators)
 endfunction()

@@ -38,7 +38,7 @@ class VPM(object):
         self.num_processors = number_of_processors
         
         # Divide processors into NBI, NBJ, NBK so that NBI * NBJ * NBK = number of processors
-        NBI, NBJ, NBK = divide_processors(number_of_processors)
+        NBK, NBJ, NBI = divide_processors(number_of_processors)
         if self.rank == 0:
             print(f"Number of processors: {self.num_processors}")
             print(f"NBI: {NBI}, NBJ: {NBJ}, NBK: {NBK}")

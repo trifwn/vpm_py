@@ -135,9 +135,9 @@ contains
             df(2) = (f(4) - 2*f(3) + f(2))/(dx**2)
 
             ! Fourth-order accurate central difference for the interior points
-            df(3:n-2) = (-f(1:n-4) + 16*f(2:n-3) - 30*f(3:n-2) + 16*f(4:n-1) - f(5:n)) / (12*dx**2)
+            ! df(3:n-2) = (-f(1:n-4) + 16*f(2:n-3) - 30*f(3:n-2) + 16*f(4:n-1) - f(5:n)) / (12*dx**2)
             ! Second-order accurate central difference for the interior points
-            ! df(2:n - 1) = (f(3:n) - 2*f(2:n - 1) + f(1:n - 2))/(dx**2)
+            df(2:n - 1) = (f(3:n) - 2*f(2:n - 1) + f(1:n - 2))/(dx**2)
 
             ! Second-order accurate central difference for the last two points
             df(n - 1) = (f(n) - 2*f(n - 1) + f(n - 2))/(dx**2)
@@ -157,7 +157,7 @@ contains
         ny = size(f, 2)
         allocate (df(nx, ny))
 
-        !$omp parallel do collapse(2)
+        !$omp parallel do 
         select case (dim)
         case (1)  ! x-derivative
             do j = 1, ny
@@ -184,7 +184,7 @@ contains
 
         allocate (df(nx, ny, nz))
 
-        !$omp parallel do collapse(3)
+        !$omp parallel do collapse(2)
         select case (dim)
         case (1)  ! x-derivative
             do k = 1, nz

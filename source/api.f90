@@ -56,9 +56,7 @@ contains
 
         ! OPENMPTH
         OMPTHREADS = omp_threads
-
         call set_neq(3)
-
     end subroutine initialize
 
     subroutine finalize() bind(C, name='finalize')
