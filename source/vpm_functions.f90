@@ -251,7 +251,7 @@ contains
       contains 
 
          subroutine solve_mudpack
-            use console_io, only: print_stats_rank3_sp, print_stats_rank4, print_stats_rank3
+            use console_io, only: print_stats_rank4, print_stats_rank3
             use mudpack
             implicit none
             !--------------------------------------------------------------------

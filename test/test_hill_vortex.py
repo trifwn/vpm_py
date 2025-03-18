@@ -30,7 +30,7 @@ def main(
     if BASE_CASE:
         CASE_FOLDER = BASE_CASE
     else:
-        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/hill_vortex"
+        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/test/"
 
     CASE_FOLDER += "hill_vortex"
     if REYNOLDS_NUMBER == np.inf:

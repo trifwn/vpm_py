@@ -536,7 +536,6 @@ contains
 
             deallocate (div_wmega)
             deallocate (grad_pi_fd_nodes)
-            ! call interpolate_particle_Q(vorticity, XP, QP, NVR, 4, NVR_size)
         end if
         
         neqpm = 3
@@ -959,7 +958,7 @@ contains
         type(solveInformation), intent(inout) :: solve_information
         real(dp), allocatable                 :: laplace_LHS_pm(:,:,:,:)
         real(dp)                              :: sumV
-        integer                               :: i
+        integer                               :: i, nx, ny, nz
 
         laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
         sumV = (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
@@ -988,6 +987,9 @@ contains
         allocate (solve_information%residual_max(neqpm))
         allocate (solve_information%residual_mean(neqpm))
         
+        nx = fine_grid%NN(1)
+        ny = fine_grid%NN(2)
+        nz = fine_grid%NN(3)
         do i = 1,neqpm
             solve_information%f_min(i)    = minval(RHS_pm(i, :, :, :))
             solve_information%f_max(i)    = maxval(RHS_pm(i, :, :, :))
@@ -997,9 +999,13 @@ contains
             solve_information%sol_max(i)  = maxval(SOL_pm(i, :, :, :))
             solve_information%sol_mean(i) = sum(SOL_pm(i, :, :, :))/(sumV)
 
-            solve_information%residual_min(i)  = minval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
-            solve_information%residual_max(i)  = maxval(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))
-            solve_information%residual_mean(i) = sum(abs(laplace_LHS_pm(i, :, :, :) - RHS_pm(i, :, :, :)))/(sumV)
+            solve_information%residual_min(i)  = minval(abs(laplace_LHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1)  &
+                                                                  - RHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1)))
+            solve_information%residual_max(i)  = maxval(abs(laplace_LHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1)  &
+                                                                  - RHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1)))
+            solve_information%residual_mean(i) =    sum(abs(laplace_LHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1)  &
+                                                                  - RHS_pm(i, 2:nx-1, 2:ny-1, 2:nz-1))) &
+                                                /(sumV)
         enddo
         deallocate (laplace_LHS_pm)
     end subroutine get_solve_info

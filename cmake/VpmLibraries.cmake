@@ -70,6 +70,17 @@ function(define_vpm_targets)
         ${SRC_VPM}/pmproject.f90
     )
     # -------------------------------------------------------------------------------------------------
+    #                                            Mudpack Library
+    # -------------------------------------------------------------------------------------------------
+    add_library(mudpack OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/source/mudpack/mudpack.f)
+    #  Add compiler flags for the mudpack library
+    set_compiler_flags(mudpack)
+    # Add extra flags for the mudpack library
+    target_compile_options(mudpack PRIVATE 
+        -fdefault-real-8
+    )
+
+    # -------------------------------------------------------------------------------------------------
     #                                            Arrays Library
     # -------------------------------------------------------------------------------------------------
     add_library(arrays SHARED ${SRC_VPM}/arrays.f90)
@@ -147,14 +158,6 @@ function(define_vpm_targets)
 
     add_library(vpm_mpi OBJECT ${SRC_VPM}/vpm_mpi.f90)
     target_link_libraries(vpm_mpi PRIVATE types console_io vpm_size vpm_vars pmgrid)
-
-    add_library(mudpack OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/source/mudpack/mudpack.f)
-    #  Add compiler flags for the mudpack library
-    set_compiler_flags(mudpack)
-    # Add extra flags for the mudpack library
-    target_compile_options(mudpack PRIVATE 
-        -fdefault-real-8
-    )
 
     add_library(vpm_functions OBJECT ${SRC_VPM}/vpm_functions.f90)
     target_link_libraries(vpm_functions PRIVATE

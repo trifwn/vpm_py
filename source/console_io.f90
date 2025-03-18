@@ -77,48 +77,53 @@ contains
     subroutine print_stats_rank4(grid, field, field_name)
         implicit none
         type(cartesian_grid), intent(in) :: grid
-        real(dp) :: field(3, grid%NN(1), grid%NN(2), grid%NN(3))
-        character(len=*), intent(in)  :: field_name
-        real(dp)                      :: min_val(3), max_val(3), mean_val(3)
-        integer                       :: i, N
+        real(dp), target, intent(in)     :: field(3, grid%NN(1), grid%NN(2), grid%NN(3))
+        character(len=*), intent(in)     :: field_name
+        real(dp)                         :: min_val(3), max_val(3), mean_val(3), std_val(3)
+        integer                          :: i, N, nx, ny, nz
 
         N = grid%NN(1)*grid%NN(2)*grid%NN(3)
+        nx = grid%NN(1)
+        ny = grid%NN(2)
+        nz = grid%NN(3)
         ! Calculate the min, max and mean values for each component
         do i = 1, 3
-            min_val(i) = minval(field(i, :, :, :))
-            max_val(i) = maxval(field(i, :, :, :))
-            mean_val(i) = sum(field(i, :, :, :)) / N
+            min_val(i) = minval(   field(i, 3:nx-2, 3:ny-2, 3:nz-2))
+            max_val(i) = maxval(   field(i, 3:nx-2, 3:ny-2, 3:nz-2))
+            mean_val(i) = sum(     field(i, 3:nx-2, 3:ny-2, 3:nz-2)) / N
+            std_val(i) = sqrt(sum((field(i, 3:nx-2, 3:ny-2, 3:nz-2) - mean_val(i))**2) / N)
         end do
 
         print *, achar(27)//'[1;33m'//field_name//achar(27)//'[0m'
         print *, '------------------------------------------------'
-        print *, 'Component  |   Min Value   |   Max Value   |   Mean Value'
+        print *, 'Component  |   Min Value   |   Max Value   |   Mean Value  |   Std Dev'
         print *, '------------------------------------------------'
-        print '(A10,3F15.8)', 'X', min_val(1), max_val(1), mean_val(1)
-        print '(A10,3F15.8)', 'Y', min_val(2), max_val(2), mean_val(2)
-        print '(A10,3F15.8)', 'Z', min_val(3), max_val(3), mean_val(3)
+        print '(A10,4F15.8)', 'X', min_val(1), max_val(1), mean_val(1), std_val(1)
+        print '(A10,4F15.8)', 'Y', min_val(2), max_val(2), mean_val(2), std_val(2)
+        print '(A10,4F15.8)', 'Z', min_val(3), max_val(3), mean_val(3), std_val(3)
         print *, '------------------------------------------------'
     end subroutine print_stats_rank4 
 
     subroutine print_stats_rank3(grid, field, field_name)
         implicit none
         type(cartesian_grid), intent(in) :: grid
-        real(dp), intent(in), target :: field(grid%NN(1), grid%NN(2), grid%NN(3))
-        character(len=*), intent(in)  :: field_name
-        real(dp)                      :: min_val, max_val, mean_val 
-        integer                       :: N
+        real(dp), target, intent(in)     :: field(grid%NN(1), grid%NN(2), grid%NN(3))
+        character(len=*), intent(in)     :: field_name
+        real(dp)                         :: min_val, max_val, mean_val, std_val 
+        integer                          :: N
         ! Calculate the min, max and mean values for each component
         N = grid%NN(1)*grid%NN(2)*grid%NN(3)
 
         min_val = minval(field)
         max_val = maxval(field)
         mean_val = sum(field)/ N
+        std_val = sqrt(sum((field - mean_val)**2)/N)
 
         print *, achar(27)//'[1;33m'//field_name//achar(27)//'[0m' 
         print *, '------------------------------------------------'
-        print *, 'Min Value   |   Max Value   |   Mean Value'
+        print *, 'Min Value   |   Max Value   |   Mean Value   |   Std Dev'
         print *, '------------------------------------------------'
-        print '(3E15.6)', min_val, max_val, mean_val
+        print '(4E15.6)', min_val, max_val, mean_val, std_val
         print *, '------------------------------------------------'
     end subroutine print_stats_rank3
 

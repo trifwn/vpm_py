@@ -392,7 +392,7 @@ contains
         real(dp), intent(in), target :: f(:, :, :, :)
         real(dp), intent(in) :: dx, dy, dz
         real(dp), allocatable :: result_curl(:, :, :, :)
-        real(dp), allocatable, target      :: Jtmp1(:, :, :), Jtmp2(:, :, :)
+        real(dp), allocatable, target      :: J1(:, :, :), J2(:, :, :)
         integer :: nx, ny, nz
 
         nx = size(f, 2)
@@ -415,17 +415,17 @@ contains
         ! The curl of a vector field is given by:
         ! curl(F) = (dF3/dy - dF2/dz, dF1/dz - dF3/dx, dF2/dx - dF1/dy)
         !         = (J32 - J23      , J13 - J31      , J21 - J12      )
-        Jtmp1 = calculate_derivative(f(3, :, :, :), dx, dy, dz, 2, 1) ! dF3/dy = J32
-        Jtmp2 = calculate_derivative(f(2, :, :, :), dx, dy, dz, 3, 1) ! dF2/dz = J23
-        result_curl(1, :, :, :) = Jtmp1 - Jtmp2                       ! dF3/dy - dF2/dz = J32 - J23
-        Jtmp1 = calculate_derivative(f(1, :, :, :), dx, dy, dz, 3, 1) ! dF1/dz = J13
-        Jtmp2 = calculate_derivative(f(3, :, :, :), dx, dy, dz, 1, 1) ! dF3/dx = J31
-        result_curl(2, :, :, :) = Jtmp1 - Jtmp2                       ! dF1/dz - dF3/dx = J13 - J31
-        Jtmp1 = calculate_derivative(f(2, :, :, :), dx, dy, dz, 1, 1) ! dF2/dx = J21
-        Jtmp2 = calculate_derivative(f(1, :, :, :), dx, dy, dz, 2, 1) ! dF1/dy = J12
-        result_curl(3, :, :, :) = Jtmp1 - Jtmp2                       ! dF2/dx - dF1/dy = J21 - J12
+        J1 = calculate_derivative(f(3, :, :, :), dx, dy, dz, 2, 1) ! dF3/dy = J32
+        J2 = calculate_derivative(f(2, :, :, :), dx, dy, dz, 3, 1) ! dF2/dz = J23
+        result_curl(1, :, :, :) = J1 - J2                          ! dF3/dy - dF2/dz = J32 - J23
+        J1 = calculate_derivative(f(1, :, :, :), dx, dy, dz, 3, 1) ! dF1/dz = J13
+        J2 = calculate_derivative(f(3, :, :, :), dx, dy, dz, 1, 1) ! dF3/dx = J31
+        result_curl(2, :, :, :) = J1 - J2                          ! dF1/dz - dF3/dx = J13 - J31
+        J1 = calculate_derivative(f(2, :, :, :), dx, dy, dz, 1, 1) ! dF2/dx = J21
+        J2 = calculate_derivative(f(1, :, :, :), dx, dy, dz, 2, 1) ! dF1/dy = J12
+        result_curl(3, :, :, :) = J1 - J2                          ! dF2/dx - dF1/dy = J21 - J12
 
-        deallocate (Jtmp1, Jtmp2)
+        deallocate (J1, J2)
     end function curl
 
     function gradient(f, dx, dy, dz) result(result_grad)
