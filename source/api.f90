@@ -26,7 +26,7 @@ contains
         integer(c_int), intent(in) :: tree_type, max_level
         integer(c_int), intent(in) :: omp_threads, grid_define 
 
-        integer :: ierr, my_rank, i
+        integer :: ierr, my_rank
 
         ! Get the rank of the process
         call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
@@ -436,26 +436,6 @@ contains
             call write_pm_solution_hdf5(NTIME_pm, fine_grid%NN, fine_grid%NN_bl, neqpm, RHS_pm, SOL_pm, velocity_pm)
         end if
     end subroutine write_particle_mesh_solution_hdf5
-
-    subroutine write_pressure_field_hdf5(folder, filename, pressure) bind(C, name='write_pressure_hdf5')
-        use file_io, only: write_field_hdf5, case_folder, field_output_file
-        use vpm_size, only: fine_grid
-        implicit none
-        character(len=MAX_STRING_LENGTH) :: field_name
-        type(ND_Array), intent(in) :: pressure
-        character(kind=c_char), intent(in), optional :: folder(*), filename(*)
-        real(dp), pointer :: pressure_ptr(:,:,:,:)
-
-        if (present(folder)) then
-            call set_string_f_c(case_folder, folder)
-        end if
-        if (present(filename)) then
-            call set_string_f_c(field_output_file, filename)
-        end if
-        call convert_to_4D_array(pressure, pressure_ptr)
-        field_name = 'pressure'
-        call write_field_hdf5(2, fine_grid, pressure_ptr, field_name)
-    end subroutine write_pressure_field_hdf5 
 
 !! GETTERS
     subroutine get_particle_positions(XP_out) bind(C, name='get_particle_positions')

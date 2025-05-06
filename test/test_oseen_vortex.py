@@ -1,14 +1,16 @@
 import numpy as np
 from mpi4py import MPI
-from test_problems.hill_vortex import hill_assign
+from test_problems.oseen_vortex import oseen_assign
 
 from vpm_py import VPM
 from vpm_py.console_io import (print_blue, print_green, print_IMPORTANT,
                                print_red)
 from vpm_py.visualization import StandardVisualizer
 
+rank = MPI.COMM_WORLD.Get_rank()
+
 def main(
-    REYNOLDS_NUMBER: float,
+    GAMMA: float,
     REMESH_FREQUENCY: int = 40,
     apply_vorticity_correction: bool = False,
     INITIALIZE_CASE: bool = True,
@@ -20,10 +22,11 @@ def main(
     SPHERE_RADIUS = 2.0
     # Reynolds number = U * L / nu , where U is the velocity, L is the radius of the sphere and nu is the kinematic viscosity
     # nu = U * L / REYNOLDS_NUMBER
-    VISCOSITY = float(np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER)
-    DENSITY = 1 #1.225
+    VISCOSITY = 1e-3 
+    DENSITY = 1000.0
+    gamma = 1.
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    dpm = np.array([0.1, 0.1, 0.1])
+    dpm = np.array([0.02, 0.02, 0.02])
     CFL_LIMITS = [0.3 , 0.9]
     CFL_TARGET = 0.5
 
@@ -31,13 +34,9 @@ def main(
     if BASE_CASE:
         CASE_FOLDER = BASE_CASE
     else:
-        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/test/"
+        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/"
 
-    CASE_FOLDER += "hill_vortex"
-    if REYNOLDS_NUMBER == np.inf:
-        CASE_FOLDER += "_Re=inf"
-    else:
-        CASE_FOLDER += f"_Re={REYNOLDS_NUMBER}"
+    CASE_FOLDER += f"oseen_vortex_Gamma={GAMMA}"
 
     if apply_vorticity_correction:
         CASE_FOLDER += "_correct"
@@ -84,7 +83,7 @@ def main(
         )
         vpm.attach_visualizer(plotter)
         vpm.setup_animation_writer(
-            filename=f'{CASE_FOLDER}hill_vortex_pressure.mp4',
+            filename=f'{CASE_FOLDER}oseen_vortex_pressure.mp4',
             fps=10,
         )
         pass
@@ -92,13 +91,14 @@ def main(
     neq = 3 
     if INITIALIZE_CASE:
         # Initialize the particles
-        XPR_zero, QPR_zero, NVR = initialize_hill_vortex(
+        (
+            XPR_zero, QPR_zero, NVR, velocity_oseen, vorticity_oseen, pressure_oseen
+        ) = initialize_oseen_vortex(
             vpm= vpm,
-            neq= neq,
-            SPHERE_RADIUS= SPHERE_RADIUS,
-            UINF= UINF,
-            comm= comm,
-            rank= rank,
+            gamma= gamma,
+            viscosity= VISCOSITY,
+            density= DENSITY,
+            t=0.001
         )
         print_IMPORTANT(f"Initalized {NVR} particles", rank)
         start_iter = 0
@@ -128,7 +128,7 @@ def main(
     # PRINT THE RANK OF THE PROCESS AND DETERMINE HOW MANY PROCESSES ARE RUNNING
     print_blue(f"Number of processes: {np_procs}", rank)
     # Print Problem parameters
-    print_red(f"Reynolds number: {REYNOLDS_NUMBER}", rank)
+    print_red(f"Γ: {GAMMA}", rank)
     print_red(f"Viscosity: {VISCOSITY}", rank)
     print_red(f"Sphere radius: {SPHERE_RADIUS}", rank)
     print_red(f"UINF: {UINF}", rank)
@@ -157,7 +157,7 @@ def main(
             particle_charges      =  QPR,
         )
 
-        vpm.vpm_solve_pressure(density=DENSITY)
+        vpm.vpm_solve_pressure(density= DENSITY, viscosity= VISCOSITY)
 
         if rank == 0:
             print_IMPORTANT("INFO", rank)
@@ -187,7 +187,7 @@ def main(
                     print(f"  Mean: {np.mean(p):.6e} Max:  {np.max(p):.6e} Min:  {np.min(p):.6e}")
                     print()
 
-            # _ = stability_check(DT, VISCOSITY, U_PM, vpm.dpm, CFL_LIMITS, CFL_TARGET)
+            DT = stability_check(DT, VISCOSITY, U_PM, vpm.dpm, CFL_LIMITS, CFL_TARGET)
 
             print_IMPORTANT("Convecting Particles", rank)
             st = MPI.Wtime()
@@ -206,7 +206,7 @@ def main(
                 remesh_str = '| No remeshing'
             correct_str = '| correction = True' if apply_vorticity_correction else ''
             vpm.update_plot(
-                f"Reynolds {REYNOLDS_NUMBER} |  Time: {T + DT:.2f}s | Iteration: {i} {remesh_str} {correct_str}",
+                f"Γ {GAMMA} |  Time: {T + DT:.2f}s | Iteration: {i} {remesh_str} {correct_str}",
                 dt = DT
             )
             
@@ -261,16 +261,15 @@ def main(
                     num_particles=NVR,
                 )
         T += DT
-        if REYNOLDS_NUMBER != np.inf:
-            print_IMPORTANT("Applying Diffusion", rank)
-            vpm.vpm_diffuse(viscosity= VISCOSITY)
-            if rank == 0:
-                QPR = vpm.particles.particle_charges
-                GPR = vpm.particles.particle_deformations
-                # Diffuse the particles
-                QPR[:3,:] = QPR[:3,:] - GPR[:, :] *  DT
-                print('Diffusion finished: with viscosity = ', VISCOSITY)
-        
+        print_IMPORTANT("Applying Diffusion", rank)
+        vpm.vpm_diffuse(viscosity= VISCOSITY)
+        if rank == 0:
+            QPR = vpm.particles.particle_charges
+            GPR = vpm.particles.particle_deformations
+            # Diffuse the particles
+            QPR[:3,:] = QPR[:3,:] - GPR[:, :] *  DT
+            print('Diffusion finished: with viscosity = ', VISCOSITY)
+    
         XPR = vpm.particles.particle_positions
         QPR = vpm.particles.particle_charges
         UPR = vpm.particles.particle_velocities
@@ -281,56 +280,60 @@ def main(
     end_time = MPI.Wtime()
     print_IMPORTANT(f"Time taken: {int((end_time - start_time) / 60)}m {int(end_time - start_time) % 60}s", rank=rank) 
 
-def initialize_hill_vortex(
+def initialize_oseen_vortex(
     vpm: VPM, 
-    neq: int, 
-    SPHERE_RADIUS: float, 
-    UINF, 
-    comm, 
-    rank
+    gamma: float, 
+    viscosity: float,
+    density: float,
+    t: float 
 ):
     # Create particles
-    NVR = 100
+    NVR = 10
+    neq = vpm.num_equations
+
     XPR_zero = np.zeros((3, NVR), dtype=np.float64)
-    XPR_zero[:, 0] = -1.5 * SPHERE_RADIUS 
-    XPR_zero[:, 1] = 1.5 * SPHERE_RADIUS
+    XPR_zero[:, 0] = [-0.5 , -0.5 , -2.]
+    XPR_zero[:, 1] = [ 0.5 ,  0.5 ,  2.]
     QPR_zero = np.ones((neq + 1, NVR), dtype=np.float64)
 
     # Initialization VPM
-    comm.Barrier()
     vpm.vpm_define(
         num_equations=neq,
         particle_positions= XPR_zero, 
         particle_charges= QPR_zero, 
     )
-    comm.Barrier()
-
-    # Initialize Hill Vortex
-    if rank == 0:
-        st = MPI.Wtime()
-        print_IMPORTANT("Hill vortex initialization", rank)
-    (velocity_hill, vorticity_hill, pressure_hill )= hill_assign(
-        vpm = vpm,
-        sphere_radius = SPHERE_RADIUS,
-        u_freestream = UINF[2],
-        sphere_z_center = 0.0,
-    )
-    vpm.particle_mesh.set_rhs_pm(vorticity_hill)
-    print_red("Setting RHS_pm as computed from the hill vortex", rank)
     
-    if rank == 0:
-        st = MPI.Wtime()
-        print_red("Remeshing")
-    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False) 
-    if rank == 0:
-        et = MPI.Wtime()
-        print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
+    # Initialize Hill Vortex
+    st = MPI.Wtime()
+    print_IMPORTANT("Oseen vortex initialization", rank)
+    velocity_oseen, vorticity_oseen, pressure_oseen = oseen_assign(
+        vpm = vpm,
+        viscosity= viscosity,
+        density= density,
+        t = t, 
+        gamma= gamma
+    )
+    vpm.particle_mesh.set_rhs_pm(vorticity_oseen)
+    print_red("Setting RHS_pm as computed from the hill vortex")
+    
+    st = MPI.Wtime()
+    print_red("Remeshing")
+    XPR_hill, QPR_hill = vpm.remesh_particles(project_particles=False, cut_off=-1) 
+    et = MPI.Wtime()
+    print(f"\tRemeshing finished in {int((et - st) / 60)}m {(et - st) % 60:.2f}s\n")
 
-    print_IMPORTANT("Particles initialized", rank)
+    print_IMPORTANT("Particles initialized")
     NVR = vpm.particles.NVR
-    return XPR_hill, QPR_hill, NVR
+    return XPR_hill, QPR_hill, NVR, velocity_oseen, vorticity_oseen, pressure_oseen
 
-def stability_check(DT, VISCOSITY, U_PM, dpm, CFL_LIMITS, CFL_TARGET):
+def stability_check(
+    DT, 
+    VISCOSITY, 
+    U_PM, 
+    dpm, 
+    CFL_LIMITS, 
+    CFL_TARGET
+):
     # Calculate CFL components
     CFL_x = np.max(np.abs(U_PM[0, :, :, :])) * DT / dpm[0]
     CFL_y = np.max(np.abs(U_PM[1, :, :, :])) * DT / dpm[1]
@@ -399,16 +402,15 @@ def stability_check(DT, VISCOSITY, U_PM, dpm, CFL_LIMITS, CFL_TARGET):
     print(f"\nFinal DT: {DT:.3e} (Initial: {DT_initial:.3e})")
     return DT
 
-
 if __name__ == "__main__":
-    REYNOLDS_NUMBER = [10, 100, 500, 1000]
-    for RE in REYNOLDS_NUMBER:
-        main(
-            REYNOLDS_NUMBER=RE, 
-            REMESH_FREQUENCY=5, 
-            apply_vorticity_correction=False, 
-            INITIALIZE_CASE=True, 
-            TIMESTEPS=750
-        )
+    # REYNOLDS_NUMBER = [10, 100, 500, 1000]
+    # for RE in REYNOLDS_NUMBER:
+    main(
+        GAMMA=1, 
+        REMESH_FREQUENCY=40, 
+        apply_vorticity_correction=False, 
+        INITIALIZE_CASE=True, 
+        TIMESTEPS=750
+    )
 
     MPI.Finalize()

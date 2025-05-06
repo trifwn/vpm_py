@@ -127,17 +127,17 @@ contains
         print *, '------------------------------------------------'
     end subroutine print_stats_rank3
 
+
     !! TIMESTEP INFORMATION !!
-    subroutine print_timestep_information(timestep_info, solve_info)
+    subroutine print_timestep_information(timestep_info)
         use vpm_types, only: timestepInformation, solveInformation
         implicit none
         type(timestepInformation), intent(in) :: timestep_info
-        type(solveInformation), intent(in) :: solve_info
         real(dp)           :: mean_div_w, max_div_w, min_div_w
         real(dp)           :: mean_div_u, max_div_u, min_div_u
-        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
+        real(dp)           :: total_kinetic_energy, total_enstrophy
         real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
-        integer            :: i, VERBOCITY_PRINT
+        integer            :: VERBOCITY_PRINT
         
         mean_div_w = timestep_info%mean_div_w
         max_div_w  = timestep_info%max_div_w
@@ -151,7 +151,6 @@ contains
         total_momentum_y = timestep_info%total_momentum_y_pm 
         total_momentum_z = timestep_info%total_momentum_z_pm 
         total_kinetic_energy = timestep_info%total_kinetic_energy_pm
-        total_vorticity = timestep_info%total_vorticity_pm
         total_enstrophy = timestep_info%total_enstrophy_pm
 
         VERBOCITY_PRINT = 0
@@ -185,43 +184,46 @@ contains
         write(dummy_string, "(A,E11.4)") achar(9)//'Total Momentum z : ', total_momentum_z
         call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
 
-        write(dummy_string, "(A)") 'Total Vorticity in the domain'
-        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
-        write(dummy_string, "(A,E11.4)") achar(9)//'sum(Vorticity) : ', total_vorticity 
-        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
-        
         write(dummy_string, "(A)") 'Total Enstrophy in the domain'
-        call vpm_print(dummy_string, yellow, VERBOCITY)
+        call vpm_print(dummy_string, yellow, VERBOCITY_PRINT)
 
         write(dummy_string, "(A,E11.4)") achar(9)//'sum(Enstrophy) : ', total_enstrophy
-        call vpm_print(dummy_string, blue, VERBOCITY)
+        call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
 
         write (dummy_string, *) ""
-        call vpm_print(dummy_string, nocolor, VERBOCITY)
+        call vpm_print(dummy_string, nocolor, VERBOCITY_PRINT)
+    end subroutine print_timestep_information
 
+    subroutine print_solve_information(solve_info)
+        use vpm_types, only: solveInformation
+        implicit none
+        type(solveInformation), intent(in) :: solve_info
+        integer :: VERBOCITY_PRINT, i
+
+        VERBOCITY_PRINT = 0
         write (dummy_string, "(A)") 'Residuals of the solution'
         call vpm_print(dummy_string, yellow, VERBOCITY)
         do i = 1, size(solve_info%f_min)
             ! For each equation write the laplacian - RHS_pm
             write (dummy_string, "(A, I3, A)") '   Equation =', i, ":   Δf = RHS"
-            call vpm_print(dummy_string, blue, VERBOCITY)
+            call vpm_print(dummy_string, blue, VERBOCITY_PRINT)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Forcing (RHS)'// &
                 achar(9)//'min : ', solve_info%f_min(i), & 
                 achar(9)//'max : ', solve_info%f_max(i), & 
                 achar(9)//'mean: ', solve_info%f_mean(i) 
-            call vpm_print(dummy_string, nocolor, VERBOCITY)
+            call vpm_print(dummy_string, nocolor, VERBOCITY_PRINT)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//"Solution"// &
                 achar(9)//'min : ', solve_info%sol_min(i), & 
                 achar(9)//'max : ', solve_info%sol_max(i), & 
                 achar(9)//'mean: ', solve_info%sol_mean(i) 
-            call vpm_print(dummy_string, nocolor, VERBOCITY)
+            call vpm_print(dummy_string, nocolor, VERBOCITY_PRINT)
             write (dummy_string, "(A, E11.4, A, E11.4, A, E11.4)") achar(9)//'Res:=Δf-RHS'// &
                 achar(9)//'min : ', solve_info%residual_min(i), & 
                 achar(9)//'max : ', solve_info%residual_max(i), & 
                 achar(9)//'mean: ', solve_info%residual_mean(i) 
-            call vpm_print(dummy_string, nocolor, VERBOCITY)
+            call vpm_print(dummy_string, nocolor, VERBOCITY_PRINT)
         end do
-    end subroutine print_timestep_information
+    end subroutine print_solve_information
 
     !!! INTEGER ARRAYS !!!
     subroutine i_1d_alloc_info(name_in, arr)

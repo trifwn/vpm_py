@@ -4,7 +4,7 @@ from vpm_py import VPM
 def hill_vortex(
     control_points, 
     sphere_radius, 
-    U, 
+    U: float, 
     density = 1.225,
     z_0 = 0
 ):    
@@ -18,7 +18,6 @@ def hill_vortex(
     Returns:
         _type_: _description_
     """
-    density = 1.225
     x = control_points[:, :, :, 0]
     y = control_points[:, :, :, 1]
     z = control_points[:, :, :, 2] - z_0
@@ -29,57 +28,47 @@ def hill_vortex(
     pressure = np.zeros_like(x)
     
     # Convert to spherical coordinates
-    r = np.sqrt(x**2 + y**2 + z**2)
-    phi = np.arctan2(y, x)
-    eta = np.arctan2(np.sqrt(x**2 + y**2), z)
+    r     = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arctan2(np.sqrt(x**2 + y**2), z)
+    phi   = np.arctan2(y, x)
 
-    inside_mask = r < sphere_radius
+    inside_mask  = r < sphere_radius
     outside_mask = r >= sphere_radius
-    a = sphere_radius
+    a            = sphere_radius
 
     # Allocate the arrays
-    u_eta = np.zeros_like(r)
-    u_phi = np.zeros_like(r)
-    u_z = np.zeros_like(r)
+    u_r     = np.zeros_like(r)
+    u_phi   = np.zeros_like(r)
+    u_theta = np.zeros_like(r)
+    
     omega_phi = np.zeros_like(r)
-    pressure = np.zeros_like(r)
 
-    eta_inside = eta[inside_mask]
-    z_inside = z[inside_mask]
-    eta_outside = eta[outside_mask]
-    z_outside = z[outside_mask]
+    # Inside the sphere
+    theta_inside = theta[inside_mask]
+    r_inside = r[inside_mask]
 
-    # Velocity inside and outside the sphere
-    u_eta[inside_mask] = 3 * U / (2 * a**2) * eta_inside * z_inside
-    u_phi[inside_mask] = 0.0
-    u_z[inside_mask] = 3 * U / (2 * a**2) *  (a**2  - 2 * eta_inside**2 - z_inside**2)
+    u_phi[inside_mask]   = 0
+    u_theta[inside_mask] = - (3 * U / 2) * np.sin(theta_inside) * (1 - 2 * (r_inside/a)**2)
+    u_r[inside_mask]     =   (3 * U / 2) * np.cos(theta_inside) * (1 - (r_inside/a)**2)
+    omega_phi[inside_mask] = -(15 * U / (2 * a**2)) * r_inside * np.sin(theta_inside) 
 
-    u_eta[outside_mask] = (3 * a **3 * U ) / 2 * (eta_outside * z_outside) / (eta_outside**2 + z_outside**2)**(5/2)
-    u_phi[outside_mask] = 0.0
-    u_z[outside_mask] = -U - (a **3 * U) / 2 * (eta_outside **2 - 2 * z_outside ** 2) / (eta_outside ** 2 + z_outside ** 2) ** (5/2)
+    # Outside the sphere
+    theta_outside = theta[outside_mask]
+    r_outside = r[outside_mask]
 
-    # Vorticity inside and outside the sphere
-    omega_phi[inside_mask] = 3 * U * np.sin(eta_inside) / (2 * a) * (1/2 + 2 * (r[inside_mask]/a)**2)
-    omega_phi[outside_mask] = 0.
-
-    # Pressure inside and outside the sphere
-    pressure[inside_mask] = - (9 * U**2 * density) / (8 * a**4) * (
-                        - eta_inside **4 + z_inside**4 + (a**2) *(eta_inside**2 - 2 * z_inside**2)
-                    )
-    pressure[outside_mask] = U**2 * density / 8 * (
-        5 - (4 * a**3 * (eta_outside**2 - 2* z_outside**2) ) / (eta_outside**2 + z_outside**2)**(5/2)
-        - a**6 * (eta_outside**2 + 4 * z_outside**2) / (eta_outside**2 + z_outside**2)**(4)
-    )
+    u_phi[outside_mask]   = U * np.sin(theta_outside) * (1 - a**3 / r_outside**3)
+    u_theta[outside_mask] = U * np.cos(theta_outside) * (1 + a**3 / (2 * r_outside**3))
+    omega_phi[outside_mask] = 0
 
     # Unit vectors (Converting to Cartesian coordinates)
-    velocity[:,:,:,0] = u_eta * np.cos(phi) * np.cos(eta) - u_phi * np.sin(phi) - u_z * np.sin(eta) * np.cos(phi)
-    velocity[:,:,:,1] = u_eta * np.sin(phi) * np.cos(eta) + u_phi * np.cos(phi) - u_z * np.sin(eta) * np.sin(phi)
-    velocity[:,:,:,2] = u_eta * np.sin(eta) + u_z * np.cos(eta)
+    velocity[:,:,:,0] = 0
+    velocity[:,:,:,1] = 0
+    velocity[:,:,:,2] = 0
     
     
-    vorticity[:,:,:,0] = - omega_phi * np.sin(phi)
-    vorticity[:,:,:,1] = omega_phi * np.cos(phi)
-    vorticity[:,:,:,2] = 0.0
+    vorticity[:,:,:,0] = -omega_phi * np.sin(phi) 
+    vorticity[:,:,:,1] =  omega_phi * np.cos(phi)
+    vorticity[:,:,:,2] = 0.0 
     # NaN to zero
     velocity = np.nan_to_num(velocity)
     vorticity = np.nan_to_num(vorticity)
@@ -89,7 +78,7 @@ def hill_vortex(
 def hill_assign(
     vpm: VPM, 
     sphere_radius: float =1.0, 
-    u_freestream: float =-1.0, 
+    u_freestream: float =1.0, 
     sphere_z_center: float =0.0,
     density: float = 1.225
 ):

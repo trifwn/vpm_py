@@ -9,18 +9,19 @@ module vpm_lib
     use vpm_size
     use vpm_gcalc
     use vpm_functions
+    use serial_vector_field_operators
     ! Constants
     use constants, only: pi, pi2, pi4
-    use vpm_types, only: dp
+    use vpm_types, only: solveInformation, timestepInformation, dp
     ! Printing
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, &
-                        VERBOCITY, print_stats_rank3, print_stats_rank4 
+                          VERBOCITY, print_stats_rank3, print_stats_rank4 , print_timestep_information, &
+                          print_solve_information
     use parvar, only: print_particle_info, print_particle_positions, associate_particles
     ! Setting Vars
     use pmgrid, only: print_velocity_stats, print_vortex_stretching_stats, &
                       set_pm_velocities_zero, set_pm_deformations_zero, &
                       associate_velocities, associate_deformations
-    use serial_vector_field_operators, only: divergence, curl, laplacian, gradient
 
     !  WhatToDo flags
     integer, parameter :: DEFINE_PROBLEM = 0,               &
@@ -42,7 +43,7 @@ contains
 
     subroutine read_conf()
         use pmgrid, only: DXpm, DYpm, DZpm, IDVPM, ncoarse
-        integer     :: i, ncell_rem
+        integer     :: ncell_rem
         logical     :: pmfile_exists
         integer     :: my_rank, ierr
 
@@ -121,12 +122,6 @@ contains
                 return
             end if
 
-            write (*, *) achar(9), 'Input Arguments:', achar(27)//'[1;34m'
-            write (*, *) achar(9), achar(9), 'NTIME_in = ', NTIME_in
-            write (*, *) achar(9), achar(9), 'WhatToDo = ', WhatToDo
-            write (*, *) achar(9), achar(9), 'NVR_in = ', NVR_in
-            write (*, *) achar(9), achar(9), 'neqpm_in = ', neqpm_in
-            write (*, *) achar(9), achar(9), 'NVR_size_in = ', NVR_size_in, achar(27)//'[0m'
         end if
         ! We set these input for compatibility with old version
         ! In the new modular approach we do not need to set these
@@ -199,7 +194,6 @@ contains
     )
         use pmgrid, only: RHS_pm, velocity_pm, deform_pm
         use parvar, only: NVR
-        use MPI
         implicit none
 
         real(dp), intent(inout), target           :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
@@ -240,7 +234,6 @@ contains
         NI_in, XP_in, QP_in, UP_in, GP_in, NVR_in, NVR_size_in, &
         RHS_pm_ptr &
     )
-        use MPI
         use pmgrid, only: RHS_pm
         use parvar, only: NVR
         implicit none
@@ -287,7 +280,6 @@ contains
         XP_in, QP_in, NVR_in, NVR_size_in, neqpm_in,    &
         RHS_pm_ptr                                      &
     )
-        use MPI
         use pmgrid, only: RHS_pm, SOL_pm, SOL_pm_bl, RHS_pm_bl
         use parvar, only: NVR
         implicit none
@@ -317,7 +309,6 @@ contains
 
         ! PARTICLES TO -> PM MEANING FROM Qs We get RHS_pm
         if (my_rank .eq. 0) then
-            write (*, *) ""
             tab_level = tab_level - 1
             write (dummy_string, "(A)") 'Solving Poisson problem for the vorticity field'
             call vpm_print(dummy_string, blue, 0)
@@ -335,7 +326,6 @@ contains
         NTIME_in, XP_in, QP_in, UP_in, GP_in, &
         NVR_in, NVR_size_in, neqpm_in, RHS_pm_ptr, vel_ptr &
     )
-        use MPI
         real(dp), intent(inout), target  :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
         integer, intent(in)              :: NVR_in
         integer, intent(in)              :: neqpm_in, NVR_size_in
@@ -368,10 +358,7 @@ contains
         NVR_in, NVR_size_in, neqpm_in, &
         RHS_pm_ptr, vel_ptr, deform_ptr &
     )
-        use MPI
-        use pmgrid, only: velocity_pm, deform_pm, RHS_pm
-        use console_io, only: tab_level, print_timestep_information
-        use file_io, only: write_timestep_information_dat
+        use pmgrid, only: velocity_pm, deform_pm, RHS_pm, SOL_pm
         implicit none
         integer, intent(in)                        :: NTIME_in
         real(dp), intent(inout), target            :: XP_in(:, :), QP_in(:, :), UP_in(:, :), GP_in(:, :)
@@ -411,8 +398,7 @@ contains
             call print_vortex_stretching_stats
             tab_level = tab_level - 1
             call get_timestep_information(timestep_info)
-            call get_solve_info(solve_info)
-            call print_timestep_information(timestep_info, solve_info)
+            call get_solve_info(solve_info, RHS_pm, SOL_pm)
 
                 DXpm = fine_grid%Dpm(1)
                 DYpm = fine_grid%Dpm(2)
@@ -430,8 +416,8 @@ contains
                 call print_stats_rank4(fine_grid, error_vorticity, 'curl(u) - ω')
 
             if (VERBOCITY .ge. 1) then
-                call print_timestep_information(timestep_info, solve_info)
-                call write_timestep_information_dat(timestep_info, NTIME_in)
+                call print_timestep_information(timestep_info)
+                call print_solve_information(solve_info)
             endif
         end if
 
@@ -441,7 +427,6 @@ contains
         XP_in, QP_in, NVR_in, NVR_size_in       &
     )
         use parvar, only: QP, XP, NVR, NVR_size
-        use serial_vector_field_operators, only: divergence, curl
         use vpm_interpolate, only: interpolate_particle_Q
         use pmgrid, only: RHS_pm
         implicit none
@@ -568,6 +553,7 @@ contains
        vorticity, velocity, pressure, density, viscocity, dphi_dt, p_reference           &
     )
         use vpm_interpolate, only: interpolate_particle_Q
+        use file_io, only: write_field_4D_hdf5, write_field_3D_hdf5
         real(dp), pointer, intent(in)           :: vorticity(:,:,:,:)
         real(dp), pointer, intent(in)           :: velocity(:,:,:,:)
         real(dp), allocatable, intent(out)      :: pressure(:,:,:,:)
@@ -575,8 +561,8 @@ contains
         real(dp), pointer, intent(in), optional :: dphi_dt(:,:,:,:)
         real(dp), value, optional               :: p_reference
         ! LOCAL VARIABLES
-        real(dp), allocatable             :: SOL2_pm(:,:,:,:), RHS2_pm(:,:,:,:)
-        real(dp), allocatable             :: SOL2_pm_bl(:,:,:,:), RHS2_pm_bl(:,:,:,:)
+        real(dp), allocatable             :: pressure_SOL(:,:,:,:), pressure_RHS(:,:,:,:)
+        real(dp), allocatable             :: pressure_SOL_pm_bl(:,:,:,:), pressure_RHS_pm_bl(:,:,:,:)
 
         ! Variation 1
         real(dp), allocatable             :: cross_product(:,:,:,:), div_cross(:,:,:)
@@ -588,13 +574,14 @@ contains
         real(dp), allocatable             :: omega_squared(:,:,:)
         real(dp), allocatable             :: vorticity2(:,:,:,:), error_vorticity(:,:,:,:)
 
-        ! real(dp), allocatable             :: lapl
+        type(solveInformation)            :: p_solve_info
+
         real(dp)                          :: DXpm, DYpm, DZpm
         real(dp)                          :: velocity_squared
+        character(len=100)                :: filename
         integer                           :: ierr, my_rank, np, nb
         integer                           :: i, j, k
         
-
         call MPI_Comm_Rank(MPI_COMM_WORLD, my_rank, ierr)
         call MPI_Comm_size(MPI_COMM_WORLD, np, ierr)
 
@@ -616,14 +603,14 @@ contains
         DYpm = fine_grid%Dpm(2)
         DZpm = fine_grid%Dpm(3)
         
-        allocate (SOL2_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
-        allocate (RHS2_pm(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+        allocate (pressure_SOL(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
+        allocate (pressure_RHS(neqpm, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
         nb = my_rank + 1
-        allocate (SOL2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
-        allocate (RHS2_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
+        allocate (pressure_SOL_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
+        allocate (pressure_RHS_pm_bl(neqpm, block_grids(nb)%NN(1), block_grids(nb)%NN(2), block_grids(nb)%NN(3)))
                 
-        SOL2_pm = 0.d0
-        RHS2_pm = 0.d0
+        pressure_SOL = 0.d0
+        pressure_RHS = 0.d0
 
         if (my_rank .eq. 0) then
             vorticity(:,:,:,:) = - vorticity(:,:,:,:)
@@ -647,7 +634,7 @@ contains
 
             if (viscocity .lt. 1.d-14) then
                 print *, 'The viscocity is 0, the stress tensor is ignored. Calculating Eulerian pressure'
-                RHS2_pm(1, :, :, :) =  (div_cross(:, :, :)) * density
+                pressure_RHS(1, :, :, :) =  (div_cross(:, :, :)) * density
             else
                 print *, 'The viscocity is not 0, the stress tensor is considered. Calculating NS pressure'
                 !  Compute the laplacian of the deviatoric stress tensor
@@ -655,9 +642,9 @@ contains
                 div_div_stress_tensor = divergence(div_stress_tensor, DXpm, DYpm, DZpm) * viscocity
                 call print_stats_rank3(fine_grid, div_div_stress_tensor, '\nabla \cdot \nabla \cdot \sigma')
                 
-                RHS2_pm(1, :, :, :) = (div_cross(:, :, :) - div_div_stress_tensor(:, :, :)) * density
+                pressure_RHS(1, :, :, :) = (div_cross(:, :, :) - div_div_stress_tensor(:, :, :)) * density
             endif
-            call print_stats_rank3(fine_grid, RHS2_pm(1, :, :, :), 'Pressure Poisson RHS = div(u x ω) + div(div(σ))') 
+            call print_stats_rank3(fine_grid, pressure_RHS(1, :, :, :), 'Pressure Poisson RHS = div(u x ω) + div(div(σ))') 
             
             ! Variation 2
             curl_vorticity = - curl(vorticity, DXpm, DYpm, DZpm)
@@ -672,17 +659,11 @@ contains
                     end do
                 end do
             end do
-            RHS2_pm(2, :, :, :) = (- omega_squared(:,:,:) + curl_w_x_u(:,:,:)) * density
+            pressure_RHS(2, :, :, :) = (- omega_squared(:,:,:) + curl_w_x_u(:,:,:)) * density
 
             call print_stats_rank3(fine_grid, - omega_squared(:,:,:), '- ω^2')
             call print_stats_rank3(fine_grid, curl_w_x_u(:,:,:), 'curl(w) * u')
-
-            call print_stats_rank3(fine_grid, RHS2_pm(2, :, :, :), 'Pressure Poisson RHS = - ω^2 - curl(w) * u')
-
-            print *
-            print *
-            print *
-            print *
+            call print_stats_rank3(fine_grid, pressure_RHS(2, :, :, :), 'Pressure Poisson RHS = - ω^2 - curl(w) * u')
 
             deallocate (cross_product)
             deallocate (div_cross)
@@ -694,17 +675,20 @@ contains
         endif 
 
         ! Solve the problem
-        call solve_problem(RHS2_pm, SOL2_pm, RHS2_pm_bl, SOL2_pm_bl)
+        call solve_problem(pressure_RHS, pressure_SOL, pressure_RHS_pm_bl, pressure_SOL_pm_bl)
 
         if (my_rank .eq. 0) then
+
+            call get_solve_info(p_solve_info, pressure_RHS, pressure_SOL)
+            call print_solve_information(p_solve_info)
+
             ! if (associated(pressure)) deallocate (pressure)
             allocate (pressure(3, fine_grid%NN(1), fine_grid%NN(2), fine_grid%NN(3)))
             pressure = 0.d0
             ! THIS IS THE Q PART OF THE PRESSURE
-            pressure(1,:,:,:) = SOL2_pm(1,:,:,:)
+            pressure(1,:,:,:) = pressure_SOL(1,:,:,:)
             call print_stats_rank3(fine_grid, pressure(1, :, :, :), 'Pressure Q - 1')
-            pressure(1,:,:,:) = SOL2_pm(2,:,:,:)
-            call print_stats_rank3(fine_grid, pressure(1, :, :, :), 'Pressure Q - 2')
+            pressure(1,:,:,:) = pressure_SOL(2,:,:,:)
             
             ! Calculate the pressure field based on the bernoulli equation
             IF(.NOT. PRESENT(p_reference)) p_reference = 0 
@@ -724,8 +708,13 @@ contains
                 pressure(3, :, :, :) = pressure(3, :, :, :) - dphi_dt(1, :, :, :) * density
             end if
 
+            call print_stats_rank3(fine_grid, pressure(1, :, :, :), 'Pressure Q - 2')
             call print_stats_rank3(fine_grid, pressure(2, :, :, :), 'Pressure U')
             call print_stats_rank3(fine_grid, pressure(3, :, :, :), 'Pressure Bernoulli Solution')
+
+            ! Write the pressure field to a file
+            ! filename = 'pressure_stats.h5'
+            ! call write_field_4D_hdf5(pressure, filename, 'Pressure', 3)
 
             ! Get the residuals
             call calculate_momentum_residuals(velocity, vorticity, pressure(3, :, :, :), density, viscocity)
@@ -741,13 +730,15 @@ contains
         
         neqpm = 3
         ! DEALLOCATE THE MEMORY
-        if (allocated(SOL2_pm)) deallocate (SOL2_pm)
-        if (allocated(RHS2_pm)) deallocate (RHS2_pm)
-        if (allocated(SOL2_pm_bl)) deallocate (SOL2_pm_bl)
-        if (allocated(RHS2_pm_bl)) deallocate (RHS2_pm_bl)
+        if (allocated(pressure_SOL)) deallocate (pressure_SOL)
+        if (allocated(pressure_RHS)) deallocate (pressure_RHS)
+        if (allocated(pressure_SOL_pm_bl)) deallocate (pressure_SOL_pm_bl)
+        if (allocated(pressure_RHS_pm_bl)) deallocate (pressure_RHS_pm_bl)
     end subroutine vpm_solve_pressure
 
     subroutine calculate_momentum_residuals(velocity, vorticity, pressure, density, viscocity)
+        use file_io, only: write_field_3D_hdf5, write_field_4D_hdf5, case_folder, mesh_folder
+        use vpm_vars, only: NTIME_pm
         implicit none
         real(dp), target, intent(in)           :: velocity(:,:,:,:)
         real(dp), target, intent(in)           :: vorticity(:,:,:,:)
@@ -791,8 +782,8 @@ contains
         deallocate (cross_product)
 
         ! 2) \grad p
-        grad_p = gradient(pressure(:, :, :), DXpm, DYpm, DZpm) * (-1.d0/density)
-        residuals(:, :, :, :) = residuals(:, :, :, :) - grad_p(:,:,:,:)
+        grad_p = gradient(pressure(:, :, :), DXpm, DYpm, DZpm) * (1.d0/density)
+        residuals(:, :, :, :) = residuals(:, :, :, :) + grad_p(:,:,:,:)
 
         ! Print the min and max values of the pressure gradient
         call print_stats_rank4(fine_grid, grad_p, 'Pressure Gradient')
@@ -818,7 +809,7 @@ contains
         end do
         grad_velocity_sq = gradient(velocity_squared, DXpm, DYpm, DZpm)
         deallocate (velocity_squared)
-        residuals(:, :, :, :) = residuals(:, :, :, :) - grad_velocity_sq(:,:,:,:)
+        residuals(:, :, :, :) = residuals(:, :, :, :) + grad_velocity_sq(:,:,:,:)
 
         ! Print the min and max values of the gradient of the velocity squared
         call print_stats_rank4(fine_grid, grad_velocity_sq, 'Gradient of the Velocity Squared')
@@ -831,9 +822,7 @@ contains
     end subroutine calculate_momentum_residuals
 
     subroutine project_calc_div
-        use MPI
         use parvar, only: QP, XP, NVR, NVR_size
-        use serial_vector_field_operators, only: divergence, curl
         use vpm_interpolate, only: interpolate_particle_Q
         use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm
         implicit none
@@ -882,15 +871,14 @@ contains
     end subroutine project_calc_div
 
     subroutine get_timestep_information(timestep_information)
-        use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm, velocity_pm, DVpm
-        use parvar, only: XP, QP, UP, NVR, NVR_size
+        use pmgrid, only: RHS_pm, DXpm, DYpm, DZpm, velocity_pm
+        use parvar, only: QP, UP, NVR, NVR_size
         use vpm_size, only: fine_grid 
-        use vpm_types, only: timestepInformation, solveInformation, dp
-        use serial_vector_field_operators, only: divergence, laplacian
         implicit none
         type(timestepInformation), intent(inout) :: timestep_information
         real(dp), allocatable :: div_wmega(:,:,:), div_velocity(:,:,:), particle_q
-        integer :: i
+        real(dp)              :: DV
+        integer :: i, num_cells
         
         timestep_information%n          = NTIME_pm
 
@@ -901,32 +889,47 @@ contains
         timestep_information%Xbound    = fine_grid%Xbound
         timestep_information%Dpm       = fine_grid%Dpm
         
+        DV = fine_grid%Dpm(1)*fine_grid%Dpm(2)*fine_grid%Dpm(3)
+        num_cells = fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3)
+        
         timestep_information%solver    = SOLVER
 
         ! Calculate divergences and laplacian
-        div_wmega                = divergence(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm)
-        timestep_information%mean_div_w = sum(div_wmega)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+        div_wmega = divergence(RHS_pm(1:3, :, :, :), DXpm, DYpm, DZpm)
+        timestep_information%mean_div_w = sum(div_wmega)/(num_cells)
         timestep_information%max_div_w  = maxval(div_wmega)
         timestep_information%min_div_w  = minval(div_wmega)
         deallocate (div_wmega)
 
-        div_velocity             = divergence(velocity_pm, DXpm, DYpm, DZpm) 
-        timestep_information%mean_div_u = sum(div_velocity)/(fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
+        div_velocity = divergence(velocity_pm, DXpm, DYpm, DZpm) 
+        timestep_information%mean_div_u = sum(div_velocity)/(num_cells)
         timestep_information%max_div_u  = maxval(div_velocity)
         timestep_information%min_div_u  = minval(div_velocity)
         deallocate (div_velocity)
 
-        timestep_information%total_enstrophy_pm       = sum(RHS_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
-        timestep_information%total_vorticity_pm       = sum(RHS_pm(1:3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_momentum_x_pm      = sum(velocity_pm(1,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_momentum_y_pm      = sum(velocity_pm(2,:,:,:))*DXpm*DYpm*DZpm 
-        timestep_information%total_momentum_z_pm      = sum(velocity_pm(3,:,:,:))*DXpm*DYpm*DZpm
-        timestep_information%total_kinetic_energy_pm  = sum(velocity_pm(1:3,:,:,:)**2)*DXpm*DYpm*DZpm
+        timestep_information%total_enstrophy_pm       = sum(RHS_pm(1:3,:,:,:)**2)*DV
+        timestep_information%total_momentum_x_pm      = sum(velocity_pm(1,:,:,:))*DV
+        timestep_information%total_momentum_y_pm      = sum(velocity_pm(2,:,:,:))*DV
+        timestep_information%total_momentum_z_pm      = sum(velocity_pm(3,:,:,:))*DV
+        timestep_information%total_kinetic_energy_pm  = sum(velocity_pm(1:3,:,:,:)**2) * DV /2.d0
 
-        timestep_information%total_vorticity_particles = sum(QP(1, :) * QP(4, :) + QP(2, :) * QP(4, :) + QP(3, :) * QP(4, :)) 
-        timestep_information%total_momentum_x_particles = sum(UP(1,:) * QP(4, :))
-        timestep_information%total_momentum_y_particles = sum(UP(2,:) * QP(4, :))
-        timestep_information%total_momentum_z_particles = sum(UP(3,:) * QP(4, :))
+        particle_q = 0
+        do i = 1, NVR
+            particle_q = particle_q + UP(1,i) * QP(4, i)
+        end do
+        timestep_information%total_momentum_x_particles = particle_q
+
+        particle_q = 0
+        do i = 1, NVR
+            particle_q = particle_q + UP(2,i) * QP(4, i)
+        end do
+        timestep_information%total_momentum_y_particles = particle_q
+
+        particle_q = 0
+        do i = 1, NVR
+            particle_q = particle_q + UP(3,i) * QP(4, i)
+        end do
+        timestep_information%total_momentum_z_particles = particle_q
 
         particle_q = 0
         do i = 1, NVR
@@ -936,30 +939,38 @@ contains
 
         particle_q = 0
         do i = 1, NVR
-            particle_q = particle_q + sum(QP(1:3,i)**2) * QP(4, i)
+            particle_q = particle_q + sum((QP(1:3,i)/ QP(4, i))**2) * QP(4, i)
         end do
         timestep_information%total_enstrophy_particles = particle_q
         
 
-        print *, 'Total enstrophy particles', timestep_information%total_enstrophy_particles
-        print *, 'Total vorticity particles', timestep_information%total_vorticity_particles
-        print *, 'Total momentum x particles', timestep_information%total_momentum_x_particles
-        print *, 'Total momentum y particles', timestep_information%total_momentum_y_particles
-        print *, 'Total momentum z particles', timestep_information%total_momentum_z_particles
+        print *, 'Total enstrophy particles', timestep_information%total_enstrophy_particles, &
+                 'Total enstrophy pm', timestep_information%total_enstrophy_pm
+        print *, 'Total kinetic energy particles', timestep_information%total_kinetic_energy_particles, &
+                 'Total kinetic energy pm', timestep_information%total_kinetic_energy_pm
+        print *, 'Total momentum x particles', timestep_information%total_momentum_x_particles, &
+                 'Total momentum x pm', timestep_information%total_momentum_x_pm
+        print *, 'Total momentum y particles', timestep_information%total_momentum_y_particles, &
+                 'Total momentum y pm', timestep_information%total_momentum_y_pm
+        print *, 'Total momentum z particles', timestep_information%total_momentum_z_particles, &
+                 'Total momentum z pm', timestep_information%total_momentum_z_pm
+
     end subroutine get_timestep_information
     
-    subroutine get_solve_info(solve_information)
-        use pmgrid, only: RHS_pm, SOL_pm, DXpm, DYpm, DZpm
+    subroutine get_solve_info(solve_information, RHS_pm, SOL_pm)
         use vpm_size, only: fine_grid
-        use vpm_types, only: solveInformation, dp
-        use serial_vector_field_operators, only: laplacian
         use vpm_vars, only: neqpm
         implicit none
         type(solveInformation), intent(inout) :: solve_information
+        real(dp), intent(in)                   :: RHS_pm(:, :, :, :)
+        real(dp), intent(in)                   :: SOL_pm(:, :, :, :)
         real(dp), allocatable                 :: laplace_LHS_pm(:,:,:,:)
-        real(dp)                              :: sumV
+        real(dp)                              :: sumV, DXpm, DYpm, DZpm
         integer                               :: i, nx, ny, nz
 
+        DXpm = fine_grid%Dpm(1)
+        DYpm = fine_grid%Dpm(2)
+        DZpm = fine_grid%Dpm(3)
         laplace_LHS_pm = laplacian(SOL_pm, DXpm, DYpm, DZpm)
         sumV = (fine_grid%NN(1)*fine_grid%NN(2)*fine_grid%NN(3))
 

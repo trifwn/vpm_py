@@ -1,5 +1,5 @@
 module file_io
-    use vpm_types, only: dp
+    use vpm_types, only: dp, cartesian_grid
     use console_io, only: vpm_print, nocolor, dummy_string
     use h5fortran
 
@@ -24,9 +24,15 @@ module file_io
     public :: particle_output_file, mesh_output_file, case_folder
 
 contains
-    subroutine write_pm_solution_dat(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
-        use vpm_types, only: cartesian_grid
+    function get_pm_filename(NTIME, ext) result(filout)
+        implicit none
+        integer, intent(in) :: NTIME
+        character(len=*), intent(in)        :: ext
+        character(len=MAX_STRING_LENGTH)    :: filout
+        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), NTIME, trim(mesh_output_file) // "." // trim(ext)
+    end function get_pm_filename
 
+    subroutine write_pm_solution_dat(NTIME, comp_grid, neqpm, RHS, SOL, velocity, deform_pm)
         implicit none
         type(cartesian_grid), intent(in) :: comp_grid
         integer, intent(in)              :: NTIME
@@ -47,8 +53,7 @@ contains
         real(dp)                         :: XMIN_pm, YMIN_pm, ZMIN_pm, XMAX_pm, YMAX_pm, ZMAX_pm
         real(dp)                         :: DXpm, DYpm, DZpm
 
-        write (filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
-            NTIME, trim(mesh_output_file)//'.dat'
+        filout = get_pm_filename(NTIME, "dat")
 
         write (dummy_string, "(A)") achar(9)//'Writing PM solution to file: '//trim(filout)
         call vpm_print(dummy_string, nocolor, 2)
@@ -191,7 +196,6 @@ contains
     !> \param[in] compression  Integer representing the compression level.
     !-----------------------------------------------------------------
     subroutine write_particles_hdf5(NTIME, XPR, UPR, QPR, GPR, neq, NVR, NVR_size, compression)
-        use h5fortran, only: hdf5_file
         implicit none
 
         integer, intent(in)              :: NTIME, NVR, neq, NVR_size
@@ -256,11 +260,10 @@ contains
     !----------------------------------------------------------------------
     subroutine write_pm_solution_hdf5(                                  &
         NTIME, NN_in, NNbl_in, neqpm, RHS, SOL, velocity,               &
-        deformation, compression                 &
+        deformation, compression                                        &
     )
         use pmgrid, only: XMIN_pm, YMIN_pm, ZMIN_pm, DXpm, DYpm, DZpm
-        use vpm_vars, only: timestep_info
-        use h5fortran
+        use vpm_vars, only: timestep_info, solve_info
 
         integer, intent(in)              :: NTIME
         integer, intent(in)              :: NN_in(3), NNbl_in(6)
@@ -279,10 +282,7 @@ contains
 
         type(hdf5_file)                  :: h5f
 
-        ! Construct file name
-        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
-                NTIME, trim(mesh_output_file) // ".h5"
-        ! Informative print statement
+        filout = get_pm_filename(NTIME, "h5")
         write(dummy_string, "(A)") achar(9)//'Writing PM solution to HDF5 file: '//trim(filout)
         call vpm_print(dummy_string, nocolor, 2)
 
@@ -348,46 +348,9 @@ contains
 
         ! Add timestep metadata to the HDF5 file
         call write_timestep_metadata_hdf5(filout, timestep_info) 
+        call write_solver_metadata_hdf5(filout, solve_info)
         
     end subroutine write_pm_solution_hdf5
-
-    subroutine write_pressure_hdf5(                                     &
-        NTIME, NN_in, NNbl_in, pressure, compression                    &
-    )
-        use h5fortran
-        integer, intent(in)                 :: NTIME
-        integer, intent(in)                 :: NN_in(3), NNbl_in(6)
-        real(dp), intent(in)                :: pressure(2, NN_in(1), NN_in(2), NN_in(3))
-        integer, optional                   :: compression 
-        integer                             :: comp_level = 3
-        integer                             :: NXs, NYs, NZs, NXf, NYf, NZf
-        character(len=MAX_STRING_LENGTH)    :: filout
-        type(hdf5_file)                     :: h5f
-
-        write(filout, '(a,i5.5,a)') trim(case_folder)//trim(mesh_folder), &
-                NTIME, trim(mesh_output_file) // ".h5"
-        
-        write(dummy_string, "(A)") achar(9)//'Writing Pressure to HDF5 file: '//trim(filout)
-        call vpm_print(dummy_string, nocolor, 2)
-
-        NXs = NNbl_in(1)
-        NYs = NNbl_in(2)
-        NZs = NNbl_in(3)
-        NXf = NNbl_in(4)
-        NYf = NNbl_in(5)
-        NZf = NNbl_in(6)
-
-        if (present(compression)) then
-            comp_level = compression
-        end if
-        ! Open HDF5 file
-        call h5f%open(trim(filout), action='rw', comp_lvl= comp_level)  
-        ! Write the velocity field to the HDF5 file
-        call h5f%write('/Q', pressure(1, NXs:NXf, NYs:NYf, NZs:NZf))
-        call h5f%write('/P', pressure(2, NXs:NXf, NYs:NYf, NZs:NZf))
-        ! Close HDF5 file
-        call h5f%close()
-    end subroutine write_pressure_hdf5
 
     subroutine write_timestep_metadata_hdf5(filename , timestep)
         use vpm_types, only: timestepInformation
@@ -423,7 +386,6 @@ contains
         call h5f%writeattr('/', 'total_pm_momentum_y', timestep%total_momentum_y_pm)
         call h5f%writeattr('/', 'total_pm_momentum_z', timestep%total_momentum_z_pm)
         call h5f%writeattr('/', 'total_pm_kinetic_energy', timestep%total_kinetic_energy_pm)
-        call h5f%writeattr('/', 'total_pm_vorticity', timestep%total_vorticity_pm)
         call h5f%writeattr('/', 'total_pm_enstrophy', timestep%total_enstrophy_pm)
 
         ! Particle Attributes
@@ -431,7 +393,6 @@ contains
         call h5f%writeattr('/', 'total_particle_momentum_y', timestep%total_momentum_y_particles)
         call h5f%writeattr('/', 'total_particle_momentum_z', timestep%total_momentum_z_particles)
         call h5f%writeattr('/', 'total_particle_kinetic_energy', timestep%total_kinetic_energy_particles)
-        call h5f%writeattr('/', 'total_particle_vorticity', timestep%total_vorticity_particles)
         call h5f%writeattr('/', 'total_particle_enstrophy', timestep%total_enstrophy_particles)
 
         ! Close HDF5 file
@@ -439,100 +400,108 @@ contains
         print *, "Timestep metadata written to HDF5 file: ", trim(filename)
     end subroutine write_timestep_metadata_hdf5
 
-    subroutine write_timestep_information_dat(timestep_info, NTIME_pm)
-        use vpm_types, only: timestepInformation
+    subroutine write_solver_metadata_hdf5(filename, solver_info)
+        use vpm_types, only: solveInformation
         implicit none
-        type(timestepInformation), intent(in) :: timestep_info
-        integer                               :: NTIME_pm
-        character(len=256) :: filename
-        logical :: file_exists
-        real(dp)           :: mean_div_w, max_div_w, min_div_w
-        real(dp)           :: mean_div_u, max_div_u, min_div_u
-        real(dp)           :: total_kinetic_energy, total_vorticity, total_enstrophy
-        real(dp)           :: total_momentum_x, total_momentum_y, total_momentum_z
+        type(solveInformation), intent(in) :: solver_info
+        character(len=256), intent(in)       :: filename
+        type(hdf5_file)                      :: h5f
 
-        mean_div_w = timestep_info%mean_div_w
-        max_div_w  = timestep_info%max_div_w
-        min_div_w  = timestep_info%min_div_w
-        
-        mean_div_u = timestep_info%mean_div_u
-        max_div_u  = timestep_info%max_div_u
-        min_div_u  = timestep_info%min_div_u
-        
-        total_momentum_x = timestep_info%total_momentum_x_pm 
-        total_momentum_y = timestep_info%total_momentum_y_pm 
-        total_momentum_z = timestep_info%total_momentum_z_pm 
-        total_kinetic_energy = timestep_info%total_kinetic_energy_pm
-        total_vorticity = timestep_info%total_vorticity_pm
-        total_enstrophy = timestep_info%total_enstrophy_pm
-
-        ! Construct the filename
-        write (filename, "(A, A)") trim(case_folder), trim(solve_stats_file)
+        print *, "Writing solver metadata to HDF5 file: ", trim(filename)
         ! Determine the file status and write mode
-        inquire(file=filename, exist=file_exists)
+        call h5f%open(trim(filename), action='rw')
 
-        if (NTIME_pm == 1 .or. NTIME_pm == 0 .or. .not. file_exists) then
-            open (unit=10, file=filename, status='replace', action='write')
-            ! Write CSV header
-            write (10, '(A)') "Iteration, Total_Enstrophy, Total_Vorticity,"              &
-                            //"Total_Kinetic_Energy, Momentum_X, Momentum_Y, Momentum_Z," &
-                            //"MEAN_DIV_W,MAX_DIV_W, MEAN_DIV_VEL, MAX_DIV_VEL"
-        else
-            open (unit=10, file=filename, status='old', position='append', action='write')
-        end if
-
-        write (10, '(I0,16(",",ES14.7))') NTIME_pm,                                 &
-            total_enstrophy, total_vorticity, total_kinetic_energy,                 &                  
-            total_momentum_x, total_momentum_y, total_momentum_z,                   &
-            mean_div_w, max_div_w, mean_div_u, max_div_u
-        close (10)
-    end subroutine write_timestep_information_dat
-
-    subroutine write_field_hdf5(neq, comp_grid, field, field_name, compression)
-        use h5fortran
-        use vpm_types, only: cartesian_grid
-        implicit none
-
-        integer, intent(in)              :: neq
-        type(cartesian_grid), intent(in) :: comp_grid
-        real(dp), intent(in)             :: field(neq, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3))
-        character(len=MAX_STRING_LENGTH) :: field_name
-        integer, optional                :: compression
-        integer                          :: comp_level = 0
-        character(len=MAX_STRING_LENGTH) :: filout
-        real(dp), dimension(3)           :: origin, spacing
-        type(hdf5_file)                  :: h5f
-
-        origin = [0.0_dp, 0.0_dp, 0.0_dp]
-        spacing = [comp_grid%Dpm(1), comp_grid%Dpm(2), comp_grid%Dpm(3)]
-        ! Construct file name
-        write (filout, '(a)') trim(case_folder)//trim(mesh_folder)//trim(field_name)//".h5"
-        ! Informative print statement
-        write (dummy_string, "(A)") achar(9)//'Writing field to HDF5 file: '//trim(filout)
-        call vpm_print(dummy_string, nocolor, 1)
-
-        if (present(compression)) then
-            comp_level = compression
-        end if
-        ! Open HDF5 file
-        call h5f%open(trim(filout), action='w', comp_lvl=comp_level)
-        ! Write Attributes
-        call h5f%writeattr('/', 'dims', comp_grid%NN)
-        call h5f%writeattr('/', 'origin', origin)
-        call h5f%writeattr('/', 'spacing', spacing)
-        call h5f%writeattr('/', 'NN_bl', comp_grid%NN_bl)
-
-        ! Create datasets for each variable
-        call h5f%create('/FIELD', H5T_NATIVE_DOUBLE, dset_dims=[neq, comp_grid%NN(1), comp_grid%NN(2), comp_grid%NN(3)])
-
-        ! Write the field to the HDF5 file
-        call h5f%write('/FIELD', field)
-        call h5f%writeattr('/FIELD', 'AttributeType', 'Vector')
-        call h5f%writeattr('/FIELD', 'Center', 'Node')
+        call h5f%writeattr('/', 'f_mean', solver_info%f_mean)
+        call h5f%writeattr('/', 'f_max', solver_info%f_max)
+        call h5f%writeattr('/', 'f_min', solver_info%f_min)
+        call h5f%writeattr('/', 'sol_mean', solver_info%sol_mean)
+        call h5f%writeattr('/', 'sol_max', solver_info%sol_max)
+        call h5f%writeattr('/', 'sol_min', solver_info%sol_min)
+        call h5f%writeattr('/', 'residual_mean', solver_info%residual_mean)
+        call h5f%writeattr('/', 'residual_max', solver_info%residual_max)
+        call h5f%writeattr('/', 'residual_min', solver_info%residual_min)
 
         ! Close HDF5 file
         call h5f%close()
+        print *, "Solver metadata written to HDF5 file: ", trim(filename)
+    end subroutine write_solver_metadata_hdf5
 
-    end subroutine write_field_hdf5
+    subroutine write_field_4D_hdf5(field, filename, fieldname, compression)
+        implicit none
+
+        real(dp), intent(in)    :: field(:,:,:,:)
+        character(len=*)        :: filename
+        character(len=*)        :: fieldname
+
+        integer, optional                :: compression
+        integer                          :: comp_level = 0
+        character(len=MAX_STRING_LENGTH) :: filout
+        type(hdf5_file)                  :: h5f
+        logical                          :: exist_flag
+
+        write (filout, '(a)') trim(filename)
+        
+        write (dummy_string, "(A)") achar(9)//'Writing field to HDF5 file: '//trim(filout)
+        call vpm_print(dummy_string, nocolor, 1)
+        if (present(compression)) then
+            comp_level = compression
+        end if
+
+        !  Check if the file exists
+        INQUIRE(file=trim(filout), exist=exist_flag)
+        if (exist_flag) then
+            call h5f%open(trim(filout), action='rw', comp_lvl=comp_level)
+        else
+            call h5f%open(trim(filout), action='w', comp_lvl=comp_level)
+        end if
+
+        ! Check if the filed is 4D or 3D
+        call h5f%create(fieldname, H5T_NATIVE_DOUBLE, dset_dims=shape(field))
+        call h5f%write(fieldname, field)
+        call h5f%close()
+    end subroutine write_field_4D_hdf5
+
+    subroutine write_field_3D_hdf5(field, filename, fieldname, compression)
+        implicit none
+
+        real(dp), intent(in)    :: field(:,:,:)
+        character(len=*)        :: filename
+        character(len=*)        :: fieldname
+
+        integer, optional                :: compression
+        integer                          :: comp_level = 0
+        character(len=MAX_STRING_LENGTH) :: filout
+        type(hdf5_file)                  :: h5f
+
+        write (filout, '(a)') trim(filename)
+        
+        write (dummy_string, "(A)") achar(9)//'Writing field to HDF5 file: '//trim(filout)
+        call vpm_print(dummy_string, nocolor, 1)
+        if (present(compression)) then
+            comp_level = compression
+        end if
+        call h5f%open(trim(filout), action='rw', comp_lvl=comp_level)
+
+        ! Check if the filed is 4D or 3D
+        call h5f%create(fieldname, H5T_NATIVE_DOUBLE, dset_dims=shape(field))
+        call h5f%write(fieldname, field)
+        call h5f%close()
+    end subroutine write_field_3D_hdf5
+    
+    subroutine append_grid_metadata_hdf5(filename, grid)
+        implicit none
+        type(cartesian_grid), intent(in) :: grid
+        character(len=MAX_STRING_LENGTH) :: filename
+        type(hdf5_file)                   :: h5f
+
+        call h5f%open(trim(filename), action='rw')
+
+        call h5f%writeattr('/', 'NN', grid%NN)
+        call h5f%writeattr('/', 'NN_bl', grid%NN_bl)
+        call h5f%writeattr('/', 'Xbound', grid%Xbound)
+        call h5f%writeattr('/', 'Dpm', grid%Dpm)
+
+        call h5f%close()
+    end subroutine append_grid_metadata_hdf5
 
 end module file_io

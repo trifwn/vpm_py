@@ -17,19 +17,19 @@ Program test_pm
    use vpm_vars, only:  interf_iproj, idefine, OMPTHREADS, iyntree, ilevmax, ibctyp, NBI, NBJ, NBK
    use vpm_size, only:  st, et, fine_grid
    use test_mod, only:  XPR, QPR, UPR, GPR, NVR_ext, QPO, XPO, Qflag, &
-                        QP_in, XP_in, RHS_ptr, vel_ptr, SOL_ptr
+                        QP_in, XP_in, RHS_ptr, vel_ptr
    use test_app, only:  hill_assign
    use parvar, only:    NVR
    use vpm_lib, only:   vpm, vpm_solve_pressure, vpm_correct_vorticity, vpm_diffuse, &
                         vpm_define_problem, vpm_solve_velocity_deformation
    ! use vpm_remesh, only: remesh_particles_3d, interpolate_and_remesh_particles
-   use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, write_pressure_hdf5, case_folder 
-   use console_io, only: vpm_print, red, green, blue, yellow, nocolor, dummy_string, tab_level, VERBOCITY
-   use serial_vector_field_operators, only: divergence
+   use file_io, only:    write_pm_solution_hdf5, write_particles_hdf5, case_folder 
+   use console_io
+   use serial_vector_field_operators
    use MPI
 
    implicit none
-   real(dp)             :: viscocity, dt, FACDEF, T, XMIN, XMAX, UINF(3), density
+   real(dp)             :: viscocity, dt, T, XMIN, XMAX, UINF(3), density
    integer              :: NVR_size
    integer              :: my_rank, np, ierr, i, neq, j, max_iter
    logical              :: pmfile_exists
@@ -353,7 +353,6 @@ Program test_pm
          st = MPI_WTIME()
          call write_particles_hdf5(i, XPR, UPR, QPR, GPR, neq, NVR, NVR_ext)
          call write_pm_solution_hdf5(i, fine_grid%NN, fine_grid%NN_bl, neq, RHS_ptr, SOL_pm, velocity_pm, deform_pm)
-         call write_pressure_hdf5(i, fine_grid%NN, fine_grid%NN_bl, pressure)
          et = MPI_WTIME()
          write (dummy_string, "(A,I3,A,F8.3,A)") &
                achar(9)//'finished in:', int((et - st)/60), 'm', mod(et - st, 60.d0), 's'

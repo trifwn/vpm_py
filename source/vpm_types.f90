@@ -75,7 +75,6 @@ module vpm_types
         real(dp)    :: total_momentum_z_pm, total_momentum_z_particles
         
         real(dp)    :: total_kinetic_energy_pm, total_kinetic_energy_particles
-        real(dp)    :: total_vorticity_pm, total_vorticity_particles
         real(dp)    :: total_enstrophy_pm, total_enstrophy_particles
         
     end type timestepInformation
@@ -94,4 +93,13 @@ module vpm_types
         real(dp), allocatable :: residual_max(:)
         real(dp), allocatable :: residual_min(:)
     end type solveInformation
+
+    type vpmProblem
+        type(cartesian_grid)      :: grid
+        type(particleCollection)  :: particles
+        type(timestepInformation) :: timeInfo
+        type(solveInformation)    :: solveInfo
+        integer                   :: solver
+        integer                   :: num_eq
+    end type vpmProblem
 end module vpm_types

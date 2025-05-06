@@ -1,10 +1,10 @@
 import numpy as np
 from vpm_py import VPM
-from scipy.special import gammaincc
+from scipy.special import gammainc
 
 def oseen_vortex(
     control_points: np.ndarray, 
-    gamma: float, 
+    G: float, 
     viscosity: float,
     density: float,
     t: float
@@ -20,15 +20,19 @@ def oseen_vortex(
     # Convert to spherical coordinates
     r = np.sqrt(x**2 + y**2 )
     theta = np.arctan2(y, x)
-    exponent = -r**2 / (4 * viscosity * t)
-    D = gamma / (2 * np.pi)
 
-    u_theta = (D/r) *(1 - np.exp(exponent))
+    exponent = r**2 / (4 * viscosity * t)
+    D = G / (2 * np.pi)
 
+    u_theta = (D/r) *(1 - np.exp(-exponent))
+
+    r_safe = np.where(r == 0, 1e-10, r)
+    
+    # Compute the pressure field
     pressure = density * D**2 * (
-        -1/(2*r**2) + 
-        1/(4*viscosity*t) * (
-            gammaincc(1, -exponent) - gammaincc(1, -2 * exponent)
+        1/(2 * r_safe**2) * (1 - np.exp(-exponent))**2 
+        - 1/(4 * viscosity * t) * (
+            gammainc(0, exponent) - gammainc(0, 2 * exponent)
         )
     )
 
@@ -39,7 +43,7 @@ def oseen_vortex(
 
     vorticity[:, :, :, 0] = 0
     vorticity[:, :, :, 1] = 0
-    vorticity[:, :, :, 2] = gamma / (4 * np.pi * viscosity * t) * np.exp(exponent) 
+    vorticity[:, :, :, 2] = G / (4 * np.pi * viscosity * t) * np.exp(-exponent) 
     return velocity, vorticity, pressure
 
 def oseen_assign(
@@ -60,7 +64,7 @@ def oseen_assign(
 
     analytical_velocity, analytical_vorticity, analytical_pressure = oseen_vortex(
         control_points= CP, 
-        gamma= gamma,
+        G= gamma,
         viscosity= viscosity, 
         density= density,
         t= t
@@ -73,9 +77,8 @@ def oseen_assign(
     # Move axis
     analytical_vorticity = np.moveaxis(analytical_vorticity, [0, 1, 2, 3], [1, 2, 3, 0])
     analytical_velocity = np.moveaxis(analytical_velocity, [0, 1, 2, 3], [1, 2, 3, 0])
-    # analytical_pressure = np.moveaxis(analytical_pressure, [0, 1, 2], [2, 1, 0])
 
     analytical_vorticity = np.asfortranarray(analytical_vorticity)
     analytical_velocity = np.asfortranarray(analytical_velocity)
-    # analytical_pressure = np.asfortranarray(analytical_pressure)
+    analytical_pressure = np.asfortranarray(analytical_pressure)
     return analytical_velocity, analytical_vorticity, analytical_pressure

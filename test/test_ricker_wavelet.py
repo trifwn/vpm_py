@@ -19,9 +19,9 @@ def main():
     VISCOSITY = 100 #np.linalg.norm(UINF) * SPHERE_RADIUS / REYNOLDS_NUMBER
     dpm = np.array([0.2, 0.2, 0.2])
     # DT should be set according to the CFL condition: CFL = U * DT / dx < 1
-    DT =  1 / (6 * VISCOSITY) / (1 / dpm[0]**2 + 1 / dpm[1]**2 + 1 / dpm[2]**2)
+    DT =  1 / (12 * VISCOSITY) / (1 / dpm[0]**2 + 1 / dpm[1]**2 + 1 / dpm[2]**2)
 
-    TIMESTEPS = 500
+    TIMESTEPS = 1000
 
     # OPTIONS
     remesh = True

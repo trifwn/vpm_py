@@ -318,7 +318,7 @@ contains
                ! Decompose nx: find odd part (ixp) and exponent+1 (iex)
                temp = nx - 1
                e = 0
-               do while (temp /= 0 .and. mod(temp, 2) == 0)
+               do while (temp .gt. 2 .and. mod(temp, 2) == 0)
                   temp = temp / 2
                   e = e + 1
                end do
@@ -328,7 +328,7 @@ contains
                ! Decompose ny: find odd part (jyq) and exponent+1 (jey)
                temp = ny - 1
                e = 0
-               do while (temp /= 0 .and. mod(temp, 2) == 0)
+               do while (temp .gt. 2 .and. mod(temp, 2) == 0)
                   temp = temp / 2
                   e = e + 1
                end do
@@ -338,7 +338,7 @@ contains
                ! Decompose nz: find odd part (kzr) and exponent+1 (kez)
                temp = nz - 1
                e = 0
-               do while (temp /= 0 .and. mod(temp, 2) == 0)
+               do while (temp .gt. 2 .and. mod(temp, 2) == 0)
                   temp = temp / 2
                   e = e + 1
                end do
@@ -351,7 +351,7 @@ contains
                ! print*, "ny = ", ny, " -> jyq = ", jyq, ", jey = ", jey
                ! print*, "nz = ", nz, " -> kzr = ", kzr, ", kez = ", kez
 
-               ! ! Verification: iprm(14:16) should match nx, ny, nz respectively
+               ! Verification: iprm(14:16) should match nx, ny, nz respectively
                ! print*, "Verification:"
                ! print*, "iprm(14) = ixp * 2^(iex-1) + 1 = ", ixp * 2**(iex-1) + 1
                ! print*, "iprm(15) = jyq * 2^(jey-1) + 1 = ", jyq * 2**(jey-1) + 1

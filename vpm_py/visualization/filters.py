@@ -180,8 +180,8 @@ class PositionFilter(Filter):
         self,
         type: Literal['greater', 'less', 'equal', 'within'],
         axis: int,
-        position: np.ndarray,
-        tolerance: float = 0,
+        position: float | np.ndarray,
+        tolerance: float = 0.,
     ):
         self.position = position
         if type == 'greater':

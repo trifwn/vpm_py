@@ -39,7 +39,6 @@ contains
    subroutine calc_vortex_stretching_conservative(velocity, deformation)
       use MPI
       use pmgrid, only: deform_pm, RHS_pm
-      use vpm_vars, only: neqpm
       use vpm_size, only: fine_grid
       use console_io, only: vpm_print, blue, yellow, dummy_string
       implicit none

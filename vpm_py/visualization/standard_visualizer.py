@@ -17,7 +17,7 @@ class StandardVisualizer(Visualizer):
                 component= plot_particles[1],
                 filters=[
                     # ValueSelector('top_num',  50000),
-                    # PositionFilter('greater', axis= 1, position = 0.0),
+                    PositionFilter('greater', axis= 1, position = 0.0),
                 ],
                 options={
                     "s": "auto",
