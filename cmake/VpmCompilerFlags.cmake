@@ -1,10 +1,13 @@
 function(setup_vpm_compiler_flags)
     if(USE_INTEL_COMPILER) 
-        set(COMPILE_FLAGS -fpp -DASCII=1 -DHAVE_OMP -fPIC)
-        set(LINK_FLAGS "-qopenmp -fPIC")
+        set(COMPILE_FLAGS  -DASCII=1 -DHAVE_OMP -fPIC)
+        set(LINK_FLAGS "-qopenmp -qmkl -fPIC")
 
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
-                    -O0 ${MKL_FLAG} -g -traceback -fpe0 -I${MKLROOT}/include
+                    -g -traceback -fpe0 
+                    -O0 ${MKL_FLAG} 
+                    -I${MKLROOT}/include 
+                    -L${MKLROOT}/lib/intel64
                     -check all,nouninit
                     -init=snan -init=arrays
                     -ftrapuv
@@ -18,6 +21,7 @@ function(setup_vpm_compiler_flags)
         set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} 
                     -O3 ${MKL_FLAG} 
                     -I${MKLROOT}/include 
+                    -L${MKLROOT}/lib/intel64
                     -ffast-math 
                     -march=native
                     PARENT_SCOPE
@@ -26,7 +30,7 @@ function(setup_vpm_compiler_flags)
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${LINK_FLAGS} ${MKL_FLAG} -O0 -g -traceback -fpe0 -check all,nouninit" PARENT_SCOPE)        
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${LINK_FLAGS} ${MKL_FLAG} -O3 -march=native -flto" PARENT_SCOPE)        
     else()
-        set(COMPILE_FLAGS -cpp -ffree-line-length-512 -DASCII=1 -llapack -lblas -lmpi -fPIC -lhdf5)
+        set(COMPILE_FLAGS -ffree-line-length-512 -DASCII=1 -llapack -lblas -lmpi -fPIC -lhdf5)
         set(LINK_FLAGS "-fopenmp -fPIC")
         
         set(Fortran_FLAGS_DEBUG ${COMPILE_FLAGS} 
@@ -55,4 +59,13 @@ function(set_compiler_flags target)
     else()
         target_compile_options(${target} PRIVATE ${Fortran_FLAGS_RELEASE})
     endif()
+endfunction()
+
+function(set_preprocessor_flag target)
+    # Set the -cpp or -fpp flag for the target
+    if (USE_INTEL_COMPILER)
+        target_compile_options(${target} PRIVATE -fpp)
+    else()
+        target_compile_options(${target} PRIVATE -cpp)
+    endif() 
 endfunction()

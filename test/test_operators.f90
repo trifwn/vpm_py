@@ -537,8 +537,8 @@ contains
                                     hes(i, d1, d2, j,k,l),                                &
                                     analytic_hes(i, d1, d2, j,k,l)
                               diff = abs(hes(i, d1, d2, j,k,l) - analytic_hes(i, d1, d2, j,k,l))
-                              print "(A, E12.6)", "  - Difference: ", diff
-                              print "(A, E12.6)", "  - Tolerance: ", tol
+                              print "(A, E13.6)", "  - Difference: ", diff
+                              print "(A, E13.6)", "  - Tolerance: ", tol
                               test_passed = .false.
                               exit
                            end if

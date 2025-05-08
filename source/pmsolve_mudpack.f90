@@ -1,6 +1,6 @@
 
 submodule(pmlib) pmsolve_mudpack
-   use mudpack
+   use mud3sp
    implicit none
 contains
    !-----------------------------------------------------------------------!
@@ -46,7 +46,6 @@ contains
 
     subroutine solve_mudpack_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq, has_bc)
         use console_io, only: print_stats_rank4, print_stats_rank3
-        use mudpack
         implicit none
         !--------------------------------------------------------------------
         ! Arguments:

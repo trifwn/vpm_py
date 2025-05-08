@@ -1,8 +1,13 @@
-submodule(pmlib) pmsolve
-   use MKL_POISSON, only: DFTI_DESCRIPTOR, &
-                          d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D, &
-                          d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
+submodule(pmlib) pmsolve_mkl
+   ! use MKL_POISSON, only: DFTI_DESCRIPTOR, &
+   !                        d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D, &
+   !                        d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
+   ! use MKL
    implicit none
+
+   TYPE :: DFTI_DESCRIPTOR
+      INTEGER :: dontuse
+   END TYPE DFTI_DESCRIPTOR
 contains
 
    !-----------------------------------------------------------------------!
@@ -293,7 +298,6 @@ contains
       real(dp)     :: XMinCalc, XmaxCalc, YMinCalc, YmaxCalc, ZminCalc, ZmaxCalc
       integer              :: ipar(128), stat
       integer              :: NN, nod, NNX, NNY, NNZ
-      ! real(dp), allocatable:: f(:), bd_ax(:), bd_bx(:), bd_ay(:), bd_by(:), bd_az(:), bd_bz(:)
       real(dp)     :: dpar((5*(NXf - NXs + NYf - NYs)/2) + 9)
       real(dp)     ::  f((NXf - NXs + 1)*(NYf - NYs + 1)*(NZf - NZs + 1))
       real(dp)     ::  bd_ax((NYf - NYs + 1)*(NZf - NZs + 1)), bd_bx((NYf - NYs + 1)*(NZf - NZs + 1))
@@ -425,4 +429,4 @@ contains
          end do
       end do
    end subroutine solve_eq_0_3d
-End Submodule pmsolve
+End Submodule pmsolve_mkl

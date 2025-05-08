@@ -59,6 +59,9 @@ endif()
 include(SetupHDF5)
 setup_hdf5()
 
+include(SetupMudpackSP)
+setup_mudpack_sp()
+
 # Setup compiler flags
 include(VpmCompilerFlags)
 setup_vpm_compiler_flags()
@@ -169,6 +172,13 @@ install(TARGETS vpm_py_api
 )
 
 install(TARGETS h5fortran
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+    INCLUDES DESTINATION ${INCLUDE_INSTALL_DIR}
+)
+
+install(TARGETS mudpack_sp
     LIBRARY DESTINATION ${LIB_INSTALL_DIR}
     ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
     RUNTIME DESTINATION ${LIB_INSTALL_DIR}

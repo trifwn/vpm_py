@@ -5,7 +5,7 @@ function(define_vpm_targets)
 
     set(PM_LIB_FILES_MKL
         ${SRC_VPM}/pmlib.f90
-        ${SRC_VPM}/pmsolve.f90
+        ${SRC_VPM}/pmsolve_mkl.f90
         ${SRC_VPM}/pmbound.f90
         ${SRC_VPM}/pinfdomain.f90
     )
@@ -44,13 +44,9 @@ function(define_vpm_targets)
         ${SRC_VPM}/pmlib.f90
         ${SRC_VPM}/pmbound.f90
         ${SRC_VPM}/pinfdomain.f90
-        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/pmsolve.f90>
+        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/pmsolve_mkl.f90>
         $<$<NOT:$<BOOL:${USE_MKL}>>:${SRC_VPM}/pmsolve_fish.f90>
         
-        #  MKL Headers
-        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/mkl_poisson.f90>
-        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/mkl_dfti.f90>
-
         # YAPSLIB
         ${SRC_VPM}/yaps.f90
         ${SRC_VPM}/yaps2d.f90
@@ -68,16 +64,6 @@ function(define_vpm_targets)
         ${SRC_VPM}/parvar.f90
         ${SRC_VPM}/pmgrid.f90
         ${SRC_VPM}/pmproject.f90
-    )
-    # -------------------------------------------------------------------------------------------------
-    #                                            Mudpack Library
-    # -------------------------------------------------------------------------------------------------
-    add_library(mudpack OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/source/mudpack/mudpack.f)
-    #  Add compiler flags for the mudpack library
-    set_compiler_flags(mudpack)
-    # Add extra flags for the mudpack library
-    target_compile_options(mudpack PRIVATE 
-        -fdefault-real-8
     )
 
     # -------------------------------------------------------------------------------------------------
@@ -108,12 +94,6 @@ function(define_vpm_targets)
 
     message(STATUS "Using MKl implementation: ${USE_MKL}")
     if (USE_MKL)
-        message("\tCompiling with MKL headers")
-        add_library(mkl_dfti OBJECT ${SRC_VPM}/mkl_dfti.f90)
-        
-        add_library(mkl_poisson OBJECT ${SRC_VPM}/mkl_poisson.f90 )
-        target_link_libraries(mkl_poisson PRIVATE mkl_dfti)
-
         add_library(pmlib OBJECT ${PM_LIB_FILES_MKL})
     else()
         message("\tCompiling with Fishpack headers")
@@ -122,7 +102,6 @@ function(define_vpm_targets)
 
     target_link_libraries(pmlib PRIVATE 
         console_io types constants
-        $<$<BOOL:${USE_MKL}>:mkl_poisson>               # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>           # Link with Fishpack if USE_MKL is false
     )
     target_compile_options(pmlib PRIVATE 
@@ -161,10 +140,10 @@ function(define_vpm_targets)
 
     add_library(vpm_functions OBJECT ${SRC_VPM}/vpm_functions.f90)
     target_link_libraries(vpm_functions PRIVATE
-        mudpack 
         types constants console_io 
         vpm_vars vpm_size vpm_mpi vpm_interpolate  
         pmgrid pmproject parvar pmlib yaps operators_serial 
+        mudpack_sp 
     )
 
     add_library(vpm_remesh OBJECT ${SRC_VPM}/vpm_remesh.f90)
@@ -181,8 +160,7 @@ function(define_vpm_targets)
         vpm_mpi vpm_remesh vpm_functions
         mpi_matrices parvar pmgrid yaps pmlib pmproject 
     PRIVATE
-        mudpack
-        $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
+        mudpack_sp
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
         h5fortran::h5fortran
@@ -200,10 +178,10 @@ function(define_vpm_targets)
             console_io file_io types constants 
             mpi_matrices operators_serial 
         PRIVATE 
-            $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
             $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
             $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
             h5fortran::h5fortran
+            mudpack_sp
     )
     target_include_directories(vpm PUBLIC ${LIB_DIRECTORY}) # Set include directories using PUBLIC
     target_compile_options(vpm PRIVATE 
@@ -233,11 +211,10 @@ function(define_vpm_targets)
             console_io file_io types constants 
             mpi_matrices operators_serial 
         PRIVATE 
-            mudpack
-            $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
             $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
             $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
             h5fortran::h5fortran
+            mudpack_sp
     )
     set_target_properties(vpm_py_api PROPERTIES
         OUTPUT_NAME "vpm_py_api"
@@ -250,8 +227,8 @@ function(define_vpm_targets)
     add_executable(vpm_exe ${TEST_EXE_SRC})
     target_link_libraries(vpm_exe PRIVATE 
         vpm
-        mudpack
         h5fortran::h5fortran
+        mudpack_sp
     )
     target_link_options(vpm_exe PRIVATE 
         # $<$<BOOL:${BUILD_STATIC}>:-static>                      # Link statically
@@ -276,9 +253,6 @@ function(define_vpm_targets)
     set_compiler_flags(console_io)
     set_compiler_flags(pmgrid)
     set_compiler_flags(file_io)
-    if(USE_MKL)
-        set_compiler_flags(mkl_poisson)
-    endif()
     set_compiler_flags(pmlib)
     set_compiler_flags(mpi_matrices)
     set_compiler_flags(data_com)
@@ -295,6 +269,7 @@ function(define_vpm_targets)
     set_compiler_flags(vpm_remesh)
     set_compiler_flags(vpm_lib)
     set_compiler_flags(vpm)
+    set_preprocessor_flag(vpm)
     set_compiler_flags(vpm_py_api)
     set_compiler_flags(vpm_exe)
     set_compiler_flags(test_operators)
