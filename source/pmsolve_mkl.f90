@@ -1,10 +1,5 @@
 submodule(pmlib) pmsolve_mkl
-   ! use MKL_POISSON, only: DFTI_DESCRIPTOR, &
-   !                        d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D, &
-   !                        d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
-   ! use MKL
    implicit none
-
    TYPE :: DFTI_DESCRIPTOR
       INTEGER :: dontuse
    END TYPE DFTI_DESCRIPTOR
@@ -16,7 +11,6 @@ contains
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
    module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
-
       implicit none
       integer, intent(in)              :: NXs, NXf, NYs, NYf, neq
       Integer                          :: i, j, NX, NY
@@ -429,4 +423,4 @@ contains
          end do
       end do
    end subroutine solve_eq_0_3d
-End Submodule pmsolve_mkl
+end submodule pmsolve_mkl

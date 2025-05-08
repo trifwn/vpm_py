@@ -31,7 +31,7 @@ def main(
     if BASE_CASE:
         CASE_FOLDER = BASE_CASE
     else:
-        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/test/"
+        CASE_FOLDER = "/mnt/c/Users/tryfonas/Data/mudpack/"
 
     CASE_FOLDER += "hill_vortex"
     if REYNOLDS_NUMBER == np.inf:
@@ -65,7 +65,7 @@ def main(
         number_of_equations= 3,
         number_of_processors= np_procs,
         rank= rank,
-        verbocity= 0,
+        verbocity= 2,
         dx_particle_mesh= dpm[0],
         dy_particle_mesh= dpm[1],
         dz_particle_mesh= dpm[2],
@@ -136,9 +136,7 @@ def main(
     print_red(f"Approximate CFL: {np.sum(np.linalg.norm(UINF) * DT / vpm.dpm)}", rank)
 
     # for i in range(start_iter, TIMESTEPS+1):
-    TFINAL = 5.
-    TIMESTEPS = int(TFINAL / DT)
-    while T < TFINAL:
+    for i in range(start_iter, TIMESTEPS+1):
         NVR = vpm.particles.NVR
         comm.Barrier()
         grid_dimensions = vpm.particle_mesh.grid_size
@@ -401,14 +399,14 @@ def stability_check(DT, VISCOSITY, U_PM, dpm, CFL_LIMITS, CFL_TARGET):
 
 
 if __name__ == "__main__":
-    REYNOLDS_NUMBER = [10, 100, 500, 1000]
+    REYNOLDS_NUMBER = [10]
     for RE in REYNOLDS_NUMBER:
         main(
             REYNOLDS_NUMBER=RE, 
-            REMESH_FREQUENCY=5, 
+            REMESH_FREQUENCY=np.inf, 
             apply_vorticity_correction=False, 
             INITIALIZE_CASE=True, 
-            TIMESTEPS=750
+            TIMESTEPS=10
         )
 
     MPI.Finalize()

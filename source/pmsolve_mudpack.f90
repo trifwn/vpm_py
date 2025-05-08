@@ -1,6 +1,5 @@
-
 submodule(pmlib) pmsolve_mudpack
-   use mud3sp
+   use mudpack_sp
    implicit none
 contains
    !-----------------------------------------------------------------------!
@@ -8,14 +7,14 @@ contains
    !   This subroutines calls the fft library to solve for Phi poisson     !
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
-   subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
+    subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
         implicit none
         integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
         logical                 :: has_bc
 
         has_bc = .true.
         call solve_mudpack_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq, has_bc)
-   end subroutine solve_eq_3d
+    end subroutine solve_eq_3d
 
     subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
         implicit none
@@ -35,14 +34,14 @@ contains
         stop
     end subroutine solve_eq
 
-   module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
+    module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
         implicit none
         integer, intent(in)           :: NXs, NXf, NYs, NYf, neq
 
         ! Raise NotImplementedError
         write(*,*) 'solve_eq_0 not implemented'
         stop
-   end subroutine solve_eq_0
+    end subroutine solve_eq_0
 
     subroutine solve_mudpack_3D(NXs, NXf, NYs, NYf, NZs, NZf, neq, has_bc)
         use console_io, only: print_stats_rank4, print_stats_rank3

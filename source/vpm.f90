@@ -1,6 +1,6 @@
 module vpm_lib
     ! SPEED
-#ifdef USE_INTEL
+#ifdef HAS_MKL 
     use mkl_service
 #endif
     use MPI
@@ -34,7 +34,7 @@ module vpm_lib
 contains
 
     subroutine set_num_threads()
-#ifdef USE_INTEL
+#ifdef HAS_MKL 
         if (SOLVER .eq. 1) then
             call mkl_set_num_threads(OMPTHREADS)
         end if

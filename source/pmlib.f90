@@ -11,6 +11,11 @@ module pmlib
     use constants, only: pi, pi2, pi4
     use console_io, only: vpm_print, red, blue, green, nocolor, yellow, dummy_string, tab_level, VERBOCITY
     implicit none
+    ! integer, parameter            :: FISHPACK  = 0,   &
+    !                                  MUDPACK   = 1,   &
+    !                                  INTEL_MKL = 2
+    ! integer                       :: SOLVER = MUDPACK
+    
     real(dp), save                :: XMIN_pm, XMAX_pm, YMIN_pm, YMAX_pm, ZMIN_pm, ZMAX_pm
     real(dp), save                :: DXpm, DYpm, DZpm
 

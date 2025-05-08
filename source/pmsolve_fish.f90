@@ -1,4 +1,5 @@
 submodule(pmlib) pmsolve_fish
+   use fishpack
    implicit none
 contains
    !-----------------------------------------------------------------------!
@@ -7,7 +8,6 @@ contains
    !   in all the points of Particle mesh.Dirichlet Boundary Cond. are used!
    !-----------------------------------------------------------------------!
    subroutine solve_eq_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-      use fishpack
       implicit none
       integer, intent(in)  :: NXs, NXf, NYs, NYf, NZs, NZf, neq
       Integer              :: i, j, k, NX, NY, NZ, IERROR
@@ -79,7 +79,6 @@ contains
    end subroutine solve_eq_3d
 
    subroutine solve_eq_0_3d(NXs, NXf, NYs, NYf, NZs, NZf, neq)
-      use fishpack
       implicit none
       integer, intent(in)     :: NXs, NXf, NYs, NYf, NZs, NZf, neq
       Integer                 :: NX, NY, NZ, IERROR
@@ -128,8 +127,7 @@ contains
       end if
    end subroutine solve_eq_0_3d
 
-   module subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
-      use fishpack
+   subroutine solve_eq(NXs, NXf, NYs, NYf, neq)
       implicit none
       integer, intent(in)   :: NXs, NXf, NYs, NYf, neq
       Integer               :: i, j, INFO, NX, NY
@@ -187,8 +185,7 @@ contains
       end if
    end subroutine solve_eq
 
-   module subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
-      use fishpack
+   subroutine solve_eq_0(NXs, NXf, NYs, NYf, neq)
       implicit none
       integer, intent(in)           :: NXs, NXf, NYs, NYf, neq
       Integer                       :: INFO, NX, NY
