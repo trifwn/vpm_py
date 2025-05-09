@@ -18,7 +18,7 @@ module vpm_vars
     integer, parameter         :: SOLVER_SERIAL_PMESH = 0,  &
                                   SOLVER_YAPS = 1,          &
                                   SOLVER_MUDPACK = 2
-    integer                    :: SOLVER = 2 
+    integer                    :: SOLVER = SOLVER_YAPS 
     type(timestepInformation)  :: timestep_info
     type(solveInformation)     :: solve_info
 

@@ -19,7 +19,7 @@ function(setup_hdf5)
             FetchContent_Declare(h5fortran
                 GIT_REPOSITORY https://github.com/geospace-code/h5fortran.git
                 TLS_VERIFY true
-                GIT_TAG v4.10.6
+                GIT_TAG main
             )
             # FetchContent_MakeAvailable(h5fortran)
             FetchContent_GetProperties(h5fortran)

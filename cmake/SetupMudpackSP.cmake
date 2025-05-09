@@ -26,8 +26,4 @@ function(setup_mudpack_sp)
     # Print the targets in the mudpack_sp library
     get_property(mudpack_sp_targets DIRECTORY ${mudpack_sp_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
     # Print the targets
-    message(STATUS "Targets in mudpack_sp:")
-    foreach(target ${mudpack_sp_targets})
-        message(STATUS "  ${target}")
-    endforeach()
 endfunction()

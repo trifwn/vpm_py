@@ -1,8 +1,17 @@
 submodule(pmlib) pmsolve_mkl
+   use MKL_POISSON, only: DFTI_DESCRIPTOR, &
+                          d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, free_Helmholtz_2D, &
+                          d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, free_Helmholtz_3D
    implicit none
-   TYPE :: DFTI_DESCRIPTOR
-      INTEGER :: dontuse
-   END TYPE DFTI_DESCRIPTOR
+   ! external :: d_init_Helmholtz_2D, d_commit_Helmholtz_2D, d_Helmholtz_2D, &
+   !             d_init_Helmholtz_3D, d_commit_Helmholtz_3D, d_Helmholtz_3D, &
+   !             free_Helmholtz_2D, free_Helmholtz_3D
+
+   ! ! DFTI_DESCRIPTOR
+   ! type, public :: DFTI_DESCRIPTOR
+   !    private
+   !    integer :: dontuse
+   ! end type DFTI_DESCRIPTOR
 contains
 
    !-----------------------------------------------------------------------!
@@ -63,25 +72,25 @@ contains
       allocate (dpar(int(5*(NX - 1)/2) + 7))
       call d_init_Helmholtz_2D(XminCalc, XmaxCalc, YminCalc, YmaxCalc, NX - 1, NY - 1, 'DDDD', 0.d0, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq: d_init_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_commit_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq: d_commit_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq: d_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call free_Helmholtz_2D(xhandle, ipar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq: free_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
@@ -141,25 +150,25 @@ contains
       allocate (dpar(int(5*(NX - 1)/2) + 7))
       call d_init_Helmholtz_2D(XminCalc, XmaxCalc, YminCalc, YmaxCalc, NX - 1, NY - 1, 'DDDD', 0.d0, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0: d_init_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_commit_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0: d_commit_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_Helmholtz_2D(f, bd_ax, bd_bx, bd_ay, bd_by, xhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0: d_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call free_Helmholtz_2D(xhandle, ipar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0: free_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
@@ -251,25 +260,25 @@ contains
       call d_init_Helmholtz_3D(XminCalc, XmaxCalc, YminCalc, YmaxCalc, ZminCalc, ZmaxCalc, NX - 1, NY - 1, NZ - 1, &
                                'DDDDDD', 0.d0, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_3d: d_init_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_3d: d_commit_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call d_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_3d: d_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       call free_Helmholtz_3D(xhandle, yhandle, ipar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_3d: free_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
@@ -384,7 +393,7 @@ contains
          XminCalc, XmaxCalc, YminCalc, YmaxCalc, ZminCalc, ZmaxCalc, NX - 1, NY - 1, NZ - 1, BCtype, 0.d0, ipar, dpar, stat &
          )
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0_3d: d_init_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
@@ -393,7 +402,7 @@ contains
       ! you should save it in another memory location!
       call d_commit_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0_3d: d_commit_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
@@ -403,14 +412,14 @@ contains
       ! Otherwise the results may be wrong.
       call d_Helmholtz_3D(f, bd_ax, bd_bx, bd_ay, bd_by, bd_az, bd_bz, xhandle, yhandle, ipar, dpar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: d_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0_3d: d_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 
       ! Cleaning the memory used by xhandle and yhandle
       call free_Helmholtz_3D(xhandle, yhandle, ipar, stat)
       if (stat .ne. 0) then
-         write (*, *) 'Error in solve_eq_0_3d: free_Helmholtz_3D'
+         write (*, *) 'Error in solve_eq_0_3d: free_Helmholtz_3D. Got stat = ', stat
          stop
       end if
 

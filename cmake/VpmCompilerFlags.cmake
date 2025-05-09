@@ -16,6 +16,7 @@ function(setup_vpm_compiler_flags)
                     -implicitnone
                     -fstack-protector-all
                     -warn all
+                    -lunwind
                     PARENT_SCOPE
         )
         set(Fortran_FLAGS_RELEASE ${COMPILE_FLAGS} 

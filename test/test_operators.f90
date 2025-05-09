@@ -15,7 +15,7 @@ module test_operators
    real(dp), parameter ::  dx = 0.01_dp 
    real(dp), parameter ::  dy = 0.01_dp
    real(dp), parameter ::  dz = 0.01_dp
-   real(dp), parameter :: tol = 1.0e-8_dp
+   real(dp), parameter ::  tol = 1.0e-8_dp
 contains
 
    subroutine run_all_tests()

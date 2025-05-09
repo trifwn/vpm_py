@@ -174,7 +174,7 @@ contains
          NVR = (nzfin - nzstart + 1)*NVR
          NVR = NVR*ncell
 
-         write (dummy_string, "(A,I5)") 'Allocating XP_tmp and QP_tmp with NVR:', NVR
+         write (dummy_string, "(A,I10)") 'Allocating XP_tmp and QP_tmp with NVR:', NVR
          call vpm_print(dummy_string, nocolor, 2)
 
          allocate (XP_tmp(3, NVR), QP_tmp(neqpm + 1, NVR))

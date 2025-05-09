@@ -47,6 +47,10 @@ function(define_vpm_targets)
         $<$<BOOL:${USE_MKL}>:${SRC_VPM}/pmsolve_mkl.f90>
         $<$<NOT:$<BOOL:${USE_MKL}>>:${SRC_VPM}/pmsolve_fish.f90>
         
+        #  MKL Headers
+        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/mkl_poisson.f90>
+        $<$<BOOL:${USE_MKL}>:${SRC_VPM}/mkl_dfti.f90>
+        
         # YAPSLIB
         ${SRC_VPM}/yaps.f90
         ${SRC_VPM}/yaps2d.f90
@@ -94,6 +98,11 @@ function(define_vpm_targets)
 
     message(STATUS "Using MKl implementation: ${USE_MKL}")
     if (USE_MKL)
+        add_library(mkl_dfti OBJECT ${SRC_VPM}/mkl_dfti.f90)
+
+        add_library(mkl_poisson OBJECT ${SRC_VPM}/mkl_poisson.f90 )
+        target_link_libraries(mkl_poisson PRIVATE mkl_dfti)
+
         add_library(pmlib OBJECT ${PM_LIB_FILES_MKL})
     else()
         message("\tCompiling with Fishpack headers")
@@ -102,6 +111,7 @@ function(define_vpm_targets)
 
     target_link_libraries(pmlib PRIVATE 
         console_io types constants
+        $<$<BOOL:${USE_MKL}>:mkl_poisson>               # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>           # Link with Fishpack if USE_MKL is false
     )
     target_compile_options(pmlib PRIVATE 
@@ -161,6 +171,7 @@ function(define_vpm_targets)
         mpi_matrices parvar pmgrid yaps pmlib pmproject 
     PRIVATE
         mudpack_sp
+        $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
         $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
         $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
         h5fortran::h5fortran
@@ -178,6 +189,7 @@ function(define_vpm_targets)
             console_io file_io types constants 
             mpi_matrices operators_serial 
         PRIVATE 
+            $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
             $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
             $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
             h5fortran::h5fortran
@@ -211,6 +223,7 @@ function(define_vpm_targets)
             console_io file_io types constants 
             mpi_matrices operators_serial 
         PRIVATE 
+            $<$<BOOL:${USE_MKL}>:mkl_poisson>                       # Link with MKL if USE_MKL is true
             $<$<NOT:$<BOOL:${USE_MKL}>>:fishpack>                   # Link with Fishpack
             $<$<BOOL:${USE_MKL}>:${MKL_LINK_FLAGS}>                 # Link MKL
             h5fortran::h5fortran
@@ -273,4 +286,7 @@ function(define_vpm_targets)
     set_compiler_flags(vpm_py_api)
     set_compiler_flags(vpm_exe)
     set_compiler_flags(test_operators)
+    if(USE_MKL)
+        set_compiler_flags(mkl_poisson)
+    endif()
 endfunction()

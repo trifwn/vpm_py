@@ -4,18 +4,17 @@ module ND_Arrays
     implicit none
 
     type, bind(C) :: ND_Array
-        integer(c_int) :: ndims               ! Number of dimensions
-        integer(c_int) :: total_size          ! Total size of the data array
-        type(C_PTR) :: shape_ptr       ! Pointer to the shape array
-        type(C_PTR) :: data_ptr        ! Pointer to the actual data
-        integer(c_int) :: own_data            ! Does the array own the data?
+        integer(c_int)  :: ndims                  ! Number of dimensions
+        integer(c_int)  :: total_size             ! Total size of the data array
+        type(C_PTR)     :: shape_ptr              ! Pointer to the shape array
+        type(C_PTR)     :: data_ptr               ! Pointer to the actual data
+        integer(c_int)  :: own_data               ! Does the array own the data?
         ! Optional members
-        ! integer :: ref_count           ! Reference count
-        ! logical :: is_view             ! Is the array a view?
-        ! type(ND_Array), pointer :: parent_arr  ! Pointer to the parent array
-
-        ! integer :: data_location       ! 0: Fortran, 1: C
-        ! real(dp) , allocatable :: data_arr(:)
+        ! integer :: ref_count                    ! Reference count
+        ! logical :: is_view                      ! Is the array a view?
+        ! type(ND_Array), pointer :: parent_arr   ! Pointer to the parent array
+        ! integer :: data_location                ! 0: Fortran, 1: C
+        ! real(dp) , allocatable  :: data_arr(:)
     end type ND_Array
 
     ! Create a new type that includes the data array it should inherit from the ND_Array type
